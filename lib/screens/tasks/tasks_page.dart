@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/life_task.dart';
 import '../../repositories/task_repository.dart';
+import 'task_detail_page.dart';
 import 'task_form_page.dart';
 
 class TasksPage extends StatelessWidget {
@@ -12,49 +13,45 @@ class TasksPage extends StatelessWidget {
     required this.taskRepository,
   });
 
-  Future<void> _openTaskForm(
-    BuildContext context, {
-    LifeTask? task,
-  }) async {
+  Future<void> _addTask(
+    BuildContext context,
+  ) async {
     final result =
         await Navigator.push<
             TaskFormResult>(
       context,
       MaterialPageRoute(
         builder: (_) =>
-            TaskFormPage(
-          initialTask: task,
-        ),
+            const TaskFormPage(),
       ),
     );
 
-    if (result == null) {
+    if (result == null ||
+        result.shouldDelete ||
+        result.task == null) {
       return;
     }
 
-    if (result.shouldDelete) {
-      if (task != null) {
-        await taskRepository
-            .deleteTask(task.id);
-      }
+    await taskRepository.addTask(
+      result.task!,
+    );
+  }
 
-      return;
-    }
-
-    final savedTask =
-        result.task;
-
-    if (savedTask == null) {
-      return;
-    }
-
-    if (task == null) {
-      await taskRepository
-          .addTask(savedTask);
-    } else {
-      await taskRepository
-          .updateTask(savedTask);
-    }
+  void _openTaskDetail(
+    BuildContext context,
+    LifeTask task,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            TaskDetailPage(
+          task: task,
+          taskRepository:
+              taskRepository,
+        ),
+      ),
+    );
   }
 
   String _twoDigits(
@@ -138,17 +135,13 @@ class TasksPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title:
-            const Text(
-          'Attività',
-        ),
+            const Text('Attività'),
       ),
-
       body: StreamBuilder<
           List<LifeTask>>(
         stream:
             taskRepository
                 .watchAllTasks(),
-
         builder:
             (context, snapshot) {
           if (snapshot.hasError) {
@@ -180,29 +173,23 @@ class TasksPage extends StatelessWidget {
                     const EdgeInsets.all(
                   32,
                 ),
-
                 child: Column(
                   mainAxisSize:
                       MainAxisSize.min,
-
                   children: [
                     Icon(
                       Icons.task_alt,
                       size: 64,
-
                       color:
                           Theme.of(context)
                               .colorScheme
                               .primary,
                     ),
-
                     const SizedBox(
                       height: 20,
                     ),
-
                     Text(
                       'Nessuna attività',
-
                       style:
                           Theme.of(context)
                               .textTheme
@@ -213,19 +200,15 @@ class TasksPage extends StatelessWidget {
                                         .w700,
                               ),
                     ),
-
                     const SizedBox(
                       height: 8,
                     ),
-
                     Text(
                       'Aggiungi qualcosa '
                       'da fare con il '
                       'pulsante +.',
-
                       textAlign:
                           TextAlign.center,
-
                       style:
                           Theme.of(context)
                               .textTheme
@@ -245,22 +228,17 @@ class TasksPage extends StatelessWidget {
             );
           }
 
-          return ListView
-              .separated(
+          return ListView.separated(
             padding:
                 const EdgeInsets.all(
               16,
             ),
-
-            itemCount:
-                tasks.length,
-
+            itemCount: tasks.length,
             separatorBuilder:
                 (_, _) =>
                     const SizedBox(
               height: 8,
             ),
-
             itemBuilder:
                 (context, index) {
               final task =
@@ -269,22 +247,18 @@ class TasksPage extends StatelessWidget {
               return Card(
                 margin:
                     EdgeInsets.zero,
-
                 clipBehavior:
                     Clip.antiAlias,
-
                 child: ListTile(
                   onTap: () {
-                    _openTaskForm(
+                    _openTaskDetail(
                       context,
-                      task: task,
+                      task,
                     );
                   },
-
                   leading: Checkbox(
                     value:
                         task.isCompleted,
-
                     onChanged:
                         (value) async {
                       await taskRepository
@@ -295,10 +269,8 @@ class TasksPage extends StatelessWidget {
                       );
                     },
                   ),
-
                   title: Text(
                     task.title,
-
                     style: TextStyle(
                       decoration:
                           task.isCompleted
@@ -307,36 +279,28 @@ class TasksPage extends StatelessWidget {
                               : null,
                     ),
                   ),
-
                   subtitle: Column(
                     crossAxisAlignment:
                         CrossAxisAlignment
                             .start,
-
                     children: [
                       const SizedBox(
                         height: 3,
                       ),
-
                       Text(
                         _taskSubtitle(
                           task,
                         ),
                       ),
-
                       if (task
                           .description
                           .isNotEmpty) ...[
                         const SizedBox(
                           height: 3,
                         ),
-
                         Text(
-                          task
-                              .description,
-
+                          task.description,
                           maxLines: 2,
-
                           overflow:
                               TextOverflow
                                   .ellipsis,
@@ -344,23 +308,38 @@ class TasksPage extends StatelessWidget {
                       ],
                     ],
                   ),
-
-                  trailing:
+                  trailing: Row(
+                    mainAxisSize:
+                        MainAxisSize.min,
+                    children: [
                       Container(
-                    width: 10,
-                    height: 10,
-
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          _priorityColor(
-                        context,
-                        task.priority,
+                        width: 10,
+                        height: 10,
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              _priorityColor(
+                            context,
+                            task.priority,
+                          ),
+                          shape:
+                              BoxShape.circle,
+                        ),
                       ),
-
-                      shape:
-                          BoxShape.circle,
-                    ),
+                      const SizedBox(
+                        width: 8,
+                      ),
+                      Icon(
+                        Icons
+                            .chevron_right,
+                        color:
+                            Theme.of(
+                          context,
+                        )
+                                .colorScheme
+                                .onSurfaceVariant,
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -368,19 +347,13 @@ class TasksPage extends StatelessWidget {
           );
         },
       ),
-
       floatingActionButton:
           FloatingActionButton(
         onPressed: () {
-          _openTaskForm(
-            context,
-          );
+          _addTask(context);
         },
-
         child:
-            const Icon(
-          Icons.add,
-        ),
+            const Icon(Icons.add),
       ),
     );
   }

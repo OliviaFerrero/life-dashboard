@@ -3,6 +3,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../../models/life_task.dart';
 import '../../repositories/task_repository.dart';
+import '../tasks/task_detail_page.dart';
 import '../tasks/task_form_page.dart';
 
 class CalendarPage extends StatefulWidget {
@@ -41,55 +42,45 @@ class _CalendarPageState
     _focusedDay = _selectedDay;
   }
 
-  Future<void> _openTaskForm({
-    LifeTask? task,
-    DateTime? initialDate,
-  }) async {
+  Future<void> _addTask() async {
     final result =
         await Navigator.push<
             TaskFormResult>(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            TaskFormPage(
-          initialTask: task,
-          initialDate: initialDate,
+        builder: (_) => TaskFormPage(
+          initialDate:
+              _selectedDay,
         ),
       ),
     );
 
-    if (result == null) {
+    if (result == null ||
+        result.shouldDelete ||
+        result.task == null) {
       return;
     }
 
-    if (result.shouldDelete) {
-      if (task != null) {
-        await widget
-            .taskRepository
-            .deleteTask(
-          task.id,
-        );
-      }
+    await widget.taskRepository
+        .addTask(
+      result.task!,
+    );
+  }
 
-      return;
-    }
-
-    final savedTask =
-        result.task;
-
-    if (savedTask == null) {
-      return;
-    }
-
-    if (task == null) {
-      await widget
-          .taskRepository
-          .addTask(savedTask);
-    } else {
-      await widget
-          .taskRepository
-          .updateTask(savedTask);
-    }
+  void _openTaskDetail(
+    LifeTask task,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            TaskDetailPage(
+          task: task,
+          taskRepository:
+              widget.taskRepository,
+        ),
+      ),
+    );
   }
 
   bool _isSameDate(
@@ -292,11 +283,9 @@ class _CalendarPageState
                 padding:
                     const EdgeInsets
                         .all(24),
-
                 child: Text(
                   'Errore nel caricamento:\n'
                   '${snapshot.error}',
-
                   textAlign:
                       TextAlign.center,
                 ),
@@ -329,49 +318,40 @@ class _CalendarPageState
               16,
               100,
             ),
-
             children: [
               SegmentedButton<
                   CalendarFormat>(
                 showSelectedIcon:
                     false,
-
                 segments:
                     const [
                   ButtonSegment(
                     value:
                         CalendarFormat
                             .month,
-
                     icon: Icon(
                       Icons
                           .calendar_month_outlined,
                     ),
-
                     label:
                         Text('Mese'),
                   ),
-
                   ButtonSegment(
                     value:
                         CalendarFormat
                             .week,
-
                     icon: Icon(
                       Icons
                           .view_week_outlined,
                     ),
-
                     label: Text(
                       'Settimana',
                     ),
                   ),
                 ],
-
                 selected: {
                   _calendarFormat,
                 },
-
                 onSelectionChanged:
                     (selection) {
                   setState(() {
@@ -388,17 +368,14 @@ class _CalendarPageState
               Card(
                 margin:
                     EdgeInsets.zero,
-
                 clipBehavior:
                     Clip.antiAlias,
-
                 child: Padding(
                   padding:
                       const EdgeInsets
                           .only(
                     bottom: 8,
                   ),
-
                   child:
                       TableCalendar<
                           LifeTask>(
@@ -408,28 +385,22 @@ class _CalendarPageState
                       1,
                       1,
                     ),
-
                     lastDay:
                         DateTime(
                       now.year + 10,
                       12,
                       31,
                     ),
-
                     focusedDay:
                         _focusedDay,
-
                     calendarFormat:
                         _calendarFormat,
-
                     startingDayOfWeek:
                         StartingDayOfWeek
                             .monday,
-
                     availableGestures:
                         AvailableGestures
                             .horizontalSwipe,
-
                     selectedDayPredicate:
                         (day) {
                       return isSameDay(
@@ -437,7 +408,6 @@ class _CalendarPageState
                         day,
                       );
                     },
-
                     eventLoader:
                         (day) {
                       return _tasksForDay(
@@ -445,7 +415,6 @@ class _CalendarPageState
                         day,
                       );
                     },
-
                     onDaySelected:
                         (
                       selectedDay,
@@ -466,13 +435,11 @@ class _CalendarPageState
                             focusedDay;
                       });
                     },
-
                     onPageChanged:
                         (focusedDay) {
                       _focusedDay =
                           focusedDay;
                     },
-
                     onFormatChanged:
                         (format) {
                       setState(() {
@@ -480,29 +447,23 @@ class _CalendarPageState
                             format;
                       });
                     },
-
                     availableCalendarFormats:
                         const {
                       CalendarFormat
                               .month:
                           'Mese',
-
                       CalendarFormat
                               .week:
                           'Settimana',
                     },
-
                     headerStyle:
                         HeaderStyle(
                       titleCentered:
                           true,
-
                       formatButtonVisible:
                           false,
-
                       titleTextFormatter:
                           _monthYearLabel,
-
                       titleTextStyle:
                           Theme.of(
                         context,
@@ -515,128 +476,104 @@ class _CalendarPageState
                                             .w700,
                                   ) ??
                               const TextStyle(),
-
                       leftChevronIcon:
                           Icon(
                         Icons
                             .chevron_left,
-
                         color:
                             colorScheme
                                 .onSurface,
                       ),
-
                       rightChevronIcon:
                           Icon(
                         Icons
                             .chevron_right,
-
                         color:
                             colorScheme
                                 .onSurface,
                       ),
                     ),
-
                     daysOfWeekStyle:
                         DaysOfWeekStyle(
                       dowTextFormatter:
                           _weekdayLetter,
-
                       weekdayStyle:
                           TextStyle(
                         color:
                             colorScheme
                                 .onSurfaceVariant,
-
                         fontWeight:
                             FontWeight
                                 .w600,
                       ),
-
                       weekendStyle:
                           TextStyle(
                         color:
                             colorScheme
                                 .onSurfaceVariant,
-
                         fontWeight:
                             FontWeight
                                 .w600,
                       ),
                     ),
-
                     calendarStyle:
                         CalendarStyle(
                       outsideDaysVisible:
                           true,
-
                       markersMaxCount:
                           3,
-
                       markerSize: 5,
-
                       markerMargin:
                           const EdgeInsets
                               .symmetric(
                         horizontal:
                             1.5,
                       ),
-
                       markerDecoration:
                           BoxDecoration(
                         color:
                             colorScheme
                                 .primary,
-
                         shape:
                             BoxShape
                                 .circle,
                       ),
-
                       selectedDecoration:
                           BoxDecoration(
                         color:
                             colorScheme
                                 .primary,
-
                         shape:
                             BoxShape
                                 .circle,
                       ),
-
                       selectedTextStyle:
                           TextStyle(
                         color:
                             colorScheme
                                 .onPrimary,
-
                         fontWeight:
                             FontWeight
                                 .w700,
                       ),
-
                       todayDecoration:
                           BoxDecoration(
                         color:
                             colorScheme
                                 .primaryContainer,
-
                         shape:
                             BoxShape
                                 .circle,
                       ),
-
                       todayTextStyle:
                           TextStyle(
                         color:
                             colorScheme
                                 .onPrimaryContainer,
-
                         fontWeight:
                             FontWeight
                                 .w700,
                       ),
-
                       outsideTextStyle:
                           TextStyle(
                         color:
@@ -659,7 +596,6 @@ class _CalendarPageState
                       _selectedDateLabel(
                         _selectedDay,
                       ),
-
                       style:
                           Theme.of(
                         context,
@@ -673,7 +609,6 @@ class _CalendarPageState
                               ),
                     ),
                   ),
-
                   if (selectedTasks
                       .isNotEmpty)
                     Container(
@@ -684,29 +619,24 @@ class _CalendarPageState
                             10,
                         vertical: 5,
                       ),
-
                       decoration:
                           BoxDecoration(
                         color:
                             colorScheme
                                 .primaryContainer,
-
                         borderRadius:
                             BorderRadius
                                 .circular(
                           20,
                         ),
                       ),
-
                       child: Text(
                         '${selectedTasks.length}',
-
                         style:
                             TextStyle(
                           color:
                               colorScheme
                                   .onPrimaryContainer,
-
                           fontWeight:
                               FontWeight
                                   .w700,
@@ -725,27 +655,22 @@ class _CalendarPageState
                 Card(
                   margin:
                       EdgeInsets.zero,
-
                   child: Padding(
                     padding:
                         const EdgeInsets
                             .all(24),
-
                     child: Row(
                       children: [
                         Icon(
                           Icons
                               .event_available_outlined,
-
                           color:
                               colorScheme
                                   .primary,
                         ),
-
                         const SizedBox(
                           width: 14,
                         ),
-
                         const Expanded(
                           child: Text(
                             'Nessuna attività '
@@ -769,7 +694,6 @@ class _CalendarPageState
                         task:
                             selectedTasks[
                                 i],
-
                         priorityColor:
                             _priorityColor(
                           context,
@@ -777,13 +701,11 @@ class _CalendarPageState
                                   i]
                               .priority,
                         ),
-
                         timeLabel:
                             _taskTimeLabel(
                           selectedTasks[
                               i],
                         ),
-
                         onCompletedChanged:
                             (
                           completed,
@@ -797,16 +719,13 @@ class _CalendarPageState
                             completed,
                           );
                         },
-
                         onTap: () {
-                          _openTaskForm(
-                            task:
-                                selectedTasks[
-                                    i],
+                          _openTaskDetail(
+                            selectedTasks[
+                                i],
                           );
                         },
                       ),
-
                       if (i !=
                           selectedTasks
                                   .length -
@@ -824,18 +743,11 @@ class _CalendarPageState
 
       floatingActionButton:
           FloatingActionButton.extended(
-        onPressed: () {
-          _openTaskForm(
-            initialDate:
-                _selectedDay,
-          );
-        },
-
+        onPressed: _addTask,
         icon:
             const Icon(
           Icons.add,
         ),
-
         label:
             const Text(
           'Attività',
@@ -848,14 +760,10 @@ class _CalendarPageState
 class _CalendarTaskCard
     extends StatelessWidget {
   final LifeTask task;
-
   final Color priorityColor;
-
   final String timeLabel;
-
   final ValueChanged<bool>
       onCompletedChanged;
-
   final VoidCallback onTap;
 
   const _CalendarTaskCard({
@@ -878,24 +786,20 @@ class _CalendarTaskCard
       margin: EdgeInsets.zero,
       clipBehavior:
           Clip.antiAlias,
-
       child: Row(
         children: [
           Checkbox(
             value:
                 task.isCompleted,
-
             onChanged: (value) {
               onCompletedChanged(
                 value ?? false,
               );
             },
           ),
-
           Expanded(
             child: InkWell(
               onTap: onTap,
-
               child: Padding(
                 padding:
                     const EdgeInsets
@@ -905,18 +809,15 @@ class _CalendarTaskCard
                   12,
                   12,
                 ),
-
                 child: Row(
                   children: [
                     Container(
                       width: 8,
                       height: 40,
-
                       decoration:
                           BoxDecoration(
                         color:
                             priorityColor,
-
                         borderRadius:
                             BorderRadius
                                 .circular(
@@ -924,21 +825,17 @@ class _CalendarTaskCard
                         ),
                       ),
                     ),
-
                     const SizedBox(
                       width: 14,
                     ),
-
                     Expanded(
                       child: Column(
                         crossAxisAlignment:
                             CrossAxisAlignment
                                 .start,
-
                         children: [
                           Text(
                             task.title,
-
                             style:
                                 Theme.of(
                               context,
@@ -949,7 +846,6 @@ class _CalendarTaskCard
                                       fontWeight:
                                           FontWeight
                                               .w600,
-
                                       decoration:
                                           task.isCompleted
                                               ? TextDecoration
@@ -957,16 +853,13 @@ class _CalendarTaskCard
                                               : null,
                                     ),
                           ),
-
                           if (timeLabel
                               .isNotEmpty) ...[
                             const SizedBox(
                               height: 3,
                             ),
-
                             Text(
                               timeLabel,
-
                               style:
                                   Theme.of(
                                 context,
@@ -980,21 +873,17 @@ class _CalendarTaskCard
                                       ),
                             ),
                           ],
-
                           if (task
                               .description
                               .isNotEmpty) ...[
                             const SizedBox(
                               height: 3,
                             ),
-
                             Text(
                               task
                                   .description,
-
                               maxLines:
                                   2,
-
                               overflow:
                                   TextOverflow
                                       .ellipsis,
@@ -1003,11 +892,9 @@ class _CalendarTaskCard
                         ],
                       ),
                     ),
-
                     Icon(
                       Icons
                           .chevron_right,
-
                       color:
                           colorScheme
                               .onSurfaceVariant,
