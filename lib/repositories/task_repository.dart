@@ -67,6 +67,38 @@ class TaskRepository {
         );
   }
 
+  Future<void> updateTask(
+    LifeTask task,
+  ) async {
+    await (_database.update(
+      _database.taskItems,
+    )..where(
+            (row) => row.id.equals(task.id),
+          ))
+        .write(
+      TaskItemsCompanion(
+        title: Value(task.title),
+        description: Value(task.description),
+        startAt: Value(task.startAt),
+        endAt: Value(task.endAt),
+        allDay: Value(task.allDay),
+        priority: Value(task.priority.index),
+        isCompleted: Value(task.isCompleted),
+      ),
+    );
+  }
+
+  Future<void> deleteTask(
+    String id,
+  ) async {
+    await (_database.delete(
+      _database.taskItems,
+    )..where(
+            (row) => row.id.equals(id),
+          ))
+        .go();
+  }
+
   Future<void> setCompleted(
     String id,
     bool completed,

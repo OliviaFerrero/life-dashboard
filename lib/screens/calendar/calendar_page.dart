@@ -3,6 +3,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../../models/life_task.dart';
 import '../../repositories/task_repository.dart';
+import '../tasks/task_form_page.dart';
 
 class CalendarPage extends StatefulWidget {
   final TaskRepository taskRepository;
@@ -13,14 +14,17 @@ class CalendarPage extends StatefulWidget {
   });
 
   @override
-  State<CalendarPage> createState() => _CalendarPageState();
+  State<CalendarPage> createState() =>
+      _CalendarPageState();
 }
 
-class _CalendarPageState extends State<CalendarPage> {
+class _CalendarPageState
+    extends State<CalendarPage> {
   late DateTime _selectedDay;
   late DateTime _focusedDay;
 
-  CalendarFormat _calendarFormat = CalendarFormat.month;
+  CalendarFormat _calendarFormat =
+      CalendarFormat.month;
 
   @override
   void initState() {
@@ -37,13 +41,67 @@ class _CalendarPageState extends State<CalendarPage> {
     _focusedDay = _selectedDay;
   }
 
+  Future<void> _openTaskForm({
+    LifeTask? task,
+    DateTime? initialDate,
+  }) async {
+    final result =
+        await Navigator.push<
+            TaskFormResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            TaskFormPage(
+          initialTask: task,
+          initialDate: initialDate,
+        ),
+      ),
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    if (result.shouldDelete) {
+      if (task != null) {
+        await widget
+            .taskRepository
+            .deleteTask(
+          task.id,
+        );
+      }
+
+      return;
+    }
+
+    final savedTask =
+        result.task;
+
+    if (savedTask == null) {
+      return;
+    }
+
+    if (task == null) {
+      await widget
+          .taskRepository
+          .addTask(savedTask);
+    } else {
+      await widget
+          .taskRepository
+          .updateTask(savedTask);
+    }
+  }
+
   bool _isSameDate(
     DateTime first,
     DateTime second,
   ) {
-    return first.year == second.year &&
-        first.month == second.month &&
-        first.day == second.day;
+    return first.year ==
+            second.year &&
+        first.month ==
+            second.month &&
+        first.day ==
+            second.day;
   }
 
   List<LifeTask> _tasksForDay(
@@ -51,7 +109,8 @@ class _CalendarPageState extends State<CalendarPage> {
     DateTime day,
   ) {
     return tasks.where((task) {
-      final date = task.startAt;
+      final date =
+          task.startAt;
 
       if (date == null) {
         return false;
@@ -64,11 +123,17 @@ class _CalendarPageState extends State<CalendarPage> {
     }).toList();
   }
 
-  String _twoDigits(int value) {
-    return value.toString().padLeft(2, '0');
+  String _twoDigits(
+    int value,
+  ) {
+    return value
+        .toString()
+        .padLeft(2, '0');
   }
 
-  String _formatTime(DateTime date) {
+  String _formatTime(
+    DateTime date,
+  ) {
     return '${_twoDigits(date.hour)}:'
         '${_twoDigits(date.minute)}';
   }
@@ -92,7 +157,8 @@ class _CalendarPageState extends State<CalendarPage> {
       'Dicembre',
     ];
 
-    return '${months[date.month - 1]} ${date.year}';
+    return '${months[date.month - 1]} '
+        '${date.year}';
   }
 
   String _weekdayLetter(
@@ -109,10 +175,13 @@ class _CalendarPageState extends State<CalendarPage> {
       'D',
     ];
 
-    return weekdays[date.weekday - 1];
+    return weekdays[
+        date.weekday - 1];
   }
 
-  String _selectedDateLabel(DateTime date) {
+  String _selectedDateLabel(
+    DateTime date,
+  ) {
     const weekdays = [
       'Lunedì',
       'Martedì',
@@ -144,7 +213,9 @@ class _CalendarPageState extends State<CalendarPage> {
         '${date.year}';
   }
 
-  String _taskTimeLabel(LifeTask task) {
+  String _taskTimeLabel(
+    LifeTask task,
+  ) {
     if (task.startAt == null) {
       return '';
     }
@@ -153,7 +224,8 @@ class _CalendarPageState extends State<CalendarPage> {
       return 'Tutto il giorno';
     }
 
-    final start = _formatTime(
+    final start =
+        _formatTime(
       task.startAt!,
     );
 
@@ -161,7 +233,8 @@ class _CalendarPageState extends State<CalendarPage> {
       return start;
     }
 
-    final end = _formatTime(
+    final end =
+        _formatTime(
       task.endAt!,
     );
 
@@ -187,31 +260,45 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final colorScheme =
-        Theme.of(context).colorScheme;
+        Theme.of(context)
+            .colorScheme;
 
-    final now = DateTime.now();
+    final now =
+        DateTime.now();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendario'),
+        title:
+            const Text(
+          'Calendario',
+        ),
       ),
 
-      body: StreamBuilder<List<LifeTask>>(
-        stream:
-            widget.taskRepository.watchAllTasks(),
+      body: StreamBuilder<
+          List<LifeTask>>(
+        stream: widget
+            .taskRepository
+            .watchAllTasks(),
 
-        builder: (context, snapshot) {
+        builder:
+            (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
               child: Padding(
                 padding:
-                    const EdgeInsets.all(24),
+                    const EdgeInsets
+                        .all(24),
+
                 child: Text(
                   'Errore nel caricamento:\n'
                   '${snapshot.error}',
-                  textAlign: TextAlign.center,
+
+                  textAlign:
+                      TextAlign.center,
                 ),
               ),
             );
@@ -219,11 +306,13 @@ class _CalendarPageState extends State<CalendarPage> {
 
           if (!snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(),
+              child:
+                  CircularProgressIndicator(),
             );
           }
 
-          final allTasks = snapshot.data!;
+          final allTasks =
+              snapshot.data!;
 
           final selectedTasks =
               _tasksForDay(
@@ -232,31 +321,50 @@ class _CalendarPageState extends State<CalendarPage> {
           );
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(
+            padding:
+                const EdgeInsets
+                    .fromLTRB(
               16,
               8,
               16,
-              32,
+              100,
             ),
 
             children: [
-              SegmentedButton<CalendarFormat>(
-                showSelectedIcon: false,
+              SegmentedButton<
+                  CalendarFormat>(
+                showSelectedIcon:
+                    false,
 
-                segments: const [
+                segments:
+                    const [
                   ButtonSegment(
-                    value: CalendarFormat.month,
+                    value:
+                        CalendarFormat
+                            .month,
+
                     icon: Icon(
-                      Icons.calendar_month_outlined,
+                      Icons
+                          .calendar_month_outlined,
                     ),
-                    label: Text('Mese'),
+
+                    label:
+                        Text('Mese'),
                   ),
+
                   ButtonSegment(
-                    value: CalendarFormat.week,
+                    value:
+                        CalendarFormat
+                            .week,
+
                     icon: Icon(
-                      Icons.view_week_outlined,
+                      Icons
+                          .view_week_outlined,
                     ),
-                    label: Text('Settimana'),
+
+                    label: Text(
+                      'Settimana',
+                    ),
                   ),
                 ],
 
@@ -273,32 +381,43 @@ class _CalendarPageState extends State<CalendarPage> {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(
+                height: 16,
+              ),
 
               Card(
-                margin: EdgeInsets.zero,
-                clipBehavior: Clip.antiAlias,
+                margin:
+                    EdgeInsets.zero,
+
+                clipBehavior:
+                    Clip.antiAlias,
 
                 child: Padding(
                   padding:
-                      const EdgeInsets.only(
+                      const EdgeInsets
+                          .only(
                     bottom: 8,
                   ),
 
-                  child: TableCalendar<LifeTask>(
-                    firstDay: DateTime(
+                  child:
+                      TableCalendar<
+                          LifeTask>(
+                    firstDay:
+                        DateTime(
                       now.year - 5,
                       1,
                       1,
                     ),
 
-                    lastDay: DateTime(
+                    lastDay:
+                        DateTime(
                       now.year + 10,
                       12,
                       31,
                     ),
 
-                    focusedDay: _focusedDay,
+                    focusedDay:
+                        _focusedDay,
 
                     calendarFormat:
                         _calendarFormat,
@@ -319,7 +438,8 @@ class _CalendarPageState extends State<CalendarPage> {
                       );
                     },
 
-                    eventLoader: (day) {
+                    eventLoader:
+                        (day) {
                       return _tasksForDay(
                         allTasks,
                         day,
@@ -327,14 +447,19 @@ class _CalendarPageState extends State<CalendarPage> {
                     },
 
                     onDaySelected:
-                        (selectedDay,
-                            focusedDay) {
+                        (
+                      selectedDay,
+                      focusedDay,
+                    ) {
                       setState(() {
                         _selectedDay =
                             DateTime(
-                          selectedDay.year,
-                          selectedDay.month,
-                          selectedDay.day,
+                          selectedDay
+                              .year,
+                          selectedDay
+                              .month,
+                          selectedDay
+                              .day,
                         );
 
                         _focusedDay =
@@ -358,15 +483,19 @@ class _CalendarPageState extends State<CalendarPage> {
 
                     availableCalendarFormats:
                         const {
-                      CalendarFormat.month:
+                      CalendarFormat
+                              .month:
                           'Mese',
-                      CalendarFormat.week:
+
+                      CalendarFormat
+                              .week:
                           'Settimana',
                     },
 
                     headerStyle:
                         HeaderStyle(
-                      titleCentered: true,
+                      titleCentered:
+                          true,
 
                       formatButtonVisible:
                           false,
@@ -375,7 +504,9 @@ class _CalendarPageState extends State<CalendarPage> {
                           _monthYearLabel,
 
                       titleTextStyle:
-                          Theme.of(context)
+                          Theme.of(
+                        context,
+                      )
                                   .textTheme
                                   .titleMedium
                                   ?.copyWith(
@@ -387,16 +518,22 @@ class _CalendarPageState extends State<CalendarPage> {
 
                       leftChevronIcon:
                           Icon(
-                        Icons.chevron_left,
-                        color: colorScheme
-                            .onSurface,
+                        Icons
+                            .chevron_left,
+
+                        color:
+                            colorScheme
+                                .onSurface,
                       ),
 
                       rightChevronIcon:
                           Icon(
-                        Icons.chevron_right,
-                        color: colorScheme
-                            .onSurface,
+                        Icons
+                            .chevron_right,
+
+                        color:
+                            colorScheme
+                                .onSurface,
                       ),
                     ),
 
@@ -407,18 +544,24 @@ class _CalendarPageState extends State<CalendarPage> {
 
                       weekdayStyle:
                           TextStyle(
-                        color: colorScheme
-                            .onSurfaceVariant,
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+
                         fontWeight:
-                            FontWeight.w600,
+                            FontWeight
+                                .w600,
                       ),
 
                       weekendStyle:
                           TextStyle(
-                        color: colorScheme
-                            .onSurfaceVariant,
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+
                         fontWeight:
-                            FontWeight.w600,
+                            FontWeight
+                                .w600,
                       ),
                     ),
 
@@ -427,67 +570,87 @@ class _CalendarPageState extends State<CalendarPage> {
                       outsideDaysVisible:
                           true,
 
-                      markersMaxCount: 3,
+                      markersMaxCount:
+                          3,
 
                       markerSize: 5,
 
                       markerMargin:
                           const EdgeInsets
                               .symmetric(
-                        horizontal: 1.5,
+                        horizontal:
+                            1.5,
                       ),
 
                       markerDecoration:
                           BoxDecoration(
                         color:
-                            colorScheme.primary,
+                            colorScheme
+                                .primary,
+
                         shape:
-                            BoxShape.circle,
+                            BoxShape
+                                .circle,
                       ),
 
                       selectedDecoration:
                           BoxDecoration(
                         color:
-                            colorScheme.primary,
+                            colorScheme
+                                .primary,
+
                         shape:
-                            BoxShape.circle,
+                            BoxShape
+                                .circle,
                       ),
 
                       selectedTextStyle:
                           TextStyle(
-                        color: colorScheme
-                            .onPrimary,
+                        color:
+                            colorScheme
+                                .onPrimary,
+
                         fontWeight:
-                            FontWeight.w700,
+                            FontWeight
+                                .w700,
                       ),
 
                       todayDecoration:
                           BoxDecoration(
-                        color: colorScheme
-                            .primaryContainer,
+                        color:
+                            colorScheme
+                                .primaryContainer,
+
                         shape:
-                            BoxShape.circle,
+                            BoxShape
+                                .circle,
                       ),
 
                       todayTextStyle:
                           TextStyle(
-                        color: colorScheme
-                            .onPrimaryContainer,
+                        color:
+                            colorScheme
+                                .onPrimaryContainer,
+
                         fontWeight:
-                            FontWeight.w700,
+                            FontWeight
+                                .w700,
                       ),
 
                       outsideTextStyle:
                           TextStyle(
-                        color: colorScheme
-                            .onSurfaceVariant,
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
                       ),
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(
+                height: 24,
+              ),
 
               Row(
                 children: [
@@ -497,62 +660,86 @@ class _CalendarPageState extends State<CalendarPage> {
                         _selectedDay,
                       ),
 
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
+                      style:
+                          Theme.of(
+                        context,
+                      )
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(
+                                fontWeight:
+                                    FontWeight
+                                        .w700,
+                              ),
                     ),
                   ),
 
-                  if (selectedTasks.isNotEmpty)
+                  if (selectedTasks
+                      .isNotEmpty)
                     Container(
                       padding:
                           const EdgeInsets
                               .symmetric(
-                        horizontal: 10,
+                        horizontal:
+                            10,
                         vertical: 5,
                       ),
+
                       decoration:
                           BoxDecoration(
-                        color: colorScheme
-                            .primaryContainer,
+                        color:
+                            colorScheme
+                                .primaryContainer,
+
                         borderRadius:
                             BorderRadius
-                                .circular(20),
+                                .circular(
+                          20,
+                        ),
                       ),
+
                       child: Text(
                         '${selectedTasks.length}',
-                        style: TextStyle(
-                          color: colorScheme
-                              .onPrimaryContainer,
+
+                        style:
+                            TextStyle(
+                          color:
+                              colorScheme
+                                  .onPrimaryContainer,
+
                           fontWeight:
-                              FontWeight.w700,
+                              FontWeight
+                                  .w700,
                         ),
                       ),
                     ),
                 ],
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(
+                height: 12,
+              ),
 
-              if (selectedTasks.isEmpty)
+              if (selectedTasks
+                  .isEmpty)
                 Card(
-                  margin: EdgeInsets.zero,
+                  margin:
+                      EdgeInsets.zero,
+
                   child: Padding(
                     padding:
-                        const EdgeInsets.all(
-                      24,
-                    ),
+                        const EdgeInsets
+                            .all(24),
+
                     child: Row(
                       children: [
                         Icon(
                           Icons
                               .event_available_outlined,
+
                           color:
-                              colorScheme.primary,
+                              colorScheme
+                                  .primary,
                         ),
 
                         const SizedBox(
@@ -580,33 +767,49 @@ class _CalendarPageState extends State<CalendarPage> {
                         i++) ...[
                       _CalendarTaskCard(
                         task:
-                            selectedTasks[i],
+                            selectedTasks[
+                                i],
 
                         priorityColor:
                             _priorityColor(
                           context,
-                          selectedTasks[i]
+                          selectedTasks[
+                                  i]
                               .priority,
                         ),
 
                         timeLabel:
                             _taskTimeLabel(
-                          selectedTasks[i],
+                          selectedTasks[
+                              i],
                         ),
 
                         onCompletedChanged:
-                            (completed) async {
+                            (
+                          completed,
+                        ) async {
                           await widget
                               .taskRepository
                               .setCompleted(
-                            selectedTasks[i].id,
+                            selectedTasks[
+                                    i]
+                                .id,
                             completed,
+                          );
+                        },
+
+                        onTap: () {
+                          _openTaskForm(
+                            task:
+                                selectedTasks[
+                                    i],
                           );
                         },
                       ),
 
                       if (i !=
-                          selectedTasks.length -
+                          selectedTasks
+                                  .length -
                               1)
                         const SizedBox(
                           height: 8,
@@ -617,6 +820,26 @@ class _CalendarPageState extends State<CalendarPage> {
             ],
           );
         },
+      ),
+
+      floatingActionButton:
+          FloatingActionButton.extended(
+        onPressed: () {
+          _openTaskForm(
+            initialDate:
+                _selectedDay,
+          );
+        },
+
+        icon:
+            const Icon(
+          Icons.add,
+        ),
+
+        label:
+            const Text(
+          'Attività',
+        ),
       ),
     );
   }
@@ -633,122 +856,168 @@ class _CalendarTaskCard
   final ValueChanged<bool>
       onCompletedChanged;
 
+  final VoidCallback onTap;
+
   const _CalendarTaskCard({
     required this.task,
     required this.priorityColor,
     required this.timeLabel,
     required this.onCompletedChanged,
+    required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final colorScheme =
-        Theme.of(context).colorScheme;
+        Theme.of(context)
+            .colorScheme;
 
     return Card(
       margin: EdgeInsets.zero,
+      clipBehavior:
+          Clip.antiAlias,
 
-      child: Padding(
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 4,
-        ),
+      child: Row(
+        children: [
+          Checkbox(
+            value:
+                task.isCompleted,
 
-        child: Row(
-          children: [
-            Checkbox(
-              value: task.isCompleted,
+            onChanged: (value) {
+              onCompletedChanged(
+                value ?? false,
+              );
+            },
+          ),
 
-              onChanged: (value) {
-                onCompletedChanged(
-                  value ?? false,
-                );
-              },
-            ),
+          Expanded(
+            child: InkWell(
+              onTap: onTap,
 
-            Container(
-              width: 8,
-              height: 40,
+              child: Padding(
+                padding:
+                    const EdgeInsets
+                        .fromLTRB(
+                  4,
+                  12,
+                  12,
+                  12,
+                ),
 
-              decoration: BoxDecoration(
-                color: priorityColor,
-                borderRadius:
-                    BorderRadius.circular(
-                  8,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 40,
+
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            priorityColor,
+
+                        borderRadius:
+                            BorderRadius
+                                .circular(
+                          8,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(
+                      width: 14,
+                    ),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+
+                        children: [
+                          Text(
+                            task.title,
+
+                            style:
+                                Theme.of(
+                              context,
+                            )
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight:
+                                          FontWeight
+                                              .w600,
+
+                                      decoration:
+                                          task.isCompleted
+                                              ? TextDecoration
+                                                  .lineThrough
+                                              : null,
+                                    ),
+                          ),
+
+                          if (timeLabel
+                              .isNotEmpty) ...[
+                            const SizedBox(
+                              height: 3,
+                            ),
+
+                            Text(
+                              timeLabel,
+
+                              style:
+                                  Theme.of(
+                                context,
+                              )
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color:
+                                            colorScheme
+                                                .onSurfaceVariant,
+                                      ),
+                            ),
+                          ],
+
+                          if (task
+                              .description
+                              .isNotEmpty) ...[
+                            const SizedBox(
+                              height: 3,
+                            ),
+
+                            Text(
+                              task
+                                  .description,
+
+                              maxLines:
+                                  2,
+
+                              overflow:
+                                  TextOverflow
+                                      .ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    Icon(
+                      Icons
+                          .chevron_right,
+
+                      color:
+                          colorScheme
+                              .onSurfaceVariant,
+                    ),
+                  ],
                 ),
               ),
             ),
-
-            const SizedBox(width: 14),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-
-                children: [
-                  Text(
-                    task.title,
-
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                          fontWeight:
-                              FontWeight.w600,
-
-                          decoration:
-                              task.isCompleted
-                                  ? TextDecoration
-                                      .lineThrough
-                                  : null,
-                        ),
-                  ),
-
-                  if (timeLabel
-                      .isNotEmpty) ...[
-                    const SizedBox(
-                      height: 3,
-                    ),
-
-                    Text(
-                      timeLabel,
-
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(
-                            color:
-                                colorScheme
-                                    .onSurfaceVariant,
-                          ),
-                    ),
-                  ],
-
-                  if (task.description
-                      .isNotEmpty) ...[
-                    const SizedBox(
-                      height: 3,
-                    ),
-
-                    Text(
-                      task.description,
-
-                      maxLines: 2,
-
-                      overflow:
-                          TextOverflow
-                              .ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 8),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

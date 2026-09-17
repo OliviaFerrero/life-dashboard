@@ -2,18 +2,43 @@ import 'package:flutter/material.dart';
 
 import '../../models/life_task.dart';
 
-class TaskFormPage extends StatefulWidget {
-  const TaskFormPage({super.key});
+class TaskFormResult {
+  final LifeTask? task;
+  final bool shouldDelete;
 
-  @override
-  State<TaskFormPage> createState() => _TaskFormPageState();
+  const TaskFormResult.save(
+    this.task,
+  ) : shouldDelete = false;
+
+  const TaskFormResult.delete()
+      : task = null,
+        shouldDelete = true;
 }
 
-class _TaskFormPageState extends State<TaskFormPage> {
+class TaskFormPage extends StatefulWidget {
+  final LifeTask? initialTask;
+  final DateTime? initialDate;
+
+  const TaskFormPage({
+    super.key,
+    this.initialTask,
+    this.initialDate,
+  });
+
+  @override
+  State<TaskFormPage> createState() =>
+      _TaskFormPageState();
+}
+
+class _TaskFormPageState
+    extends State<TaskFormPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final _titleController =
+      TextEditingController();
+
+  final _descriptionController =
+      TextEditingController();
 
   DateTime? _selectedDate;
 
@@ -22,7 +47,59 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
   bool _allDay = false;
 
-  TaskPriority _priority = TaskPriority.normal;
+  TaskPriority _priority =
+      TaskPriority.normal;
+
+  bool get _isEditing =>
+      widget.initialTask != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final task = widget.initialTask;
+
+    if (task != null) {
+      _titleController.text =
+          task.title;
+
+      _descriptionController.text =
+          task.description;
+
+      _allDay = task.allDay;
+
+      _priority = task.priority;
+
+      if (task.startAt != null) {
+        _selectedDate = DateTime(
+          task.startAt!.year,
+          task.startAt!.month,
+          task.startAt!.day,
+        );
+
+        if (!task.allDay) {
+          _startTime =
+              TimeOfDay.fromDateTime(
+            task.startAt!,
+          );
+        }
+      }
+
+      if (task.endAt != null &&
+          !task.allDay) {
+        _endTime =
+            TimeOfDay.fromDateTime(
+          task.endAt!,
+        );
+      }
+    } else if (widget.initialDate != null) {
+      _selectedDate = DateTime(
+        widget.initialDate!.year,
+        widget.initialDate!.month,
+        widget.initialDate!.day,
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -37,9 +114,12 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
     final result = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 10),
+      initialDate:
+          _selectedDate ?? now,
+      firstDate:
+          DateTime(now.year - 1),
+      lastDate:
+          DateTime(now.year + 10),
     );
 
     if (result != null) {
@@ -50,9 +130,12 @@ class _TaskFormPageState extends State<TaskFormPage> {
   }
 
   Future<void> _selectStartTime() async {
-    final result = await showTimePicker(
+    final result =
+        await showTimePicker(
       context: context,
-      initialTime: _startTime ?? TimeOfDay.now(),
+      initialTime:
+          _startTime ??
+              TimeOfDay.now(),
     );
 
     if (result != null) {
@@ -61,12 +144,15 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
         if (_endTime != null) {
           final startMinutes =
-              _startTime!.hour * 60 + _startTime!.minute;
+              _startTime!.hour * 60 +
+                  _startTime!.minute;
 
           final endMinutes =
-              _endTime!.hour * 60 + _endTime!.minute;
+              _endTime!.hour * 60 +
+                  _endTime!.minute;
 
-          if (endMinutes <= startMinutes) {
+          if (endMinutes <=
+              startMinutes) {
             _endTime = null;
           }
         }
@@ -75,29 +161,42 @@ class _TaskFormPageState extends State<TaskFormPage> {
   }
 
   Future<void> _selectEndTime() async {
-    final result = await showTimePicker(
+    final result =
+        await showTimePicker(
       context: context,
-      initialTime: _endTime ??
-          TimeOfDay(
-            hour: (_startTime!.hour + 1) % 24,
-            minute: _startTime!.minute,
-          ),
+      initialTime:
+          _endTime ??
+              TimeOfDay(
+                hour:
+                    (_startTime!.hour +
+                            1) %
+                        24,
+                minute:
+                    _startTime!.minute,
+              ),
     );
 
     if (result != null) {
       final startMinutes =
-          _startTime!.hour * 60 + _startTime!.minute;
+          _startTime!.hour * 60 +
+              _startTime!.minute;
 
       final endMinutes =
-          result.hour * 60 + result.minute;
+          result.hour * 60 +
+              result.minute;
 
-      if (endMinutes <= startMinutes) {
-        if (!mounted) return;
+      if (endMinutes <=
+          startMinutes) {
+        if (!mounted) {
+          return;
+        }
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
           const SnackBar(
             content: Text(
-              'L’ora di fine deve essere successiva all’ora di inizio.',
+              'L’ora di fine deve essere '
+              'successiva all’ora di inizio.',
             ),
           ),
         );
@@ -137,35 +236,114 @@ class _TaskFormPageState extends State<TaskFormPage> {
   }
 
   void _saveTask() {
-    if (!_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!
+        .validate()) {
       return;
     }
 
+    final oldTask =
+        widget.initialTask;
+
     final task = LifeTask(
-      id: DateTime.now()
-          .microsecondsSinceEpoch
-          .toString(),
-      title: _titleController.text.trim(),
+      id: oldTask?.id ??
+          DateTime.now()
+              .microsecondsSinceEpoch
+              .toString(),
+
+      title:
+          _titleController.text.trim(),
+
       description:
-          _descriptionController.text.trim(),
-      startAt: _combineDateAndTime(
+          _descriptionController.text
+              .trim(),
+
+      startAt:
+          _combineDateAndTime(
         _selectedDate,
-        _allDay ? null : _startTime,
+        _allDay
+            ? null
+            : _startTime,
       ),
+
       endAt: _allDay
           ? null
           : _combineDateAndTime(
               _selectedDate,
               _endTime,
             ),
+
       allDay: _allDay,
+
       priority: _priority,
+
+      isCompleted:
+          oldTask?.isCompleted ??
+              false,
     );
 
-    Navigator.pop(context, task);
+    Navigator.pop(
+      context,
+      TaskFormResult.save(task),
+    );
   }
 
-  String _formatDate(DateTime date) {
+  Future<void> _deleteTask() async {
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(
+            'Eliminare attività?',
+          ),
+
+          content: Text(
+            'Vuoi eliminare '
+            '"${widget.initialTask!.title}"?',
+          ),
+
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  false,
+                );
+              },
+              child:
+                  const Text('Annulla'),
+            ),
+
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
+              child:
+                  const Text('Elimina'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true ||
+        !mounted) {
+      return;
+    }
+
+    Navigator.pop(
+      context,
+      const TaskFormResult.delete(),
+    );
+  }
+
+  String _formatDate(
+    DateTime date,
+  ) {
     const months = [
       'gennaio',
       'febbraio',
@@ -181,10 +359,14 @@ class _TaskFormPageState extends State<TaskFormPage> {
       'dicembre',
     ];
 
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
+    return '${date.day} '
+        '${months[date.month - 1]} '
+        '${date.year}';
   }
 
-  String _priorityLabel(TaskPriority priority) {
+  String _priorityLabel(
+    TaskPriority priority,
+  ) {
     switch (priority) {
       case TaskPriority.low:
         return 'Bassa';
@@ -204,30 +386,54 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nuova attività'),
+        title: Text(
+          _isEditing
+              ? 'Modifica attività'
+              : 'Nuova attività',
+        ),
+
+        actions: [
+          if (_isEditing)
+            IconButton(
+              tooltip: 'Elimina attività',
+              icon: const Icon(
+                Icons.delete_outline,
+              ),
+              color:
+                  colorScheme.error,
+              onPressed: _deleteTask,
+            ),
+        ],
       ),
 
       body: Form(
         key: _formKey,
 
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding:
+              const EdgeInsets.all(20),
 
           children: [
             TextFormField(
-              controller: _titleController,
+              controller:
+                  _titleController,
 
-              autofocus: true,
+              autofocus: !_isEditing,
 
-              decoration: const InputDecoration(
+              decoration:
+                  const InputDecoration(
                 labelText: 'Titolo',
-                hintText: 'Es. Dentista',
-                border: OutlineInputBorder(),
+                hintText:
+                    'Es. Dentista',
+                border:
+                    OutlineInputBorder(),
               ),
 
               validator: (value) {
                 if (value == null ||
-                    value.trim().isEmpty) {
+                    value
+                        .trim()
+                        .isEmpty) {
                   return 'Inserisci un titolo.';
                 }
 
@@ -235,7 +441,9 @@ class _TaskFormPageState extends State<TaskFormPage> {
               },
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(
+              height: 16,
+            ),
 
             TextFormField(
               controller:
@@ -243,26 +451,35 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
               maxLines: 3,
 
-              decoration: const InputDecoration(
-                labelText: 'Descrizione',
+              decoration:
+                  const InputDecoration(
+                labelText:
+                    'Descrizione',
                 hintText: 'Opzionale',
-                border: OutlineInputBorder(),
+                border:
+                    OutlineInputBorder(),
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(
+              height: 24,
+            ),
 
             Text(
               'Quando',
+
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
                   ?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight:
+                        FontWeight.w700,
                   ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(
+              height: 8,
+            ),
 
             Card(
               margin: EdgeInsets.zero,
@@ -270,97 +487,135 @@ class _TaskFormPageState extends State<TaskFormPage> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(
-                      Icons.calendar_today_outlined,
+                    leading:
+                        const Icon(
+                      Icons
+                          .calendar_today_outlined,
                     ),
 
-                    title: const Text('Data'),
+                    title:
+                        const Text(
+                      'Data',
+                    ),
 
                     subtitle: Text(
-                      _selectedDate == null
+                      _selectedDate ==
+                              null
                           ? 'Nessuna data'
                           : _formatDate(
                               _selectedDate!,
                             ),
                     ),
 
-                    trailing: _selectedDate == null
-                        ? const Icon(
-                            Icons.chevron_right,
-                          )
-                        : IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _selectedDate =
-                                    null;
-                                _startTime = null;
-                                _endTime = null;
-                              });
-                            },
-                          ),
+                    trailing:
+                        _selectedDate ==
+                                null
+                            ? const Icon(
+                                Icons
+                                    .chevron_right,
+                              )
+                            : IconButton(
+                                icon:
+                                    const Icon(
+                                  Icons
+                                      .close,
+                                ),
+                                onPressed:
+                                    () {
+                                  setState(
+                                    () {
+                                      _selectedDate =
+                                          null;
 
-                    onTap: _selectDate,
+                                      _startTime =
+                                          null;
+
+                                      _endTime =
+                                          null;
+                                    },
+                                  );
+                                },
+                              ),
+
+                    onTap:
+                        _selectDate,
                   ),
 
-                  if (_selectedDate != null) ...[
+                  if (_selectedDate !=
+                      null) ...[
                     const Divider(
                       height: 1,
                     ),
 
                     SwitchListTile(
-                      secondary: const Icon(
-                        Icons.today_outlined,
+                      secondary:
+                          const Icon(
+                        Icons
+                            .today_outlined,
                       ),
 
-                      title: const Text(
+                      title:
+                          const Text(
                         'Tutto il giorno',
                       ),
 
-                      value: _allDay,
+                      value:
+                          _allDay,
 
-                      onChanged: (value) {
+                      onChanged:
+                          (value) {
                         setState(() {
-                          _allDay = value;
+                          _allDay =
+                              value;
 
                           if (_allDay) {
-                            _startTime = null;
-                            _endTime = null;
+                            _startTime =
+                                null;
+
+                            _endTime =
+                                null;
                           }
                         });
                       },
                     ),
                   ],
 
-                  if (_selectedDate != null &&
+                  if (_selectedDate !=
+                          null &&
                       !_allDay) ...[
                     const Divider(
                       height: 1,
                     ),
 
                     ListTile(
-                      leading: const Icon(
+                      leading:
+                          const Icon(
                         Icons.schedule,
                       ),
 
-                      title: const Text(
+                      title:
+                          const Text(
                         'Ora inizio',
                       ),
 
                       subtitle: Text(
-                        _startTime == null
+                        _startTime ==
+                                null
                             ? 'Nessuna'
                             : _startTime!
-                                .format(context),
+                                .format(
+                                  context,
+                                ),
                       ),
 
-                      trailing: const Icon(
-                        Icons.chevron_right,
+                      trailing:
+                          const Icon(
+                        Icons
+                            .chevron_right,
                       ),
 
-                      onTap: _selectStartTime,
+                      onTap:
+                          _selectStartTime,
                     ),
 
                     const Divider(
@@ -369,61 +624,85 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
                     ListTile(
                       enabled:
-                          _startTime != null,
+                          _startTime !=
+                              null,
 
-                      leading: const Icon(
-                        Icons.schedule_outlined,
+                      leading:
+                          const Icon(
+                        Icons
+                            .schedule_outlined,
                       ),
 
                       title:
-                          const Text('Ora fine'),
+                          const Text(
+                        'Ora fine',
+                      ),
 
                       subtitle: Text(
-                        _endTime == null
+                        _endTime ==
+                                null
                             ? 'Nessuna'
                             : _endTime!
-                                .format(context),
+                                .format(
+                                  context,
+                                ),
                       ),
 
-                      trailing: const Icon(
-                        Icons.chevron_right,
+                      trailing:
+                          const Icon(
+                        Icons
+                            .chevron_right,
                       ),
 
-                      onTap: _startTime == null
-                          ? null
-                          : _selectEndTime,
+                      onTap:
+                          _startTime ==
+                                  null
+                              ? null
+                              : _selectEndTime,
                     ),
                   ],
                 ],
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(
+              height: 24,
+            ),
 
             Text(
               'Priorità',
+
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
                   ?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight:
+                        FontWeight.w700,
                   ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(
+              height: 8,
+            ),
 
-            DropdownButtonFormField<TaskPriority>(
-              initialValue: _priority,
+            DropdownButtonFormField<
+                TaskPriority>(
+              initialValue:
+                  _priority,
 
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+              decoration:
+                  const InputDecoration(
+                border:
+                    OutlineInputBorder(),
               ),
 
-              items: TaskPriority.values
+              items: TaskPriority
+                  .values
                   .map(
                     (priority) =>
                         DropdownMenuItem(
                       value: priority,
+
                       child: Text(
                         _priorityLabel(
                           priority,
@@ -436,32 +715,46 @@ class _TaskFormPageState extends State<TaskFormPage> {
               onChanged: (value) {
                 if (value != null) {
                   setState(() {
-                    _priority = value;
+                    _priority =
+                        value;
                   });
                 }
               },
             ),
 
-            const SizedBox(height: 100),
+            const SizedBox(
+              height: 100,
+            ),
           ],
         ),
       ),
 
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.all(16),
+      bottomNavigationBar:
+          SafeArea(
+        minimum:
+            const EdgeInsets.all(16),
 
         child: FilledButton.icon(
           onPressed: _saveTask,
 
-          icon: const Icon(Icons.add_task),
-
-          label: const Text(
-            'Crea attività',
+          icon: Icon(
+            _isEditing
+                ? Icons.save_outlined
+                : Icons.add_task,
           ),
 
-          style: FilledButton.styleFrom(
+          label: Text(
+            _isEditing
+                ? 'Salva modifiche'
+                : 'Crea attività',
+          ),
+
+          style:
+              FilledButton.styleFrom(
             minimumSize:
-                const Size.fromHeight(54),
+                const Size.fromHeight(
+              54,
+            ),
 
             backgroundColor:
                 colorScheme.primary,

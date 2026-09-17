@@ -4,8 +4,7 @@ import '../../models/life_task.dart';
 import '../../repositories/task_repository.dart';
 import 'task_form_page.dart';
 
-class TasksPage
-    extends StatelessWidget {
+class TasksPage extends StatelessWidget {
   final TaskRepository taskRepository;
 
   const TasksPage({
@@ -13,38 +12,70 @@ class TasksPage
     required this.taskRepository,
   });
 
-  Future<void> _addTask(
-    BuildContext context,
-  ) async {
-    final task =
-        await Navigator.push<LifeTask>(
+  Future<void> _openTaskForm(
+    BuildContext context, {
+    LifeTask? task,
+  }) async {
+    final result =
+        await Navigator.push<
+            TaskFormResult>(
       context,
       MaterialPageRoute(
         builder: (_) =>
-            const TaskFormPage(),
+            TaskFormPage(
+          initialTask: task,
+        ),
       ),
     );
 
-    if (task == null) {
+    if (result == null) {
       return;
     }
 
-    await taskRepository.addTask(task);
+    if (result.shouldDelete) {
+      if (task != null) {
+        await taskRepository
+            .deleteTask(task.id);
+      }
+
+      return;
+    }
+
+    final savedTask =
+        result.task;
+
+    if (savedTask == null) {
+      return;
+    }
+
+    if (task == null) {
+      await taskRepository
+          .addTask(savedTask);
+    } else {
+      await taskRepository
+          .updateTask(savedTask);
+    }
   }
 
-  String _twoDigits(int number) {
+  String _twoDigits(
+    int number,
+  ) {
     return number
         .toString()
         .padLeft(2, '0');
   }
 
-  String _formatDate(DateTime date) {
+  String _formatDate(
+    DateTime date,
+  ) {
     return '${_twoDigits(date.day)}/'
         '${_twoDigits(date.month)}/'
         '${date.year}';
   }
 
-  String _formatTime(DateTime date) {
+  String _formatTime(
+    DateTime date,
+  ) {
     return '${_twoDigits(date.hour)}:'
         '${_twoDigits(date.minute)}';
   }
@@ -57,21 +88,27 @@ class TasksPage
     }
 
     final date =
-        _formatDate(task.startAt!);
+        _formatDate(
+      task.startAt!,
+    );
 
     if (task.allDay) {
       return '$date · Tutto il giorno';
     }
 
     final start =
-        _formatTime(task.startAt!);
+        _formatTime(
+      task.startAt!,
+    );
 
     if (task.endAt == null) {
       return '$date · $start';
     }
 
     final end =
-        _formatTime(task.endAt!);
+        _formatTime(
+      task.endAt!,
+    );
 
     return '$date · $start–$end';
   }
@@ -95,24 +132,30 @@ class TasksPage
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       appBar: AppBar(
         title:
-            const Text('Attività'),
+            const Text(
+          'Attività',
+        ),
       ),
 
       body: StreamBuilder<
           List<LifeTask>>(
         stream:
-            taskRepository.watchAllTasks(),
+            taskRepository
+                .watchAllTasks(),
 
         builder:
             (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                'Errore nel caricamento delle attività:\n'
+                'Errore nel caricamento '
+                'delle attività:\n'
                 '${snapshot.error}',
                 textAlign:
                     TextAlign.center,
@@ -127,7 +170,8 @@ class TasksPage
             );
           }
 
-          final tasks = snapshot.data!;
+          final tasks =
+              snapshot.data!;
 
           if (tasks.isEmpty) {
             return Center(
@@ -145,6 +189,7 @@ class TasksPage
                     Icon(
                       Icons.task_alt,
                       size: 64,
+
                       color:
                           Theme.of(context)
                               .colorScheme
@@ -157,6 +202,7 @@ class TasksPage
 
                     Text(
                       'Nessuna attività',
+
                       style:
                           Theme.of(context)
                               .textTheme
@@ -173,19 +219,24 @@ class TasksPage
                     ),
 
                     Text(
-                      'Aggiungi qualcosa da fare con il pulsante +.',
+                      'Aggiungi qualcosa '
+                      'da fare con il '
+                      'pulsante +.',
+
                       textAlign:
                           TextAlign.center,
+
                       style:
                           Theme.of(context)
                               .textTheme
                               .bodyLarge
                               ?.copyWith(
-                                color: Theme.of(
+                                color:
+                                    Theme.of(
                                   context,
                                 )
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                        .colorScheme
+                                        .onSurfaceVariant,
                               ),
                     ),
                   ],
@@ -194,13 +245,15 @@ class TasksPage
             );
           }
 
-          return ListView.separated(
+          return ListView
+              .separated(
             padding:
                 const EdgeInsets.all(
               16,
             ),
 
-            itemCount: tasks.length,
+            itemCount:
+                tasks.length,
 
             separatorBuilder:
                 (_, _) =>
@@ -217,36 +270,30 @@ class TasksPage
                 margin:
                     EdgeInsets.zero,
 
-                child:
-                    CheckboxListTile(
-                  value:
-                      task.isCompleted,
+                clipBehavior:
+                    Clip.antiAlias,
 
-                  onChanged:
-                      (value) async {
-                    await taskRepository
-                        .setCompleted(
-                      task.id,
-                      value ?? false,
+                child: ListTile(
+                  onTap: () {
+                    _openTaskForm(
+                      context,
+                      task: task,
                     );
                   },
 
-                  secondary:
-                      Container(
-                    width: 10,
-                    height: 10,
+                  leading: Checkbox(
+                    value:
+                        task.isCompleted,
 
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          _priorityColor(
-                        context,
-                        task.priority,
-                      ),
-
-                      shape:
-                          BoxShape.circle,
-                    ),
+                    onChanged:
+                        (value) async {
+                      await taskRepository
+                          .setCompleted(
+                        task.id,
+                        value ??
+                            false,
+                      );
+                    },
                   ),
 
                   title: Text(
@@ -285,8 +332,11 @@ class TasksPage
                         ),
 
                         Text(
-                          task.description,
+                          task
+                              .description,
+
                           maxLines: 2,
+
                           overflow:
                               TextOverflow
                                   .ellipsis,
@@ -295,9 +345,23 @@ class TasksPage
                     ],
                   ),
 
-                  controlAffinity:
-                      ListTileControlAffinity
-                          .leading,
+                  trailing:
+                      Container(
+                    width: 10,
+                    height: 10,
+
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          _priorityColor(
+                        context,
+                        task.priority,
+                      ),
+
+                      shape:
+                          BoxShape.circle,
+                    ),
+                  ),
                 ),
               );
             },
@@ -307,11 +371,16 @@ class TasksPage
 
       floatingActionButton:
           FloatingActionButton(
-        onPressed: () =>
-            _addTask(context),
+        onPressed: () {
+          _openTaskForm(
+            context,
+          );
+        },
 
         child:
-            const Icon(Icons.add),
+            const Icon(
+          Icons.add,
+        ),
       ),
     );
   }
