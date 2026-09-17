@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../repositories/task_repository.dart';
 import 'placeholder_page.dart';
 import 'today_page.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final TaskRepository taskRepository;
+
+  const MainScreen({
+    super.key,
+    required this.taskRepository,
+  });
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -13,25 +19,34 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = const [
-    TodayPage(),
-    PlaceholderPage(
-      title: 'Abitudini',
-      icon: Icons.check_circle_outline,
-    ),
-    PlaceholderPage(
-      title: 'Casa',
-      icon: Icons.home_outlined,
-    ),
-    PlaceholderPage(
-      title: 'Spese',
-      icon: Icons.account_balance_wallet_outlined,
-    ),
-    PlaceholderPage(
-      title: 'Altro',
-      icon: Icons.more_horiz,
-    ),
-  ];
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pages = [
+      TodayPage(
+        taskRepository: widget.taskRepository,
+      ),
+      const PlaceholderPage(
+        title: 'Abitudini',
+        icon: Icons.check_circle_outline,
+      ),
+      const PlaceholderPage(
+        title: 'Casa',
+        icon: Icons.home_outlined,
+      ),
+      const PlaceholderPage(
+        title: 'Spese',
+        icon: Icons.account_balance_wallet_outlined,
+      ),
+      const PlaceholderPage(
+        title: 'Altro',
+        icon: Icons.more_horiz,
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,16 +55,13 @@ class _MainScreenState extends State<MainScreen> {
         index: _selectedIndex,
         children: _pages,
       ),
-
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-
         onDestinationSelected: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
-
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.calendar_today_outlined),

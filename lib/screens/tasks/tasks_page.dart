@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../../models/life_task.dart';
+import '../../repositories/task_repository.dart';
 import 'task_form_page.dart';
 
-class TasksPage extends StatefulWidget {
-  const TasksPage({super.key});
+class TasksPage
+    extends StatelessWidget {
+  final TaskRepository taskRepository;
 
-  @override
-  State<TasksPage> createState() =>
-      _TasksPageState();
-}
+  const TasksPage({
+    super.key,
+    required this.taskRepository,
+  });
 
-class _TasksPageState extends State<TasksPage> {
-  final List<LifeTask> _tasks = [];
-
-  Future<void> _addTask() async {
+  Future<void> _addTask(
+    BuildContext context,
+  ) async {
     final task =
         await Navigator.push<LifeTask>(
       context,
@@ -28,31 +29,13 @@ class _TasksPageState extends State<TasksPage> {
       return;
     }
 
-    setState(() {
-      _tasks.add(task);
-
-      _tasks.sort((a, b) {
-        if (a.startAt == null &&
-            b.startAt == null) {
-          return 0;
-        }
-
-        if (a.startAt == null) {
-          return 1;
-        }
-
-        if (b.startAt == null) {
-          return -1;
-        }
-
-        return a.startAt!
-            .compareTo(b.startAt!);
-      });
-    });
+    await taskRepository.addTask(task);
   }
 
   String _twoDigits(int number) {
-    return number.toString().padLeft(2, '0');
+    return number
+        .toString()
+        .padLeft(2, '0');
   }
 
   String _formatDate(DateTime date) {
@@ -66,14 +49,15 @@ class _TasksPageState extends State<TasksPage> {
         '${_twoDigits(date.minute)}';
   }
 
-  String _taskSubtitle(LifeTask task) {
+  String _taskSubtitle(
+    LifeTask task,
+  ) {
     if (task.startAt == null) {
       return 'Senza data';
     }
 
-    final date = _formatDate(
-      task.startAt!,
-    );
+    final date =
+        _formatDate(task.startAt!);
 
     if (task.allDay) {
       return '$date · Tutto il giorno';
@@ -114,14 +98,44 @@ class _TasksPageState extends State<TasksPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Attività'),
+        title:
+            const Text('Attività'),
       ),
 
-      body: _tasks.isEmpty
-          ? Center(
+      body: StreamBuilder<
+          List<LifeTask>>(
+        stream:
+            taskRepository.watchAllTasks(),
+
+        builder:
+            (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Errore nel caricamento delle attività:\n'
+                '${snapshot.error}',
+                textAlign:
+                    TextAlign.center,
+              ),
+            );
+          }
+
+          if (!snapshot.hasData) {
+            return const Center(
+              child:
+                  CircularProgressIndicator(),
+            );
+          }
+
+          final tasks = snapshot.data!;
+
+          if (tasks.isEmpty) {
+            return Center(
               child: Padding(
                 padding:
-                    const EdgeInsets.all(32),
+                    const EdgeInsets.all(
+                  32,
+                ),
 
                 child: Column(
                   mainAxisSize:
@@ -131,9 +145,10 @@ class _TasksPageState extends State<TasksPage> {
                     Icon(
                       Icons.task_alt,
                       size: 64,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary,
+                      color:
+                          Theme.of(context)
+                              .colorScheme
+                              .primary,
                     ),
 
                     const SizedBox(
@@ -142,13 +157,15 @@ class _TasksPageState extends State<TasksPage> {
 
                     Text(
                       'Nessuna attività',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
+                      style:
+                          Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                fontWeight:
+                                    FontWeight
+                                        .w700,
+                              ),
                     ),
 
                     const SizedBox(
@@ -156,130 +173,145 @@ class _TasksPageState extends State<TasksPage> {
                     ),
 
                     Text(
-                      'Aggiungi qualcosa da fare '
-                      'con il pulsante +.',
+                      'Aggiungi qualcosa da fare con il pulsante +.',
                       textAlign:
                           TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(
-                            color:
-                                Theme.of(context)
+                      style:
+                          Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                )
                                     .colorScheme
                                     .onSurfaceVariant,
-                          ),
+                              ),
                     ),
                   ],
                 ),
               ),
-            )
-          : ListView.separated(
-              padding:
-                  const EdgeInsets.all(16),
+            );
+          }
 
-              itemCount: _tasks.length,
+          return ListView.separated(
+            padding:
+                const EdgeInsets.all(
+              16,
+            ),
 
-              separatorBuilder:
-                  (_, __) =>
-                      const SizedBox(
-                height: 8,
-              ),
+            itemCount: tasks.length,
 
-              itemBuilder:
-                  (context, index) {
-                final task =
-                    _tasks[index];
+            separatorBuilder:
+                (_, __) =>
+                    const SizedBox(
+              height: 8,
+            ),
 
-                return Card(
-                  margin: EdgeInsets.zero,
+            itemBuilder:
+                (context, index) {
+              final task =
+                  tasks[index];
 
-                  child: CheckboxListTile(
-                    value:
-                        task.isCompleted,
+              return Card(
+                margin:
+                    EdgeInsets.zero,
 
-                    onChanged: (value) {
-                      setState(() {
-                        task.isCompleted =
-                            value ?? false;
-                      });
-                    },
+                child:
+                    CheckboxListTile(
+                  value:
+                      task.isCompleted,
 
-                    secondary: Container(
-                      width: 10,
-                      height: 10,
+                  onChanged:
+                      (value) async {
+                    await taskRepository
+                        .setCompleted(
+                      task.id,
+                      value ?? false,
+                    );
+                  },
 
+                  secondary:
+                      Container(
+                    width: 10,
+                    height: 10,
+
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          _priorityColor(
+                        context,
+                        task.priority,
+                      ),
+
+                      shape:
+                          BoxShape.circle,
+                    ),
+                  ),
+
+                  title: Text(
+                    task.title,
+
+                    style: TextStyle(
                       decoration:
-                          BoxDecoration(
-                        color:
-                            _priorityColor(
-                          context,
-                          task.priority,
+                          task.isCompleted
+                              ? TextDecoration
+                                  .lineThrough
+                              : null,
+                    ),
+                  ),
+
+                  subtitle: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+
+                    children: [
+                      const SizedBox(
+                        height: 3,
+                      ),
+
+                      Text(
+                        _taskSubtitle(
+                          task,
                         ),
-
-                        shape:
-                            BoxShape.circle,
                       ),
-                    ),
 
-                    title: Text(
-                      task.title,
-
-                      style: TextStyle(
-                        decoration:
-                            task.isCompleted
-                                ? TextDecoration
-                                    .lineThrough
-                                : null,
-                      ),
-                    ),
-
-                    subtitle: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
-
-                      children: [
+                      if (task
+                          .description
+                          .isNotEmpty) ...[
                         const SizedBox(
                           height: 3,
                         ),
 
                         Text(
-                          _taskSubtitle(
-                            task,
-                          ),
+                          task.description,
+                          maxLines: 2,
+                          overflow:
+                              TextOverflow
+                                  .ellipsis,
                         ),
-
-                        if (task
-                            .description
-                            .isNotEmpty) ...[
-                          const SizedBox(
-                            height: 3,
-                          ),
-
-                          Text(
-                            task.description,
-                            maxLines: 2,
-                            overflow:
-                                TextOverflow
-                                    .ellipsis,
-                          ),
-                        ],
                       ],
-                    ),
-
-                    controlAffinity:
-                        ListTileControlAffinity
-                            .leading,
+                    ],
                   ),
-                );
-              },
-            ),
+
+                  controlAffinity:
+                      ListTileControlAffinity
+                          .leading,
+                ),
+              );
+            },
+          );
+        },
+      ),
 
       floatingActionButton:
           FloatingActionButton(
-        onPressed: _addTask,
-        child: const Icon(Icons.add),
+        onPressed: () =>
+            _addTask(context),
+
+        child:
+            const Icon(Icons.add),
       ),
     );
   }
