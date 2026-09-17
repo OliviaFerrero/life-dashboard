@@ -203,7 +203,7 @@ class TasksPage
             itemCount: tasks.length,
 
             separatorBuilder:
-                (_, __) =>
+                (_, _) =>
                     const SizedBox(
               height: 8,
             ),

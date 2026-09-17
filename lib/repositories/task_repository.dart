@@ -13,28 +13,28 @@ class TaskRepository {
         .select(_database.taskItems)
         .watch()
         .map((rows) {
-      final tasks =
-          rows.map(_taskFromRow).toList();
+      final tasks = rows.map(_taskFromRow).toList();
 
-      tasks.sort((a, b) {
-        if (a.startAt == null &&
-            b.startAt == null) {
-          return 0;
-        }
-
-        if (a.startAt == null) {
-          return 1;
-        }
-
-        if (b.startAt == null) {
-          return -1;
-        }
-
-        return a.startAt!
-            .compareTo(b.startAt!);
-      });
+      tasks.sort(_compareTasks);
 
       return tasks;
+    });
+  }
+
+  Stream<List<LifeTask>> watchTasksForDay(DateTime day) {
+    return watchAllTasks().map((tasks) {
+      return tasks.where((task) {
+        final date = task.startAt;
+
+        if (date == null) {
+          return false;
+        }
+
+        return date.year == day.year &&
+            date.month == day.month &&
+            date.day == day.day;
+      }).toList()
+        ..sort(_compareTasks);
     });
   }
 
@@ -57,18 +57,12 @@ class TaskRepository {
           TaskItemsCompanion.insert(
             id: task.id,
             title: task.title,
-            description:
-                Value(task.description),
-            startAt:
-                Value(task.startAt),
-            endAt:
-                Value(task.endAt),
-            allDay:
-                Value(task.allDay),
-            priority:
-                Value(task.priority.index),
-            isCompleted:
-                Value(task.isCompleted),
+            description: Value(task.description),
+            startAt: Value(task.startAt),
+            endAt: Value(task.endAt),
+            allDay: Value(task.allDay),
+            priority: Value(task.priority.index),
+            isCompleted: Value(task.isCompleted),
           ),
         );
   }
@@ -84,10 +78,28 @@ class TaskRepository {
           ))
         .write(
       TaskItemsCompanion(
-        isCompleted:
-            Value(completed),
+        isCompleted: Value(completed),
       ),
     );
+  }
+
+  int _compareTasks(
+    LifeTask a,
+    LifeTask b,
+  ) {
+    if (a.startAt == null && b.startAt == null) {
+      return 0;
+    }
+
+    if (a.startAt == null) {
+      return 1;
+    }
+
+    if (b.startAt == null) {
+      return -1;
+    }
+
+    return a.startAt!.compareTo(b.startAt!);
   }
 
   LifeTask _taskFromRow(
@@ -100,8 +112,7 @@ class TaskRepository {
       startAt: row.startAt,
       endAt: row.endAt,
       allDay: row.allDay,
-      priority:
-          _priorityFromInt(row.priority),
+      priority: _priorityFromInt(row.priority),
       isCompleted: row.isCompleted,
     );
   }
