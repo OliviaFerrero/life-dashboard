@@ -19,8 +19,7 @@ class TaskDetailPage extends StatefulWidget {
       _TaskDetailPageState();
 }
 
-class _TaskDetailPageState
-    extends State<TaskDetailPage> {
+class _TaskDetailPageState extends State<TaskDetailPage> {
   late LifeTask _task;
 
   @override
@@ -38,7 +37,7 @@ class _TaskDetailPageState
         '${_twoDigits(date.minute)}';
   }
 
-  String _formatDate(DateTime date) {
+  String _dateLabel(DateTime date) {
     const weekdays = [
       'Lunedì',
       'Martedì',
@@ -91,7 +90,9 @@ class _TaskDetailPageState
   ) {
     switch (priority) {
       case TaskPriority.low:
-        return Colors.green;
+        return const Color(
+          0xFF5F8F73,
+        );
 
       case TaskPriority.normal:
         return Theme.of(context)
@@ -99,7 +100,9 @@ class _TaskDetailPageState
             .primary;
 
       case TaskPriority.high:
-        return Colors.red;
+        return const Color(
+          0xFFC65B61,
+        );
     }
   }
 
@@ -237,236 +240,365 @@ class _TaskDetailPageState
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Dettaglio attività',
+          'Attività',
         ),
       ),
+
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          20,
+        padding:
+            const EdgeInsets.fromLTRB(
+          24,
           12,
-          20,
-          120,
+          24,
+          130,
         ),
         children: [
-          Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 7,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: priorityColor,
-                  borderRadius:
-                      BorderRadius.circular(
-                    10,
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 16),
-
-              Expanded(
-                child: Text(
-                  _task.title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(
-                        fontWeight:
-                            FontWeight.w700,
-                        decoration:
-                            _task.isCompleted
-                                ? TextDecoration
-                                    .lineThrough
-                                : null,
-                      ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          Card(
-            margin: EdgeInsets.zero,
-            clipBehavior: Clip.antiAlias,
-            child: ListTile(
-              onTap: () {
-                _setCompleted(
-                  !_task.isCompleted,
-                );
-              },
-
-              leading: Icon(
-                _task.isCompleted
-                    ? Icons.check_circle
-                    : Icons
-                        .radio_button_unchecked,
-                size: 30,
-                color: _task.isCompleted
-                    ? colorScheme.primary
-                    : colorScheme
-                        .onSurfaceVariant,
-              ),
-
-              title: Text(
-                _task.isCompleted
-                    ? 'Completata'
-                    : 'Completa',
-                style: const TextStyle(
-                  fontWeight:
-                      FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          Card(
-            margin: EdgeInsets.zero,
-            child: Column(
-              children: [
-                _DetailRow(
-                  icon: Icons
-                      .calendar_today_outlined,
-                  title: 'Data',
-                  value:
-                      _task.startAt == null
-                          ? 'Senza data'
-                          : _formatDate(
-                              _task.startAt!,
-                            ),
-                ),
-
-                if (_task.startAt != null) ...[
-                  const Divider(height: 1),
-
-                  _DetailRow(
-                    icon: Icons
-                        .schedule_outlined,
-                    title: 'Orario',
-                    value: _task.allDay
-                        ? 'Tutto il giorno'
-                        : _task.endAt == null
-                            ? _formatTime(
-                                _task.startAt!,
-                              )
-                            : '${_formatTime(_task.startAt!)}'
-                                ' – '
-                                '${_formatTime(_task.endAt!)}',
-                  ),
-                ],
-
-                const Divider(height: 1),
-
-                _DetailRow(
-                  icon: Icons
-                      .flag_outlined,
-                  title: 'Priorità',
-                  value:
-                      _priorityLabel(
-                    _task.priority,
-                  ),
-                  valueColor:
-                      priorityColor,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
           Text(
-            'Descrizione',
+            _task.title,
             style: Theme.of(context)
                 .textTheme
-                .titleMedium
+                .headlineMedium
+                ?.copyWith(
+                  fontWeight:
+                      FontWeight.w700,
+                  letterSpacing: -0.7,
+                  decoration:
+                      _task.isCompleted
+                          ? TextDecoration
+                              .lineThrough
+                          : null,
+                ),
+          ),
+
+          const SizedBox(
+            height: 18,
+          ),
+
+          InkWell(
+            borderRadius:
+                BorderRadius.circular(
+              12,
+            ),
+            onTap: () {
+              _setCompleted(
+                !_task.isCompleted,
+              );
+            },
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(
+                vertical: 8,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          _task.isCompleted
+                              ? colorScheme
+                                  .primary
+                              : Colors
+                                  .transparent,
+                      shape:
+                          BoxShape.circle,
+                      border:
+                          Border.all(
+                        color:
+                            _task.isCompleted
+                                ? colorScheme
+                                    .primary
+                                : colorScheme
+                                    .onSurfaceVariant,
+                        width: 2,
+                      ),
+                    ),
+                    child:
+                        _task.isCompleted
+                            ? Icon(
+                                Icons.check,
+                                size: 16,
+                                color:
+                                    colorScheme
+                                        .onPrimary,
+                              )
+                            : null,
+                  ),
+
+                  const SizedBox(
+                    width: 12,
+                  ),
+
+                  Text(
+                    _task.isCompleted
+                        ? 'Completata'
+                        : 'Completa',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(
+                          fontWeight:
+                              FontWeight
+                                  .w600,
+                          color:
+                              _task.isCompleted
+                                  ? colorScheme
+                                      .primary
+                                  : null,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(
+            height: 30,
+          ),
+
+          Text(
+            'Quando',
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
                 ?.copyWith(
                   fontWeight:
                       FontWeight.w700,
                 ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 18,
+          ),
 
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding:
-                  const EdgeInsets.all(
-                18,
+          if (_task.startAt == null)
+            const _SimpleInfoRow(
+              icon:
+                  Icons.calendar_today_outlined,
+              text: 'Nessuna data',
+            )
+          else ...[
+            Text(
+              _dateLabel(
+                _task.startAt!,
               ),
-              child: Align(
-                alignment:
-                    Alignment.centerLeft,
-                child: Text(
-                  _task.description.isEmpty
-                      ? 'Nessuna descrizione.'
-                      : _task.description,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(
-                        color:
-                            _task.description
-                                    .isEmpty
-                                ? colorScheme
-                                    .onSurfaceVariant
-                                : null,
-                      ),
-                ),
-              ),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
             ),
+
+            const SizedBox(
+              height: 18,
+            ),
+
+            if (_task.allDay)
+              const _SimpleInfoRow(
+                icon:
+                    Icons.schedule_outlined,
+                text:
+                    'Tutto il giorno',
+              )
+            else
+              _TimeRange(
+                start: _formatTime(
+                  _task.startAt!,
+                ),
+                end:
+                    _task.endAt == null
+                        ? null
+                        : _formatTime(
+                            _task.endAt!,
+                          ),
+              ),
+          ],
+
+          const SizedBox(
+            height: 34,
+          ),
+
+          Divider(
+            color: colorScheme
+                .outlineVariant
+                .withValues(
+              alpha: 0.6,
+            ),
+          ),
+
+          const SizedBox(
+            height: 24,
+          ),
+
+          Text(
+            'Priorità',
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(
+                  fontWeight:
+                      FontWeight.w700,
+                ),
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          Row(
+            children: [
+              Icon(
+                Icons.flag_outlined,
+                size: 20,
+                color: priorityColor,
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Text(
+                _priorityLabel(
+                  _task.priority,
+                ),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(
+                      color:
+                          priorityColor,
+                      fontWeight:
+                          FontWeight
+                              .w600,
+                    ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 34,
+          ),
+
+          Divider(
+            color: colorScheme
+                .outlineVariant
+                .withValues(
+              alpha: 0.6,
+            ),
+          ),
+
+          const SizedBox(
+            height: 24,
+          ),
+
+          Text(
+            'Descrizione',
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(
+                  fontWeight:
+                      FontWeight.w700,
+                ),
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          Text(
+            _task.description
+                    .trim()
+                    .isEmpty
+                ? 'Nessuna descrizione.'
+                : _task.description,
+            style: Theme.of(context)
+                .textTheme
+                .bodyLarge
+                ?.copyWith(
+                  height: 1.5,
+                  color:
+                      _task.description
+                              .trim()
+                              .isEmpty
+                          ? colorScheme
+                              .onSurfaceVariant
+                          : null,
+                ),
           ),
         ],
       ),
 
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar:
+          SafeArea(
         minimum:
-            const EdgeInsets.all(16),
+            const EdgeInsets.fromLTRB(
+          20,
+          10,
+          20,
+          16,
+        ),
         child: Row(
           children: [
             Expanded(
               flex: 2,
-              child: OutlinedButton.icon(
-                onPressed: _deleteTask,
-                icon: const Icon(
-                  Icons.delete_outline,
+              child:
+                  OutlinedButton.icon(
+                onPressed:
+                    _deleteTask,
+                icon:
+                    const Icon(
+                  Icons
+                      .delete_outline,
                 ),
-                label: const Text(
+                label:
+                    const Text(
                   'Elimina',
-                  maxLines: 1,
                 ),
                 style:
-                    OutlinedButton.styleFrom(
+                    OutlinedButton
+                        .styleFrom(
                   minimumSize:
-                      const Size.fromHeight(
+                      const Size
+                          .fromHeight(
                     52,
                   ),
                   foregroundColor:
-                      colorScheme.error,
+                      colorScheme
+                          .error,
                 ),
               ),
             ),
 
-            const SizedBox(width: 12),
+            const SizedBox(
+              width: 12,
+            ),
 
             Expanded(
               flex: 3,
-              child: FilledButton.icon(
-                onPressed: _editTask,
-                icon: const Icon(
-                  Icons.edit_outlined,
+              child:
+                  FilledButton.icon(
+                onPressed:
+                    _editTask,
+                icon:
+                    const Icon(
+                  Icons
+                      .edit_outlined,
                 ),
-                label: const Text(
+                label:
+                    const Text(
                   'Modifica',
                 ),
                 style:
-                    FilledButton.styleFrom(
+                    FilledButton
+                        .styleFrom(
                   minimumSize:
-                      const Size.fromHeight(
+                      const Size
+                          .fromHeight(
                     52,
                   ),
                 ),
@@ -479,71 +611,108 @@ class _TaskDetailPageState
   }
 }
 
-class _DetailRow
+class _SimpleInfoRow
     extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final String value;
-  final Color? valueColor;
+  final String text;
 
-  const _DetailRow({
+  const _SimpleInfoRow({
     required this.icon,
-    required this.title,
-    required this.value,
-    this.valueColor,
+    required this.text,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final colorScheme =
-        Theme.of(context).colorScheme;
+        Theme.of(context)
+            .colorScheme;
 
-    return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 14,
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: colorScheme.primary,
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: colorScheme
+              .onSurfaceVariant,
+        ),
+
+        const SizedBox(
+          width: 10,
+        ),
+
+        Text(
+          text,
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge,
+        ),
+      ],
+    );
+  }
+}
+
+class _TimeRange
+    extends StatelessWidget {
+  final String start;
+  final String? end;
+
+  const _TimeRange({
+    required this.start,
+    required this.end,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Row(
+      children: [
+        Text(
+          start,
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(
+                fontWeight:
+                    FontWeight.w700,
+              ),
+        ),
+
+        const SizedBox(
+          width: 14,
+        ),
+
+        Expanded(
+          child: Container(
+            height: 1,
+            color: colorScheme
+                .outlineVariant,
+          ),
+        ),
+
+        if (end != null) ...[
+          const SizedBox(
+            width: 14,
           ),
 
-          const SizedBox(width: 16),
-
-          Expanded(
-            child: Text(
-              title,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge,
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(
-                    color: valueColor ??
-                        colorScheme
-                            .onSurfaceVariant,
-                    fontWeight:
-                        valueColor != null
-                            ? FontWeight.w600
-                            : null,
-                  ),
-            ),
+          Text(
+            end!,
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(
+                  fontWeight:
+                      FontWeight.w700,
+                ),
           ),
         ],
-      ),
+      ],
     );
   }
 }

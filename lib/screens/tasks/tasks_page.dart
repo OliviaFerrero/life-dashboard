@@ -17,8 +17,7 @@ class TasksPage extends StatelessWidget {
     BuildContext context,
   ) async {
     final result =
-        await Navigator.push<
-            TaskFormResult>(
+        await Navigator.push<TaskFormResult>(
       context,
       MaterialPageRoute(
         builder: (_) =>
@@ -54,20 +53,24 @@ class TasksPage extends StatelessWidget {
     );
   }
 
-  String _twoDigits(
-    int number,
+  bool _sameDay(
+    DateTime first,
+    DateTime second,
   ) {
-    return number
-        .toString()
-        .padLeft(2, '0');
+    return first.year ==
+            second.year &&
+        first.month ==
+            second.month &&
+        first.day ==
+            second.day;
   }
 
-  String _formatDate(
-    DateTime date,
+  String _twoDigits(
+    int value,
   ) {
-    return '${_twoDigits(date.day)}/'
-        '${_twoDigits(date.month)}/'
-        '${date.year}';
+    return value
+        .toString()
+        .padLeft(2, '0');
   }
 
   String _formatTime(
@@ -77,37 +80,123 @@ class TasksPage extends StatelessWidget {
         '${_twoDigits(date.minute)}';
   }
 
-  String _taskSubtitle(
+  String _timeLabel(
     LifeTask task,
   ) {
     if (task.startAt == null) {
+      return '';
+    }
+
+    if (task.allDay) {
+      return 'Tutto\nil giorno';
+    }
+
+    return _formatTime(
+      task.startAt!,
+    );
+  }
+
+  String _secondaryLabel(
+    LifeTask task,
+  ) {
+    final parts = <String>[];
+
+    if (!task.allDay &&
+        task.endAt != null) {
+      parts.add(
+        'fino alle '
+        '${_formatTime(task.endAt!)}',
+      );
+    }
+
+    if (task.description
+        .trim()
+        .isNotEmpty) {
+      parts.add(
+        task.description.trim(),
+      );
+    }
+
+    return parts.join(' · ');
+  }
+
+  String _groupLabel(
+    DateTime? date,
+  ) {
+    if (date == null) {
       return 'Senza data';
     }
 
+    final now = DateTime.now();
+
+    final today = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final tomorrow =
+        today.add(
+      const Duration(days: 1),
+    );
+
+    if (_sameDay(
+      date,
+      today,
+    )) {
+      return 'Oggi';
+    }
+
+    if (_sameDay(
+      date,
+      tomorrow,
+    )) {
+      return 'Domani';
+    }
+
+    const weekdays = [
+      'Lunedì',
+      'Martedì',
+      'Mercoledì',
+      'Giovedì',
+      'Venerdì',
+      'Sabato',
+      'Domenica',
+    ];
+
+    const months = [
+      'gennaio',
+      'febbraio',
+      'marzo',
+      'aprile',
+      'maggio',
+      'giugno',
+      'luglio',
+      'agosto',
+      'settembre',
+      'ottobre',
+      'novembre',
+      'dicembre',
+    ];
+
+    return '${weekdays[date.weekday - 1]} '
+        '${date.day} '
+        '${months[date.month - 1]}';
+  }
+
+  String _groupKey(
+    LifeTask task,
+  ) {
     final date =
-        _formatDate(
-      task.startAt!,
-    );
+        task.startAt;
 
-    if (task.allDay) {
-      return '$date · Tutto il giorno';
+    if (date == null) {
+      return 'undated';
     }
 
-    final start =
-        _formatTime(
-      task.startAt!,
-    );
-
-    if (task.endAt == null) {
-      return '$date · $start';
-    }
-
-    final end =
-        _formatTime(
-      task.endAt!,
-    );
-
-    return '$date · $start–$end';
+    return '${date.year}-'
+        '${_twoDigits(date.month)}-'
+        '${_twoDigits(date.day)}';
   }
 
   Color _priorityColor(
@@ -116,7 +205,9 @@ class TasksPage extends StatelessWidget {
   ) {
     switch (priority) {
       case TaskPriority.low:
-        return Colors.green;
+        return const Color(
+          0xFF5F8F73,
+        );
 
       case TaskPriority.normal:
         return Theme.of(context)
@@ -124,7 +215,24 @@ class TasksPage extends StatelessWidget {
             .primary;
 
       case TaskPriority.high:
-        return Colors.red;
+        return const Color(
+          0xFFC65B61,
+        );
+    }
+  }
+
+  String _priorityLabel(
+    TaskPriority priority,
+  ) {
+    switch (priority) {
+      case TaskPriority.low:
+        return 'Bassa';
+
+      case TaskPriority.normal:
+        return 'Normale';
+
+      case TaskPriority.high:
+        return 'Alta';
     }
   }
 
@@ -132,16 +240,38 @@ class TasksPage extends StatelessWidget {
   Widget build(
     BuildContext context,
   ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text('Attività'),
+        title: const Text(
+          'Attività',
+        ),
+        actions: [
+          IconButton(
+            tooltip:
+                'Nuova attività',
+            onPressed: () {
+              _addTask(context);
+            },
+            icon: const Icon(
+              Icons.add,
+            ),
+          ),
+          const SizedBox(
+            width: 8,
+          ),
+        ],
       ),
+
       body: StreamBuilder<
           List<LifeTask>>(
         stream:
             taskRepository
                 .watchAllTasks(),
+
         builder:
             (context, snapshot) {
           if (snapshot.hasError) {
@@ -178,16 +308,17 @@ class TasksPage extends StatelessWidget {
                       MainAxisSize.min,
                   children: [
                     Icon(
-                      Icons.task_alt,
-                      size: 64,
+                      Icons
+                          .check_circle_outline,
+                      size: 54,
                       color:
-                          Theme.of(context)
-                              .colorScheme
-                              .primary,
+                          colorScheme.primary,
                     ),
+
                     const SizedBox(
-                      height: 20,
+                      height: 18,
                     ),
+
                     Text(
                       'Nessuna attività',
                       style:
@@ -200,13 +331,15 @@ class TasksPage extends StatelessWidget {
                                         .w700,
                               ),
                     ),
+
                     const SizedBox(
                       height: 8,
                     ),
+
                     Text(
-                      'Aggiungi qualcosa '
-                      'da fare con il '
-                      'pulsante +.',
+                      'Quando aggiungerai '
+                      'qualcosa da fare, '
+                      'comparirà qui.',
                       textAlign:
                           TextAlign.center,
                       style:
@@ -215,12 +348,29 @@ class TasksPage extends StatelessWidget {
                               .bodyLarge
                               ?.copyWith(
                                 color:
-                                    Theme.of(
-                                  context,
-                                )
-                                        .colorScheme
+                                    colorScheme
                                         .onSurfaceVariant,
                               ),
+                    ),
+
+                    const SizedBox(
+                      height: 22,
+                    ),
+
+                    FilledButton.icon(
+                      onPressed: () {
+                        _addTask(
+                          context,
+                        );
+                      },
+                      icon:
+                          const Icon(
+                        Icons.add,
+                      ),
+                      label:
+                          const Text(
+                        'Nuova attività',
+                      ),
                     ),
                   ],
                 ),
@@ -228,133 +378,504 @@ class TasksPage extends StatelessWidget {
             );
           }
 
-          return ListView.separated(
-            padding:
-                const EdgeInsets.all(
-              16,
-            ),
-            itemCount: tasks.length,
-            separatorBuilder:
-                (_, _) =>
-                    const SizedBox(
-              height: 8,
-            ),
-            itemBuilder:
-                (context, index) {
-              final task =
-                  tasks[index];
+          final groups =
+              <String, List<LifeTask>>{};
 
-              return Card(
-                margin:
-                    EdgeInsets.zero,
-                clipBehavior:
-                    Clip.antiAlias,
-                child: ListTile(
-                  onTap: () {
+          for (final task in tasks) {
+            final key =
+                _groupKey(task);
+
+            groups
+                .putIfAbsent(
+                  key,
+                  () => [],
+                )
+                .add(task);
+          }
+
+          return ListView(
+            padding:
+                const EdgeInsets
+                    .fromLTRB(
+              20,
+              8,
+              20,
+              40,
+            ),
+
+            children: [
+              for (final entry
+                  in groups.entries) ...[
+                _TaskGroup(
+                  title:
+                      _groupLabel(
+                    entry.value
+                        .first
+                        .startAt,
+                  ),
+
+                  tasks:
+                      entry.value,
+
+                  timeLabelBuilder:
+                      _timeLabel,
+
+                  secondaryLabelBuilder:
+                      _secondaryLabel,
+
+                  priorityColorBuilder:
+                      (task) =>
+                          _priorityColor(
+                    context,
+                    task.priority,
+                  ),
+
+                  priorityLabelBuilder:
+                      (task) =>
+                          _priorityLabel(
+                    task.priority,
+                  ),
+
+                  onCompletedChanged:
+                      (
+                    task,
+                    completed,
+                  ) async {
+                    await taskRepository
+                        .setCompleted(
+                      task.id,
+                      completed,
+                    );
+                  },
+
+                  onTaskTap:
+                      (task) {
                     _openTaskDetail(
                       context,
                       task,
                     );
                   },
-                  leading: Checkbox(
-                    value:
-                        task.isCompleted,
-                    onChanged:
-                        (value) async {
-                      await taskRepository
-                          .setCompleted(
-                        task.id,
-                        value ??
-                            false,
-                      );
-                    },
-                  ),
-                  title: Text(
-                    task.title,
-                    style: TextStyle(
-                      decoration:
-                          task.isCompleted
-                              ? TextDecoration
-                                  .lineThrough
-                              : null,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
-                    children: [
-                      const SizedBox(
-                        height: 3,
-                      ),
-                      Text(
-                        _taskSubtitle(
-                          task,
-                        ),
-                      ),
-                      if (task
-                          .description
-                          .isNotEmpty) ...[
-                        const SizedBox(
-                          height: 3,
-                        ),
-                        Text(
-                          task.description,
-                          maxLines: 2,
-                          overflow:
-                              TextOverflow
-                                  .ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                  trailing: Row(
-                    mainAxisSize:
-                        MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration:
-                            BoxDecoration(
-                          color:
-                              _priorityColor(
-                            context,
-                            task.priority,
-                          ),
-                          shape:
-                              BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(
-                        width: 8,
-                      ),
-                      Icon(
-                        Icons
-                            .chevron_right,
-                        color:
-                            Theme.of(
-                          context,
-                        )
-                                .colorScheme
-                                .onSurfaceVariant,
-                      ),
-                    ],
-                  ),
                 ),
-              );
-            },
+
+                const SizedBox(
+                  height: 30,
+                ),
+              ],
+            ],
           );
         },
       ),
-      floatingActionButton:
-          FloatingActionButton(
-        onPressed: () {
-          _addTask(context);
-        },
-        child:
-            const Icon(Icons.add),
-      ),
+    );
+  }
+}
+
+class _TaskGroup
+    extends StatelessWidget {
+  final String title;
+
+  final List<LifeTask> tasks;
+
+  final String Function(
+    LifeTask task,
+  ) timeLabelBuilder;
+
+  final String Function(
+    LifeTask task,
+  ) secondaryLabelBuilder;
+
+  final Color Function(
+    LifeTask task,
+  ) priorityColorBuilder;
+
+  final String Function(
+    LifeTask task,
+  ) priorityLabelBuilder;
+
+  final Future<void> Function(
+    LifeTask task,
+    bool completed,
+  ) onCompletedChanged;
+
+  final void Function(
+    LifeTask task,
+  ) onTaskTap;
+
+  const _TaskGroup({
+    required this.title,
+    required this.tasks,
+    required this.timeLabelBuilder,
+    required this.secondaryLabelBuilder,
+    required this.priorityColorBuilder,
+    required this.priorityLabelBuilder,
+    required this.onCompletedChanged,
+    required this.onTaskTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style:
+              Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(
+                    fontWeight:
+                        FontWeight.w700,
+                    letterSpacing:
+                        -0.3,
+                  ),
+        ),
+
+        const SizedBox(
+          height: 10,
+        ),
+
+        for (int i = 0;
+            i < tasks.length;
+            i++) ...[
+          _TaskRow(
+            task:
+                tasks[i],
+
+            timeLabel:
+                timeLabelBuilder(
+              tasks[i],
+            ),
+
+            secondaryLabel:
+                secondaryLabelBuilder(
+              tasks[i],
+            ),
+
+            priorityColor:
+                priorityColorBuilder(
+              tasks[i],
+            ),
+
+            priorityLabel:
+                priorityLabelBuilder(
+              tasks[i],
+            ),
+
+            onCompletedChanged:
+                (completed) {
+              return onCompletedChanged(
+                tasks[i],
+                completed,
+              );
+            },
+
+            onTap: () {
+              onTaskTap(
+                tasks[i],
+              );
+            },
+          ),
+
+          if (i !=
+              tasks.length - 1)
+            Divider(
+              indent: 96,
+              color:
+                  colorScheme
+                      .outlineVariant
+                      .withValues(
+                alpha: 0.55,
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _TaskRow
+    extends StatelessWidget {
+  final LifeTask task;
+
+  final String timeLabel;
+  final String secondaryLabel;
+
+  final Color priorityColor;
+  final String priorityLabel;
+
+  final Future<void> Function(
+    bool completed,
+  ) onCompletedChanged;
+
+  final VoidCallback onTap;
+
+  const _TaskRow({
+    required this.task,
+    required this.timeLabel,
+    required this.secondaryLabel,
+    required this.priorityColor,
+    required this.priorityLabel,
+    required this.onCompletedChanged,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 58,
+
+          child: Padding(
+            padding:
+                const EdgeInsets.only(
+              top: 18,
+              right: 8,
+            ),
+
+            child: Text(
+              timeLabel,
+              textAlign:
+                  TextAlign.right,
+
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+
+                        fontWeight:
+                            FontWeight
+                                .w500,
+                      ),
+            ),
+          ),
+        ),
+
+        InkResponse(
+          radius: 24,
+
+          onTap: () {
+            onCompletedChanged(
+              !task.isCompleted,
+            );
+          },
+
+          child: Padding(
+            padding:
+                const EdgeInsets
+                    .fromLTRB(
+              8,
+              16,
+              10,
+              16,
+            ),
+
+            child: Container(
+              width: 18,
+              height: 18,
+
+              decoration:
+                  BoxDecoration(
+                color:
+                    task.isCompleted
+                        ? priorityColor
+                        : Colors
+                            .transparent,
+
+                shape:
+                    BoxShape.circle,
+
+                border:
+                    Border.all(
+                  color:
+                      priorityColor,
+                  width: 2,
+                ),
+              ),
+
+              child:
+                  task.isCompleted
+                      ? const Icon(
+                          Icons.check,
+                          size: 12,
+                          color:
+                              Colors.white,
+                        )
+                      : null,
+            ),
+          ),
+        ),
+
+        Expanded(
+          child: Material(
+            color:
+                Colors.transparent,
+
+            child: InkWell(
+              onTap: onTap,
+
+              child: Padding(
+                padding:
+                    const EdgeInsets
+                        .fromLTRB(
+                  4,
+                  13,
+                  4,
+                  14,
+                ),
+
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            task.title,
+
+                            maxLines: 1,
+
+                            overflow:
+                                TextOverflow
+                                    .ellipsis,
+
+                            style:
+                                Theme.of(
+                              context,
+                            )
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight:
+                                          FontWeight
+                                              .w600,
+
+                                      decoration:
+                                          task.isCompleted
+                                              ? TextDecoration
+                                                  .lineThrough
+                                              : null,
+                                    ),
+                          ),
+                        ),
+
+                        const SizedBox(
+                          width: 8,
+                        ),
+
+                        Icon(
+                          Icons
+                              .chevron_right,
+                          size: 19,
+                          color:
+                              colorScheme
+                                  .onSurfaceVariant
+                                  .withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    if (secondaryLabel
+                        .isNotEmpty) ...[
+                      const SizedBox(
+                        height: 4,
+                      ),
+
+                      Text(
+                        secondaryLabel,
+
+                        maxLines: 2,
+
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
+
+                        style:
+                            Theme.of(
+                          context,
+                        )
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color:
+                                      colorScheme
+                                          .onSurfaceVariant,
+                                ),
+                      ),
+                    ],
+
+                    const SizedBox(
+                      height: 6,
+                    ),
+
+                    Row(
+                      mainAxisSize:
+                          MainAxisSize.min,
+
+                      children: [
+                        Icon(
+                          Icons
+                              .flag_outlined,
+                          size: 14,
+                          color:
+                              priorityColor,
+                        ),
+
+                        const SizedBox(
+                          width: 4,
+                        ),
+
+                        Text(
+                          priorityLabel,
+
+                          style:
+                              Theme.of(
+                            context,
+                          )
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        priorityColor,
+
+                                    fontWeight:
+                                        FontWeight
+                                            .w600,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

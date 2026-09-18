@@ -16,58 +16,79 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
-    return Card(
-      elevation: 1,
-      margin: EdgeInsets.zero,
-
-      color: colorScheme.surfaceContainerLow,
-
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-
-      clipBehavior: Clip.antiAlias,
-
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-
+        borderRadius:
+            BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 22,
+          padding:
+              const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 4,
           ),
-
           child: Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 34,
-                color: colorScheme.primary,
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary
+                      .withValues(
+                    alpha: 0.08,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(
+                    14,
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  size: 23,
+                  color:
+                      colorScheme.primary,
+                ),
               ),
 
-              const SizedBox(width: 18),
+              const SizedBox(width: 16),
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
                   children: [
                     Text(
                       title,
                       style:
-                          Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
+                          Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                fontWeight:
+                                    FontWeight
+                                        .w600,
                               ),
                     ),
 
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
 
                     Text(
                       value,
                       style:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                          Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color:
+                                    colorScheme
+                                        .onSurfaceVariant,
                               ),
                     ),
                   ],
@@ -77,8 +98,13 @@ class DashboardCard extends StatelessWidget {
               const SizedBox(width: 12),
 
               Icon(
-                Icons.chevron_right_rounded,
-                color: colorScheme.onSurfaceVariant,
+                Icons.chevron_right,
+                size: 21,
+                color: colorScheme
+                    .onSurfaceVariant
+                    .withValues(
+                  alpha: 0.7,
+                ),
               ),
             ],
           ),

@@ -44,13 +44,11 @@ class _CalendarPageState
 
   Future<void> _addTask() async {
     final result =
-        await Navigator.push<
-            TaskFormResult>(
+        await Navigator.push<TaskFormResult>(
       context,
       MaterialPageRoute(
         builder: (_) => TaskFormPage(
-          initialDate:
-              _selectedDay,
+          initialDate: _selectedDay,
         ),
       ),
     );
@@ -61,8 +59,7 @@ class _CalendarPageState
       return;
     }
 
-    await widget.taskRepository
-        .addTask(
+    await widget.taskRepository.addTask(
       result.task!,
     );
   }
@@ -73,8 +70,7 @@ class _CalendarPageState
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            TaskDetailPage(
+        builder: (_) => TaskDetailPage(
           task: task,
           taskRepository:
               widget.taskRepository,
@@ -100,8 +96,7 @@ class _CalendarPageState
     DateTime day,
   ) {
     return tasks.where((task) {
-      final date =
-          task.startAt;
+      final date = task.startAt;
 
       if (date == null) {
         return false;
@@ -204,7 +199,7 @@ class _CalendarPageState
         '${date.year}';
   }
 
-  String _taskTimeLabel(
+  String _timeLabel(
     LifeTask task,
   ) {
     if (task.startAt == null) {
@@ -212,24 +207,36 @@ class _CalendarPageState
     }
 
     if (task.allDay) {
-      return 'Tutto il giorno';
+      return 'Tutto\nil giorno';
     }
 
-    final start =
-        _formatTime(
+    return _formatTime(
       task.startAt!,
     );
+  }
 
-    if (task.endAt == null) {
-      return start;
+  String _secondaryLabel(
+    LifeTask task,
+  ) {
+    final parts = <String>[];
+
+    if (!task.allDay &&
+        task.endAt != null) {
+      parts.add(
+        'fino alle '
+        '${_formatTime(task.endAt!)}',
+      );
     }
 
-    final end =
-        _formatTime(
-      task.endAt!,
-    );
+    if (task.description
+        .trim()
+        .isNotEmpty) {
+      parts.add(
+        task.description.trim(),
+      );
+    }
 
-    return '$start – $end';
+    return parts.join(' · ');
   }
 
   Color _priorityColor(
@@ -238,7 +245,9 @@ class _CalendarPageState
   ) {
     switch (priority) {
       case TaskPriority.low:
-        return Colors.green;
+        return const Color(
+          0xFF5F8F73,
+        );
 
       case TaskPriority.normal:
         return Theme.of(context)
@@ -246,7 +255,24 @@ class _CalendarPageState
             .primary;
 
       case TaskPriority.high:
-        return Colors.red;
+        return const Color(
+          0xFFC65B61,
+        );
+    }
+  }
+
+  String _priorityLabel(
+    TaskPriority priority,
+  ) {
+    switch (priority) {
+      case TaskPriority.low:
+        return 'Bassa';
+
+      case TaskPriority.normal:
+        return 'Normale';
+
+      case TaskPriority.high:
+        return 'Alta';
     }
   }
 
@@ -263,8 +289,7 @@ class _CalendarPageState
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text(
+        title: const Text(
           'Calendario',
         ),
       ),
@@ -313,16 +338,18 @@ class _CalendarPageState
             padding:
                 const EdgeInsets
                     .fromLTRB(
-              16,
+              20,
               8,
-              16,
+              20,
               100,
             ),
+
             children: [
               SegmentedButton<
                   CalendarFormat>(
                 showSelectedIcon:
                     false,
+
                 segments:
                     const [
                   ButtonSegment(
@@ -336,6 +363,7 @@ class _CalendarPageState
                     label:
                         Text('Mese'),
                   ),
+
                   ButtonSegment(
                     value:
                         CalendarFormat
@@ -349,9 +377,11 @@ class _CalendarPageState
                     ),
                   ),
                 ],
+
                 selected: {
                   _calendarFormat,
                 },
+
                 onSelectionChanged:
                     (selection) {
                   setState(() {
@@ -370,12 +400,14 @@ class _CalendarPageState
                     EdgeInsets.zero,
                 clipBehavior:
                     Clip.antiAlias,
+
                 child: Padding(
                   padding:
                       const EdgeInsets
                           .only(
                     bottom: 8,
                   ),
+
                   child:
                       TableCalendar<
                           LifeTask>(
@@ -385,22 +417,28 @@ class _CalendarPageState
                       1,
                       1,
                     ),
+
                     lastDay:
                         DateTime(
                       now.year + 10,
                       12,
                       31,
                     ),
+
                     focusedDay:
                         _focusedDay,
+
                     calendarFormat:
                         _calendarFormat,
+
                     startingDayOfWeek:
                         StartingDayOfWeek
                             .monday,
+
                     availableGestures:
                         AvailableGestures
                             .horizontalSwipe,
+
                     selectedDayPredicate:
                         (day) {
                       return isSameDay(
@@ -408,6 +446,7 @@ class _CalendarPageState
                         day,
                       );
                     },
+
                     eventLoader:
                         (day) {
                       return _tasksForDay(
@@ -415,6 +454,7 @@ class _CalendarPageState
                         day,
                       );
                     },
+
                     onDaySelected:
                         (
                       selectedDay,
@@ -435,11 +475,13 @@ class _CalendarPageState
                             focusedDay;
                       });
                     },
+
                     onPageChanged:
                         (focusedDay) {
                       _focusedDay =
                           focusedDay;
                     },
+
                     onFormatChanged:
                         (format) {
                       setState(() {
@@ -447,23 +489,29 @@ class _CalendarPageState
                             format;
                       });
                     },
+
                     availableCalendarFormats:
                         const {
                       CalendarFormat
                               .month:
                           'Mese',
+
                       CalendarFormat
                               .week:
                           'Settimana',
                     },
+
                     headerStyle:
                         HeaderStyle(
                       titleCentered:
                           true,
+
                       formatButtonVisible:
                           false,
+
                       titleTextFormatter:
                           _monthYearLabel,
+
                       titleTextStyle:
                           Theme.of(
                         context,
@@ -476,6 +524,7 @@ class _CalendarPageState
                                             .w700,
                                   ) ??
                               const TextStyle(),
+
                       leftChevronIcon:
                           Icon(
                         Icons
@@ -484,6 +533,7 @@ class _CalendarPageState
                             colorScheme
                                 .onSurface,
                       ),
+
                       rightChevronIcon:
                           Icon(
                         Icons
@@ -493,10 +543,12 @@ class _CalendarPageState
                                 .onSurface,
                       ),
                     ),
+
                     daysOfWeekStyle:
                         DaysOfWeekStyle(
                       dowTextFormatter:
                           _weekdayLetter,
+
                       weekdayStyle:
                           TextStyle(
                         color:
@@ -506,6 +558,7 @@ class _CalendarPageState
                             FontWeight
                                 .w600,
                       ),
+
                       weekendStyle:
                           TextStyle(
                         color:
@@ -516,19 +569,24 @@ class _CalendarPageState
                                 .w600,
                       ),
                     ),
+
                     calendarStyle:
                         CalendarStyle(
                       outsideDaysVisible:
                           true,
+
                       markersMaxCount:
                           3,
+
                       markerSize: 5,
+
                       markerMargin:
                           const EdgeInsets
                               .symmetric(
                         horizontal:
                             1.5,
                       ),
+
                       markerDecoration:
                           BoxDecoration(
                         color:
@@ -538,6 +596,7 @@ class _CalendarPageState
                             BoxShape
                                 .circle,
                       ),
+
                       selectedDecoration:
                           BoxDecoration(
                         color:
@@ -547,6 +606,7 @@ class _CalendarPageState
                             BoxShape
                                 .circle,
                       ),
+
                       selectedTextStyle:
                           TextStyle(
                         color:
@@ -556,6 +616,7 @@ class _CalendarPageState
                             FontWeight
                                 .w700,
                       ),
+
                       todayDecoration:
                           BoxDecoration(
                         color:
@@ -565,6 +626,7 @@ class _CalendarPageState
                             BoxShape
                                 .circle,
                       ),
+
                       todayTextStyle:
                           TextStyle(
                         color:
@@ -574,6 +636,7 @@ class _CalendarPageState
                             FontWeight
                                 .w700,
                       ),
+
                       outsideTextStyle:
                           TextStyle(
                         color:
@@ -586,16 +649,21 @@ class _CalendarPageState
               ),
 
               const SizedBox(
-                height: 24,
+                height: 30,
               ),
 
               Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .center,
+
                 children: [
                   Expanded(
                     child: Text(
                       _selectedDateLabel(
                         _selectedDay,
                       ),
+
                       style:
                           Theme.of(
                         context,
@@ -606,42 +674,37 @@ class _CalendarPageState
                                 fontWeight:
                                     FontWeight
                                         .w700,
+
+                                letterSpacing:
+                                    -0.3,
                               ),
                     ),
                   ),
+
                   if (selectedTasks
                       .isNotEmpty)
-                    Container(
-                      padding:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal:
-                            10,
-                        vertical: 5,
-                      ),
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            colorScheme
-                                .primaryContainer,
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          20,
-                        ),
-                      ),
-                      child: Text(
-                        '${selectedTasks.length}',
-                        style:
-                            TextStyle(
-                          color:
-                              colorScheme
-                                  .onPrimaryContainer,
-                          fontWeight:
-                              FontWeight
-                                  .w700,
-                        ),
-                      ),
+                    Text(
+                      selectedTasks
+                                  .length ==
+                              1
+                          ? '1 attività'
+                          : '${selectedTasks.length} attività',
+
+                      style:
+                          Theme.of(
+                        context,
+                      )
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color:
+                                    colorScheme
+                                        .onSurfaceVariant,
+
+                                fontWeight:
+                                    FontWeight
+                                        .w600,
+                              ),
                     ),
                 ],
               ),
@@ -652,34 +715,51 @@ class _CalendarPageState
 
               if (selectedTasks
                   .isEmpty)
-                Card(
-                  margin:
-                      EdgeInsets.zero,
-                  child: Padding(
-                    padding:
-                        const EdgeInsets
-                            .all(24),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons
-                              .event_available_outlined,
-                          color:
-                              colorScheme
-                                  .primary,
+                Padding(
+                  padding:
+                      const EdgeInsets
+                          .symmetric(
+                    vertical: 22,
+                  ),
+
+                  child: Row(
+                    crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+
+                    children: [
+                      Icon(
+                        Icons
+                            .event_available_outlined,
+                        color:
+                            colorScheme
+                                .primary,
+                      ),
+
+                      const SizedBox(
+                        width: 14,
+                      ),
+
+                      Expanded(
+                        child: Text(
+                          'Nessuna attività '
+                          'programmata per '
+                          'questo giorno.',
+
+                          style:
+                              Theme.of(
+                            context,
+                          )
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(
+                                    color:
+                                        colorScheme
+                                            .onSurfaceVariant,
+                                  ),
                         ),
-                        const SizedBox(
-                          width: 14,
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Nessuna attività '
-                            'programmata per '
-                            'questo giorno.',
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 )
               else
@@ -690,10 +770,23 @@ class _CalendarPageState
                             selectedTasks
                                 .length;
                         i++) ...[
-                      _CalendarTaskCard(
+                      _CalendarTaskRow(
                         task:
                             selectedTasks[
                                 i],
+
+                        timeLabel:
+                            _timeLabel(
+                          selectedTasks[
+                              i],
+                        ),
+
+                        secondaryLabel:
+                            _secondaryLabel(
+                          selectedTasks[
+                              i],
+                        ),
+
                         priorityColor:
                             _priorityColor(
                           context,
@@ -701,11 +794,14 @@ class _CalendarPageState
                                   i]
                               .priority,
                         ),
-                        timeLabel:
-                            _taskTimeLabel(
+
+                        priorityLabel:
+                            _priorityLabel(
                           selectedTasks[
-                              i],
+                                  i]
+                              .priority,
                         ),
+
                         onCompletedChanged:
                             (
                           completed,
@@ -719,6 +815,7 @@ class _CalendarPageState
                             completed,
                           );
                         },
+
                         onTap: () {
                           _openTaskDetail(
                             selectedTasks[
@@ -726,12 +823,20 @@ class _CalendarPageState
                           );
                         },
                       ),
+
                       if (i !=
                           selectedTasks
                                   .length -
                               1)
-                        const SizedBox(
-                          height: 8,
+                        Divider(
+                          indent: 96,
+                          color:
+                              colorScheme
+                                  .outlineVariant
+                                  .withValues(
+                            alpha:
+                                0.55,
+                          ),
                         ),
                     ],
                   ],
@@ -742,12 +847,15 @@ class _CalendarPageState
       ),
 
       floatingActionButton:
-          FloatingActionButton.extended(
+          FloatingActionButton
+              .extended(
         onPressed: _addTask,
+
         icon:
             const Icon(
           Icons.add,
         ),
+
         label:
             const Text(
           'Attività',
@@ -757,19 +865,27 @@ class _CalendarPageState
   }
 }
 
-class _CalendarTaskCard
+class _CalendarTaskRow
     extends StatelessWidget {
   final LifeTask task;
-  final Color priorityColor;
+
   final String timeLabel;
+  final String secondaryLabel;
+
+  final Color priorityColor;
+  final String priorityLabel;
+
   final ValueChanged<bool>
       onCompletedChanged;
+
   final VoidCallback onTap;
 
-  const _CalendarTaskCard({
+  const _CalendarTaskRow({
     required this.task,
-    required this.priorityColor,
     required this.timeLabel,
+    required this.secondaryLabel,
+    required this.priorityColor,
+    required this.priorityLabel,
     required this.onCompletedChanged,
     required this.onTap,
   });
@@ -782,60 +898,135 @@ class _CalendarTaskCard
         Theme.of(context)
             .colorScheme;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior:
-          Clip.antiAlias,
-      child: Row(
-        children: [
-          Checkbox(
-            value:
-                task.isCompleted,
-            onChanged: (value) {
-              onCompletedChanged(
-                value ?? false,
-              );
-            },
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+
+      children: [
+        SizedBox(
+          width: 58,
+
+          child: Padding(
+            padding:
+                const EdgeInsets.only(
+              top: 18,
+              right: 8,
+            ),
+
+            child: Text(
+              timeLabel,
+
+              textAlign:
+                  TextAlign.right,
+
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+
+                        fontWeight:
+                            FontWeight
+                                .w500,
+                      ),
+            ),
           ),
-          Expanded(
+        ),
+
+        InkResponse(
+          radius: 24,
+
+          onTap: () {
+            onCompletedChanged(
+              !task.isCompleted,
+            );
+          },
+
+          child: Padding(
+            padding:
+                const EdgeInsets
+                    .fromLTRB(
+              8,
+              16,
+              10,
+              16,
+            ),
+
+            child: Container(
+              width: 18,
+              height: 18,
+
+              decoration:
+                  BoxDecoration(
+                color:
+                    task.isCompleted
+                        ? priorityColor
+                        : Colors
+                            .transparent,
+
+                shape:
+                    BoxShape.circle,
+
+                border:
+                    Border.all(
+                  color:
+                      priorityColor,
+                  width: 2,
+                ),
+              ),
+
+              child:
+                  task.isCompleted
+                      ? const Icon(
+                          Icons.check,
+                          size: 12,
+                          color:
+                              Colors.white,
+                        )
+                      : null,
+            ),
+          ),
+        ),
+
+        Expanded(
+          child: Material(
+            color:
+                Colors.transparent,
+
             child: InkWell(
               onTap: onTap,
+
               child: Padding(
                 padding:
                     const EdgeInsets
                         .fromLTRB(
                   4,
-                  12,
-                  12,
-                  12,
+                  13,
+                  4,
+                  14,
                 ),
-                child: Row(
+
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+
                   children: [
-                    Container(
-                      width: 8,
-                      height: 40,
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            priorityColor,
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          8,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(
-                      width: 14,
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-                        children: [
-                          Text(
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
                             task.title,
+
+                            maxLines: 1,
+
+                            overflow:
+                                TextOverflow
+                                    .ellipsis,
+
                             style:
                                 Theme.of(
                               context,
@@ -846,6 +1037,7 @@ class _CalendarTaskCard
                                       fontWeight:
                                           FontWeight
                                               .w600,
+
                                       decoration:
                                           task.isCompleted
                                               ? TextDecoration
@@ -853,59 +1045,104 @@ class _CalendarTaskCard
                                               : null,
                                     ),
                           ),
-                          if (timeLabel
-                              .isNotEmpty) ...[
-                            const SizedBox(
-                              height: 3,
-                            ),
-                            Text(
-                              timeLabel,
-                              style:
-                                  Theme.of(
-                                context,
-                              )
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color:
-                                            colorScheme
-                                                .onSurfaceVariant,
-                                      ),
-                            ),
-                          ],
-                          if (task
-                              .description
-                              .isNotEmpty) ...[
-                            const SizedBox(
-                              height: 3,
-                            ),
-                            Text(
-                              task
-                                  .description,
-                              maxLines:
-                                  2,
-                              overflow:
-                                  TextOverflow
-                                      .ellipsis,
-                            ),
-                          ],
-                        ],
-                      ),
+                        ),
+
+                        const SizedBox(
+                          width: 8,
+                        ),
+
+                        Icon(
+                          Icons
+                              .chevron_right,
+                          size: 19,
+
+                          color:
+                              colorScheme
+                                  .onSurfaceVariant
+                                  .withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                      ],
                     ),
-                    Icon(
-                      Icons
-                          .chevron_right,
-                      color:
-                          colorScheme
-                              .onSurfaceVariant,
+
+                    if (secondaryLabel
+                        .isNotEmpty) ...[
+                      const SizedBox(
+                        height: 4,
+                      ),
+
+                      Text(
+                        secondaryLabel,
+
+                        maxLines: 2,
+
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
+
+                        style:
+                            Theme.of(
+                          context,
+                        )
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color:
+                                      colorScheme
+                                          .onSurfaceVariant,
+                                ),
+                      ),
+                    ],
+
+                    const SizedBox(
+                      height: 6,
+                    ),
+
+                    Row(
+                      mainAxisSize:
+                          MainAxisSize.min,
+
+                      children: [
+                        Icon(
+                          Icons
+                              .flag_outlined,
+                          size: 14,
+                          color:
+                              priorityColor,
+                        ),
+
+                        const SizedBox(
+                          width: 4,
+                        ),
+
+                        Text(
+                          priorityLabel,
+
+                          style:
+                              Theme.of(
+                            context,
+                          )
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        priorityColor,
+
+                                    fontWeight:
+                                        FontWeight
+                                            .w600,
+                                  ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

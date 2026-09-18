@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import '../models/life_task.dart';
 import '../repositories/task_repository.dart';
 import '../widgets/dashboard_card.dart';
+import '../widgets/life_section_header.dart';
+import '../widgets/task_timeline.dart';
 import 'calendar/calendar_page.dart';
 import 'tasks/task_detail_page.dart';
 import 'tasks/tasks_page.dart';
 
-class TodayPage extends StatelessWidget {
+class TodayPage
+    extends StatelessWidget {
   final TaskRepository taskRepository;
 
   const TodayPage({
@@ -15,7 +18,9 @@ class TodayPage extends StatelessWidget {
     required this.taskRepository,
   });
 
-  String _dayLabel(DateTime date) {
+  String _dayLabel(
+    DateTime date,
+  ) {
     const weekdays = [
       'Lunedì',
       'Martedì',
@@ -46,7 +51,9 @@ class TodayPage extends StatelessWidget {
         '${months[date.month - 1]}';
   }
 
-  String _twoDigits(int value) {
+  String _twoDigits(
+    int value,
+  ) {
     return value
         .toString()
         .padLeft(2, '0');
@@ -59,28 +66,45 @@ class TodayPage extends StatelessWidget {
         '${_twoDigits(date.minute)}';
   }
 
-  String _taskTimeLabel(
+  String _timeLabel(
     LifeTask task,
   ) {
+    if (task.allDay) {
+      return 'Tutto il\ngiorno';
+    }
+
     if (task.startAt == null) {
       return '';
     }
 
-    if (task.allDay) {
-      return 'Tutto il giorno';
-    }
-
-    final start =
-        _formatTime(
+    return _formatTime(
       task.startAt!,
     );
+  }
 
-    if (task.endAt == null) {
-      return start;
+  String _secondaryLabel(
+    LifeTask task,
+  ) {
+    final parts =
+        <String>[];
+
+    if (!task.allDay &&
+        task.endAt != null) {
+      parts.add(
+        'fino alle '
+        '${_formatTime(task.endAt!)}',
+      );
     }
 
-    return '$start – '
-        '${_formatTime(task.endAt!)}';
+    if (task.description
+        .trim()
+        .isNotEmpty) {
+      parts.add(
+        task.description.trim(),
+      );
+    }
+
+    return parts.join(' · ');
   }
 
   Color _priorityColor(
@@ -89,7 +113,9 @@ class TodayPage extends StatelessWidget {
   ) {
     switch (priority) {
       case TaskPriority.low:
-        return Colors.green;
+        return const Color(
+          0xFF5F8F73,
+        );
 
       case TaskPriority.normal:
         return Theme.of(context)
@@ -97,7 +123,9 @@ class TodayPage extends StatelessWidget {
             .primary;
 
       case TaskPriority.high:
-        return Colors.red;
+        return const Color(
+          0xFFC65B61,
+        );
     }
   }
 
@@ -105,16 +133,11 @@ class TodayPage extends StatelessWidget {
     List<LifeTask> tasks,
     DateTime now,
   ) {
-    final incomplete = tasks
-        .where(
-          (task) =>
-              !task.isCompleted,
-        )
-        .toList();
-
-    if (incomplete.isEmpty) {
-      return null;
-    }
+    final incomplete =
+        tasks.where(
+      (task) =>
+          !task.isCompleted,
+    );
 
     for (final task
         in incomplete) {
@@ -133,7 +156,7 @@ class TodayPage extends StatelessWidget {
       }
     }
 
-    return incomplete.first;
+    return null;
   }
 
   void _openTasks(
@@ -142,7 +165,8 @@ class TodayPage extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => TasksPage(
+        builder: (_) =>
+            TasksPage(
           taskRepository:
               taskRepository,
         ),
@@ -174,7 +198,8 @@ class TodayPage extends StatelessWidget {
     final now =
         DateTime.now();
 
-    final today = DateTime(
+    final today =
+        DateTime(
       now.year,
       now.month,
       now.day,
@@ -186,26 +211,30 @@ class TodayPage extends StatelessWidget {
 
     return SafeArea(
       bottom: false,
+
       child: StreamBuilder<
           List<LifeTask>>(
-        stream: taskRepository
-            .watchTasksForDay(
+        stream:
+            taskRepository
+                .watchTasksForDay(
           today,
         ),
-        initialData: const [],
+
+        initialData:
+            const [],
+
         builder:
             (context, snapshot) {
           final tasks =
               snapshot.data ??
-                  const <LifeTask>[];
+                  const <
+                      LifeTask>[];
 
           final completedCount =
-              tasks
-                  .where(
-                    (task) =>
-                        task.isCompleted,
-                  )
-                  .length;
+              tasks.where(
+            (task) =>
+                task.isCompleted,
+          ).length;
 
           final incompleteCount =
               tasks.length -
@@ -218,7 +247,9 @@ class TodayPage extends StatelessWidget {
           );
 
           final visibleTasks =
-              tasks.take(3).toList();
+              tasks
+                  .take(5)
+                  .toList();
 
           return ListView(
             padding:
@@ -227,14 +258,16 @@ class TodayPage extends StatelessWidget {
               20,
               24,
               20,
-              32,
+              40,
             ),
+
             children: [
               Row(
                 children: [
                   Expanded(
                     child: Text(
                       'Oggi',
+
                       style:
                           Theme.of(
                         context,
@@ -245,19 +278,22 @@ class TodayPage extends StatelessWidget {
                                 fontWeight:
                                     FontWeight
                                         .w700,
+
                                 letterSpacing:
-                                    -1,
+                                    -1.2,
                               ),
                     ),
                   ),
-                  IconButton
-                      .filledTonal(
+
+                  IconButton(
                     tooltip:
                         'Calendario',
+
                     icon: const Icon(
                       Icons
                           .calendar_month_outlined,
                     ),
+
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -276,496 +312,187 @@ class TodayPage extends StatelessWidget {
               ),
 
               const SizedBox(
-                height: 4,
+                height: 2,
               ),
 
               Text(
-                _dayLabel(today),
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(
-                      color: colorScheme
-                          .onSurfaceVariant,
-                    ),
-              ),
-
-              const SizedBox(
-                height: 28,
-              ),
-
-              Text(
-                'Prossima attività',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(
-                      fontWeight:
-                          FontWeight.w700,
-                    ),
-              ),
-
-              const SizedBox(
-                height: 10,
-              ),
-
-              if (nextTask == null)
-                Card(
-                  margin:
-                      EdgeInsets.zero,
-                  child: Padding(
-                    padding:
-                        const EdgeInsets
-                            .all(20),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons
-                              .check_circle_outline,
-                          color:
-                              colorScheme
-                                  .primary,
-                        ),
-                        const SizedBox(
-                          width: 14,
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Nessuna attività '
-                            'da completare oggi.',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                Card(
-                  margin:
-                      EdgeInsets.zero,
-                  clipBehavior:
-                      Clip.antiAlias,
-                  child: Row(
-                    children: [
-                      Checkbox(
-                        value:
-                            nextTask
-                                .isCompleted,
-                        onChanged:
-                            (value) async {
-                          await taskRepository
-                              .setCompleted(
-                            nextTask.id,
-                            value ??
-                                false,
-                          );
-                        },
-                      ),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            _openTaskDetail(
-                              context,
-                              nextTask,
-                            );
-                          },
-                          child: Padding(
-                            padding:
-                                const EdgeInsets
-                                    .fromLTRB(
-                              4,
-                              16,
-                              14,
-                              16,
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 48,
-                                  decoration:
-                                      BoxDecoration(
-                                    color:
-                                        _priorityColor(
-                                      context,
-                                      nextTask
-                                          .priority,
-                                    ),
-                                    borderRadius:
-                                        BorderRadius
-                                            .circular(
-                                      10,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(
-                                  width: 16,
-                                ),
-                                Expanded(
-                                  child:
-                                      Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment
-                                            .start,
-                                    children: [
-                                      Text(
-                                        nextTask
-                                            .title,
-                                        style:
-                                            Theme.of(
-                                          context,
-                                        )
-                                                .textTheme
-                                                .titleMedium
-                                                ?.copyWith(
-                                                  fontWeight:
-                                                      FontWeight.w700,
-                                                ),
-                                      ),
-                                      const SizedBox(
-                                        height:
-                                            4,
-                                      ),
-                                      Text(
-                                        _taskTimeLabel(
-                                          nextTask,
-                                        ),
-                                        style:
-                                            Theme.of(
-                                          context,
-                                        )
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.copyWith(
-                                                  color:
-                                                      colorScheme.onSurfaceVariant,
-                                                ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons
-                                      .chevron_right,
-                                  color:
-                                      colorScheme
-                                          .onSurfaceVariant,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                _dayLabel(
+                  today,
                 ),
 
-              const SizedBox(
-                height: 28,
-              ),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Attività di oggi',
-                      style:
-                          Theme.of(
-                        context,
-                      )
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(
-                                fontWeight:
-                                    FontWeight
-                                        .w700,
-                              ),
-                    ),
-                  ),
-                  if (tasks.isNotEmpty)
-                    Text(
-                      '$completedCount/'
-                      '${tasks.length}',
-                      style:
-                          Theme.of(
-                        context,
-                      )
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color:
-                                    colorScheme
-                                        .onSurfaceVariant,
-                                fontWeight:
-                                    FontWeight
-                                        .w600,
-                              ),
-                    ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 10,
-              ),
-
-              if (tasks.isEmpty)
-                Card(
-                  margin:
-                      EdgeInsets.zero,
-                  child: Padding(
-                    padding:
-                        const EdgeInsets
-                            .all(20),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons
-                              .event_available_outlined,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(
                           color:
                               colorScheme
-                                  .primary,
+                                  .onSurfaceVariant,
+
+                          fontWeight:
+                              FontWeight
+                                  .w500,
                         ),
-                        const SizedBox(
-                          width: 14,
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Giornata libera: '
-                            'non hai attività '
-                            'programmate.',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                Card(
-                  margin:
-                      EdgeInsets.zero,
-                  clipBehavior:
-                      Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      for (int i = 0;
-                          i <
-                              visibleTasks
-                                  .length;
-                          i++) ...[
-                        _TodayTaskTile(
-                          task:
-                              visibleTasks[
-                                  i],
-                          timeLabel:
-                              _taskTimeLabel(
-                            visibleTasks[
-                                i],
-                          ),
-                          priorityColor:
-                              _priorityColor(
-                            context,
-                            visibleTasks[
-                                    i]
-                                .priority,
-                          ),
-                          onChanged:
-                              (completed) async {
-                            await taskRepository
-                                .setCompleted(
-                              visibleTasks[
-                                      i]
-                                  .id,
-                              completed,
-                            );
-                          },
-                          onTap: () {
-                            _openTaskDetail(
-                              context,
-                              visibleTasks[
-                                  i],
-                            );
-                          },
-                        ),
-                        if (i !=
-                            visibleTasks
-                                    .length -
-                                1)
-                          const Divider(
-                            height: 1,
-                          ),
-                      ],
-                      if (tasks.length >
-                          3) ...[
-                        const Divider(
-                          height: 1,
-                        ),
-                        TextButton(
-                          onPressed: () {
+              ),
+
+              const SizedBox(
+                height: 32,
+              ),
+
+              LifeSectionHeader(
+                title:
+                    'La tua giornata',
+
+                value:
+                    tasks.isEmpty
+                        ? null
+                        : '$completedCount/'
+                            '${tasks.length}',
+
+                actionLabel:
+                    tasks.isEmpty
+                        ? null
+                        : 'Vedi tutte',
+
+                onAction:
+                    tasks.isEmpty
+                        ? null
+                        : () {
                             _openTasks(
                               context,
                             );
                           },
-                          child: Text(
-                            'Vedi tutte '
-                            '(${tasks.length})',
-                          ),
+              ),
+
+              const SizedBox(
+                height: 8,
+              ),
+
+              if (tasks.isEmpty)
+                Padding(
+                  padding:
+                      const EdgeInsets
+                          .symmetric(
+                    vertical: 26,
+                  ),
+
+                  child: Row(
+                    crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+
+                    children: [
+                      Icon(
+                        Icons
+                            .wb_sunny_outlined,
+                        color:
+                            colorScheme
+                                .primary,
+                      ),
+
+                      const SizedBox(
+                        width: 14,
+                      ),
+
+                      Expanded(
+                        child: Text(
+                          'Nessuna attività '
+                          'programmata per oggi.',
+
+                          style:
+                              Theme.of(
+                            context,
+                          )
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(
+                                    color:
+                                        colorScheme
+                                            .onSurfaceVariant,
+                                  ),
                         ),
-                      ],
+                      ),
                     ],
+                  ),
+                )
+              else
+                TaskTimeline(
+                  tasks:
+                      visibleTasks,
+
+                  nextTaskId:
+                      nextTask?.id,
+
+                  timeLabelBuilder:
+                      _timeLabel,
+
+                  secondaryLabelBuilder:
+                      _secondaryLabel,
+
+                  accentColorBuilder:
+                      (task) {
+                    return _priorityColor(
+                      context,
+                      task.priority,
+                    );
+                  },
+
+                  onCompletedChanged:
+                      (
+                    task,
+                    completed,
+                  ) async {
+                    await taskRepository
+                        .setCompleted(
+                      task.id,
+                      completed,
+                    );
+                  },
+
+                  onTaskTap:
+                      (task) {
+                    _openTaskDetail(
+                      context,
+                      task,
+                    );
+                  },
+                ),
+
+              if (tasks.length > 5)
+                Align(
+                  alignment:
+                      Alignment.centerLeft,
+
+                  child: TextButton(
+                    onPressed: () {
+                      _openTasks(
+                        context,
+                      );
+                    },
+
+                    child: Text(
+                      'Altre '
+                      '${tasks.length - 5} '
+                      'attività',
+                    ),
                   ),
                 ),
 
-              const SizedBox(
-                height: 14,
-              ),
-
-              DashboardCard(
-                icon:
-                    Icons.task_alt,
-                title: 'Attività',
-                value:
-                    incompleteCount ==
-                            1
-                        ? '1 da completare oggi'
-                        : '$incompleteCount '
-                            'da completare oggi',
-                onTap: () {
-                  _openTasks(
-                    context,
-                  );
-                },
-              ),
-
-              const SizedBox(
-                height: 14,
-              ),
-
-              const DashboardCard(
-                icon: Icons.repeat,
-                title: 'Abitudini',
-                value:
-                    '0 completate oggi',
-              ),
-
-              const SizedBox(
-                height: 14,
-              ),
-
-              const DashboardCard(
-                icon: Icons
-                    .shopping_cart_outlined,
-                title:
-                    'Lista della spesa',
-                value: '0 prodotti',
-              ),
-
-              const SizedBox(
-                height: 14,
-              ),
-
-              const DashboardCard(
-                icon: Icons
-                    .account_balance_wallet_outlined,
-                title:
-                    'Spese del mese',
-                value: '€ 0,00',
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _TodayTaskTile
-    extends StatelessWidget {
-  final LifeTask task;
-  final String timeLabel;
-  final Color priorityColor;
-  final ValueChanged<bool>
-      onChanged;
-  final VoidCallback onTap;
-
-  const _TodayTaskTile({
-    required this.task,
-    required this.timeLabel,
-    required this.priorityColor,
-    required this.onChanged,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
-
-    return Row(
-      children: [
-        Checkbox(
-          value: task.isCompleted,
-          onChanged: (value) {
-            onChanged(
-              value ?? false,
-            );
-          },
-        ),
-        Expanded(
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding:
-                  const EdgeInsets
-                      .fromLTRB(
-                4,
-                12,
-                8,
-                12,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 7,
-                    height: 34,
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          priorityColor,
-                      borderRadius:
-                          BorderRadius
-                              .circular(
-                        8,
-                      ),
-                    ),
+              if (tasks.isNotEmpty)
+                Padding(
+                  padding:
+                      const EdgeInsets
+                          .only(
+                    top: 8,
                   ),
-                  const SizedBox(
-                    width: 12,
-                  ),
-                  Expanded(
-                    child: Text(
-                      task.title,
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow
-                              .ellipsis,
-                      style:
-                          TextStyle(
-                        decoration:
-                            task.isCompleted
-                                ? TextDecoration
-                                    .lineThrough
-                                : null,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 8,
-                  ),
-                  Text(
-                    timeLabel,
+
+                  child: Text(
+                    incompleteCount == 0
+                        ? 'Tutto completato per oggi'
+                        : incompleteCount == 1
+                            ? '1 attività ancora da completare'
+                            : '$incompleteCount attività ancora da completare',
+
                     style:
                         Theme.of(
                       context,
@@ -778,23 +505,52 @@ class _TodayTaskTile
                                       .onSurfaceVariant,
                             ),
                   ),
-                  const SizedBox(
-                    width: 4,
-                  ),
-                  Icon(
-                    Icons
-                        .chevron_right,
-                    size: 20,
-                    color:
-                        colorScheme
-                            .onSurfaceVariant,
-                  ),
-                ],
+                ),
+
+              const SizedBox(
+                height: 34,
               ),
-            ),
-          ),
-        ),
-      ],
+
+              const LifeSectionHeader(
+                title:
+                    'Panoramica',
+              ),
+
+              const SizedBox(
+                height: 4,
+              ),
+
+              const DashboardCard(
+                icon: Icons.repeat,
+                title: 'Abitudini',
+                value: '0 completate oggi',
+              ),
+
+              Divider(
+                color: colorScheme.outlineVariant
+                    .withValues(alpha: 0.55),
+              ),
+
+              const DashboardCard(
+                icon: Icons.shopping_bag_outlined,
+                title: 'Lista della spesa',
+                value: '0 prodotti',
+              ),
+
+              Divider(
+                color: colorScheme.outlineVariant
+                    .withValues(alpha: 0.55),
+              ),
+
+              const DashboardCard(
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Spese del mese',
+                value: '€ 0,00',
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
