@@ -5,19 +5,45 @@ import '../../repositories/task_repository.dart';
 import 'task_detail_page.dart';
 import 'task_form_page.dart';
 
-class TasksPage extends StatelessWidget {
+enum _TaskListMode {
+  scheduled,
+  inbox,
+}
+
+class TasksPage extends StatefulWidget {
   final TaskRepository taskRepository;
+
+  /// Se true, la pagina si apre direttamente sulla Inbox.
+  final bool openInbox;
 
   const TasksPage({
     super.key,
     required this.taskRepository,
+    this.openInbox = false,
   });
 
-  Future<void> _addTask(
-    BuildContext context,
-  ) async {
+  @override
+  State<TasksPage> createState() =>
+      _TasksPageState();
+}
+
+class _TasksPageState
+    extends State<TasksPage> {
+  late _TaskListMode _mode;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _mode = widget.openInbox
+        ? _TaskListMode.inbox
+        : _TaskListMode.scheduled;
+  }
+
+  Future<void> _addTask() async {
     final result =
-        await Navigator.push<TaskFormResult>(
+        await Navigator.push<
+            TaskFormResult>(
       context,
       MaterialPageRoute(
         builder: (_) =>
@@ -31,13 +57,13 @@ class TasksPage extends StatelessWidget {
       return;
     }
 
-    await taskRepository.addTask(
+    await widget.taskRepository
+        .addTask(
       result.task!,
     );
   }
 
   void _openTaskDetail(
-    BuildContext context,
     LifeTask task,
   ) {
     Navigator.push(
@@ -47,7 +73,7 @@ class TasksPage extends StatelessWidget {
             TaskDetailPage(
           task: task,
           taskRepository:
-              taskRepository,
+              widget.taskRepository,
         ),
       ),
     );
@@ -73,26 +99,61 @@ class TasksPage extends StatelessWidget {
         .padLeft(2, '0');
   }
 
-  String _formatTime(
-    DateTime date,
+  String _formatClockMinutes(
+    int minutes,
   ) {
-    return '${_twoDigits(date.hour)}:'
-        '${_twoDigits(date.minute)}';
+    final normalized =
+        minutes % (24 * 60);
+
+    final hour =
+        normalized ~/ 60;
+
+    final minute =
+        normalized % 60;
+
+    return '${_twoDigits(hour)}:'
+        '${_twoDigits(minute)}';
+  }
+
+  String _durationLabel(
+    int minutes,
+  ) {
+    final hours =
+        minutes ~/ 60;
+
+    final remaining =
+        minutes % 60;
+
+    if (hours == 0) {
+      return '$remaining min';
+    }
+
+    if (remaining == 0) {
+      return hours == 1
+          ? '1 ora'
+          : '$hours ore';
+    }
+
+    return '$hours h '
+        '$remaining min';
   }
 
   String _timeLabel(
     LifeTask task,
   ) {
-    if (task.startAt == null) {
-      return '';
-    }
-
     if (task.allDay) {
       return 'Tutto\nil giorno';
     }
 
-    return _formatTime(
-      task.startAt!,
+    final start =
+        task.startTimeMinutes;
+
+    if (start == null) {
+      return '';
+    }
+
+    return _formatClockMinutes(
+      start,
     );
   }
 
@@ -101,11 +162,43 @@ class TasksPage extends StatelessWidget {
   ) {
     final parts = <String>[];
 
+    final start =
+        task.startTimeMinutes;
+
+    final duration =
+        task.durationMinutes;
+
     if (!task.allDay &&
-        task.endAt != null) {
+        start != null &&
+        duration != null) {
+      final end =
+          start + duration;
+
+      var endLabel =
+          _formatClockMinutes(
+        end,
+      );
+
+      final extraDays =
+          end ~/ (24 * 60);
+
+      if (extraDays > 0) {
+        endLabel +=
+            extraDays == 1
+                ? ' (+1 g)'
+                : ' (+$extraDays g)';
+      }
+
       parts.add(
-        'fino alle '
-        '${_formatTime(task.endAt!)}',
+        'fino alle $endLabel',
+      );
+    }
+
+    if (duration != null) {
+      parts.add(
+        _durationLabel(
+          duration,
+        ),
       );
     }
 
@@ -121,12 +214,8 @@ class TasksPage extends StatelessWidget {
   }
 
   String _groupLabel(
-    DateTime? date,
+    DateTime date,
   ) {
-    if (date == null) {
-      return 'Senza data';
-    }
-
     final now = DateTime.now();
 
     final today = DateTime(
@@ -188,11 +277,7 @@ class TasksPage extends StatelessWidget {
     LifeTask task,
   ) {
     final date =
-        task.startAt;
-
-    if (date == null) {
-      return 'undated';
-    }
+        task.scheduledDate!;
 
     return '${date.year}-'
         '${_twoDigits(date.month)}-'
@@ -240,26 +325,25 @@ class TasksPage extends StatelessWidget {
   Widget build(
     BuildContext context,
   ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title:
+            const Text(
           'Attività',
         ),
+
         actions: [
           IconButton(
             tooltip:
                 'Nuova attività',
-            onPressed: () {
-              _addTask(context);
-            },
-            icon: const Icon(
+            onPressed:
+                _addTask,
+            icon:
+                const Icon(
               Icons.add,
             ),
           ),
+
           const SizedBox(
             width: 8,
           ),
@@ -268,9 +352,9 @@ class TasksPage extends StatelessWidget {
 
       body: StreamBuilder<
           List<LifeTask>>(
-        stream:
-            taskRepository
-                .watchAllTasks(),
+        stream: widget
+            .taskRepository
+            .watchAllTasks(),
 
         builder:
             (context, snapshot) {
@@ -293,105 +377,33 @@ class TasksPage extends StatelessWidget {
             );
           }
 
-          final tasks =
+          final allTasks =
               snapshot.data!;
 
-          if (tasks.isEmpty) {
-            return Center(
-              child: Padding(
-                padding:
-                    const EdgeInsets.all(
-                  32,
-                ),
-                child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons
-                          .check_circle_outline,
-                      size: 54,
-                      color:
-                          colorScheme.primary,
-                    ),
+          final scheduledTasks =
+              allTasks
+                  .where(
+                    (task) =>
+                        task.scheduledDate !=
+                        null,
+                  )
+                  .toList();
 
-                    const SizedBox(
-                      height: 18,
-                    ),
+          final inboxTasks =
+              allTasks
+                  .where(
+                    (task) =>
+                        task.scheduledDate ==
+                        null,
+                  )
+                  .toList();
 
-                    Text(
-                      'Nessuna attività',
-                      style:
-                          Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                fontWeight:
-                                    FontWeight
-                                        .w700,
-                              ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    Text(
-                      'Quando aggiungerai '
-                      'qualcosa da fare, '
-                      'comparirà qui.',
-                      textAlign:
-                          TextAlign.center,
-                      style:
-                          Theme.of(context)
-                              .textTheme
-                              .bodyLarge
-                              ?.copyWith(
-                                color:
-                                    colorScheme
-                                        .onSurfaceVariant,
-                              ),
-                    ),
-
-                    const SizedBox(
-                      height: 22,
-                    ),
-
-                    FilledButton.icon(
-                      onPressed: () {
-                        _addTask(
-                          context,
-                        );
-                      },
-                      icon:
-                          const Icon(
-                        Icons.add,
-                      ),
-                      label:
-                          const Text(
-                        'Nuova attività',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          final groups =
-              <String, List<LifeTask>>{};
-
-          for (final task in tasks) {
-            final key =
-                _groupKey(task);
-
-            groups
-                .putIfAbsent(
-                  key,
-                  () => [],
-                )
-                .add(task);
-          }
+          final visibleTasks =
+              _mode ==
+                      _TaskListMode
+                          .scheduled
+                  ? scheduledTasks
+                  : inboxTasks;
 
           return ListView(
             padding:
@@ -404,67 +416,426 @@ class TasksPage extends StatelessWidget {
             ),
 
             children: [
-              for (final entry
-                  in groups.entries) ...[
-                _TaskGroup(
-                  title:
-                      _groupLabel(
-                    entry.value
-                        .first
-                        .startAt,
+              SegmentedButton<
+                  _TaskListMode>(
+                showSelectedIcon:
+                    false,
+
+                segments: [
+                  ButtonSegment(
+                    value:
+                        _TaskListMode
+                            .scheduled,
+                    icon:
+                        const Icon(
+                      Icons
+                          .calendar_today_outlined,
+                    ),
+                    label: Text(
+                      'Programmate '
+                      '(${scheduledTasks.length})',
+                    ),
                   ),
 
-                  tasks:
-                      entry.value,
+                  ButtonSegment(
+                    value:
+                        _TaskListMode
+                            .inbox,
+                    icon:
+                        const Icon(
+                      Icons
+                          .inbox_outlined,
+                    ),
+                    label: Text(
+                      'Inbox '
+                      '(${inboxTasks.length})',
+                    ),
+                  ),
+                ],
 
+                selected: {
+                  _mode,
+                },
+
+                onSelectionChanged:
+                    (selection) {
+                  setState(() {
+                    _mode =
+                        selection.first;
+                  });
+                },
+              ),
+
+              const SizedBox(
+                height: 28,
+              ),
+
+              if (visibleTasks.isEmpty)
+                _EmptyTaskList(
+                  isInbox:
+                      _mode ==
+                          _TaskListMode
+                              .inbox,
+                  onAdd:
+                      _addTask,
+                )
+              else if (_mode ==
+                  _TaskListMode.inbox)
+                _InboxSection(
+                  tasks:
+                      inboxTasks,
                   timeLabelBuilder:
                       _timeLabel,
-
                   secondaryLabelBuilder:
                       _secondaryLabel,
-
                   priorityColorBuilder:
                       (task) =>
                           _priorityColor(
                     context,
                     task.priority,
                   ),
-
                   priorityLabelBuilder:
                       (task) =>
                           _priorityLabel(
                     task.priority,
                   ),
-
                   onCompletedChanged:
                       (
                     task,
                     completed,
                   ) async {
-                    await taskRepository
+                    await widget
+                        .taskRepository
                         .setCompleted(
                       task.id,
                       completed,
                     );
                   },
-
                   onTaskTap:
-                      (task) {
-                    _openTaskDetail(
+                      _openTaskDetail,
+                )
+              else ...[
+                for (final entry
+                    in _groupScheduledTasks(
+                  scheduledTasks,
+                ).entries) ...[
+                  _TaskGroup(
+                    title:
+                        _groupLabel(
+                      entry.value
+                          .first
+                          .scheduledDate!,
+                    ),
+                    tasks:
+                        entry.value,
+                    timeLabelBuilder:
+                        _timeLabel,
+                    secondaryLabelBuilder:
+                        _secondaryLabel,
+                    priorityColorBuilder:
+                        (task) =>
+                            _priorityColor(
                       context,
+                      task.priority,
+                    ),
+                    priorityLabelBuilder:
+                        (task) =>
+                            _priorityLabel(
+                      task.priority,
+                    ),
+                    onCompletedChanged:
+                        (
                       task,
-                    );
-                  },
-                ),
+                      completed,
+                    ) async {
+                      await widget
+                          .taskRepository
+                          .setCompleted(
+                        task.id,
+                        completed,
+                      );
+                    },
+                    onTaskTap:
+                        _openTaskDetail,
+                  ),
 
-                const SizedBox(
-                  height: 30,
-                ),
+                  const SizedBox(
+                    height: 30,
+                  ),
+                ],
               ],
             ],
           );
         },
       ),
+    );
+  }
+
+  Map<String, List<LifeTask>>
+      _groupScheduledTasks(
+    List<LifeTask> tasks,
+  ) {
+    final groups =
+        <String, List<LifeTask>>{};
+
+    for (final task in tasks) {
+      final key =
+          _groupKey(task);
+
+      groups
+          .putIfAbsent(
+            key,
+            () => [],
+          )
+          .add(task);
+    }
+
+    return groups;
+  }
+}
+
+class _EmptyTaskList
+    extends StatelessWidget {
+  final bool isInbox;
+  final VoidCallback onAdd;
+
+  const _EmptyTaskList({
+    required this.isInbox,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(
+        vertical: 54,
+        horizontal: 20,
+      ),
+
+      child: Column(
+        children: [
+          Icon(
+            isInbox
+                ? Icons
+                    .inbox_outlined
+                : Icons
+                    .event_available_outlined,
+            size: 54,
+            color:
+                colorScheme.primary,
+          ),
+
+          const SizedBox(
+            height: 18,
+          ),
+
+          Text(
+            isInbox
+                ? 'Inbox vuota'
+                : 'Nessuna attività programmata',
+            textAlign:
+                TextAlign.center,
+            style:
+                Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(
+                      fontWeight:
+                          FontWeight
+                              .w700,
+                    ),
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          Text(
+            isInbox
+                ? 'Qui compariranno le attività '
+                    'a cui non hai ancora assegnato '
+                    'una data.'
+                : 'Le attività con una data '
+                    'compariranno qui.',
+            textAlign:
+                TextAlign.center,
+            style:
+                Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(
+                      color:
+                          colorScheme
+                              .onSurfaceVariant,
+                    ),
+          ),
+
+          const SizedBox(
+            height: 22,
+          ),
+
+          FilledButton.icon(
+            onPressed:
+                onAdd,
+            icon:
+                const Icon(
+              Icons.add,
+            ),
+            label:
+                const Text(
+              'Nuova attività',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InboxSection
+    extends StatelessWidget {
+  final List<LifeTask> tasks;
+
+  final String Function(
+    LifeTask task,
+  ) timeLabelBuilder;
+
+  final String Function(
+    LifeTask task,
+  ) secondaryLabelBuilder;
+
+  final Color Function(
+    LifeTask task,
+  ) priorityColorBuilder;
+
+  final String Function(
+    LifeTask task,
+  ) priorityLabelBuilder;
+
+  final Future<void> Function(
+    LifeTask task,
+    bool completed,
+  ) onCompletedChanged;
+
+  final void Function(
+    LifeTask task,
+  ) onTaskTap;
+
+  const _InboxSection({
+    required this.tasks,
+    required this.timeLabelBuilder,
+    required this.secondaryLabelBuilder,
+    required this.priorityColorBuilder,
+    required this.priorityLabelBuilder,
+    required this.onCompletedChanged,
+    required this.onTaskTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Da programmare',
+          style:
+              Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(
+                    fontWeight:
+                        FontWeight.w700,
+                    letterSpacing:
+                        -0.3,
+                  ),
+        ),
+
+        const SizedBox(
+          height: 4,
+        ),
+
+        Text(
+          'Puoi già indicare durata e '
+          'orario preferito, anche senza '
+          'scegliere un giorno.',
+          style:
+              Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(
+                    color:
+                        colorScheme
+                            .onSurfaceVariant,
+                  ),
+        ),
+
+        const SizedBox(
+          height: 12,
+        ),
+
+        for (int i = 0;
+            i < tasks.length;
+            i++) ...[
+          _TaskRow(
+            task:
+                tasks[i],
+            timeLabel:
+                timeLabelBuilder(
+              tasks[i],
+            ),
+            secondaryLabel:
+                secondaryLabelBuilder(
+              tasks[i],
+            ),
+            priorityColor:
+                priorityColorBuilder(
+              tasks[i],
+            ),
+            priorityLabel:
+                priorityLabelBuilder(
+              tasks[i],
+            ),
+            onCompletedChanged:
+                (completed) {
+              return onCompletedChanged(
+                tasks[i],
+                completed,
+              );
+            },
+            onTap: () {
+              onTaskTap(
+                tasks[i],
+              );
+            },
+          ),
+
+          if (i !=
+              tasks.length - 1)
+            Divider(
+              indent: 96,
+              color:
+                  colorScheme
+                      .outlineVariant
+                      .withValues(
+                alpha: 0.55,
+              ),
+            ),
+        ],
+      ],
     );
   }
 }
@@ -547,27 +918,22 @@ class _TaskGroup
           _TaskRow(
             task:
                 tasks[i],
-
             timeLabel:
                 timeLabelBuilder(
               tasks[i],
             ),
-
             secondaryLabel:
                 secondaryLabelBuilder(
               tasks[i],
             ),
-
             priorityColor:
                 priorityColorBuilder(
               tasks[i],
             ),
-
             priorityLabel:
                 priorityLabelBuilder(
               tasks[i],
             ),
-
             onCompletedChanged:
                 (completed) {
               return onCompletedChanged(
@@ -575,7 +941,6 @@ class _TaskGroup
                 completed,
               );
             },
-
             onTap: () {
               onTaskTap(
                 tasks[i],
@@ -652,7 +1017,6 @@ class _TaskRow
               timeLabel,
               textAlign:
                   TextAlign.right,
-
               style:
                   Theme.of(context)
                       .textTheme
@@ -661,7 +1025,6 @@ class _TaskRow
                         color:
                             colorScheme
                                 .onSurfaceVariant,
-
                         fontWeight:
                             FontWeight
                                 .w500,
@@ -700,10 +1063,8 @@ class _TaskRow
                         ? priorityColor
                         : Colors
                             .transparent,
-
                 shape:
                     BoxShape.circle,
-
                 border:
                     Border.all(
                   color:
@@ -754,13 +1115,10 @@ class _TaskRow
                         Expanded(
                           child: Text(
                             task.title,
-
                             maxLines: 1,
-
                             overflow:
                                 TextOverflow
                                     .ellipsis,
-
                             style:
                                 Theme.of(
                               context,
@@ -771,7 +1129,6 @@ class _TaskRow
                                       fontWeight:
                                           FontWeight
                                               .w600,
-
                                       decoration:
                                           task.isCompleted
                                               ? TextDecoration
@@ -807,13 +1164,10 @@ class _TaskRow
 
                       Text(
                         secondaryLabel,
-
                         maxLines: 2,
-
                         overflow:
                             TextOverflow
                                 .ellipsis,
-
                         style:
                             Theme.of(
                           context,
@@ -851,7 +1205,6 @@ class _TaskRow
 
                         Text(
                           priorityLabel,
-
                           style:
                               Theme.of(
                             context,
@@ -861,7 +1214,6 @@ class _TaskRow
                                   ?.copyWith(
                                     color:
                                         priorityColor,
-
                                     fontWeight:
                                         FontWeight
                                             .w600,

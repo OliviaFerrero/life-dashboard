@@ -19,7 +19,8 @@ class TaskDetailPage extends StatefulWidget {
       _TaskDetailPageState();
 }
 
-class _TaskDetailPageState extends State<TaskDetailPage> {
+class _TaskDetailPageState
+    extends State<TaskDetailPage> {
   late LifeTask _task;
 
   @override
@@ -32,9 +33,48 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     return value.toString().padLeft(2, '0');
   }
 
-  String _formatTime(DateTime date) {
-    return '${_twoDigits(date.hour)}:'
-        '${_twoDigits(date.minute)}';
+  String _formatClockMinutes(int minutes) {
+    final normalized = minutes % (24 * 60);
+
+    return '${_twoDigits(normalized ~/ 60)}:'
+        '${_twoDigits(normalized % 60)}';
+  }
+
+  String _formatEndTime(LifeTask task) {
+    final start = task.startTimeMinutes;
+    final duration = task.durationMinutes;
+
+    if (start == null || duration == null) {
+      return '';
+    }
+
+    final total = start + duration;
+    final extraDays = total ~/ (24 * 60);
+
+    final suffix = extraDays == 0
+        ? ''
+        : extraDays == 1
+            ? ' (+1 giorno)'
+            : ' (+$extraDays giorni)';
+
+    return '${_formatClockMinutes(total)}$suffix';
+  }
+
+  String _durationLabel(int minutes) {
+    final hours = minutes ~/ 60;
+    final remaining = minutes % 60;
+
+    if (hours == 0) {
+      return '$remaining min';
+    }
+
+    if (remaining == 0) {
+      return hours == 1
+          ? '1 ora'
+          : '$hours ore';
+    }
+
+    return '$hours h $remaining min';
   }
 
   String _dateLabel(DateTime date) {
@@ -69,16 +109,12 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         '${date.year}';
   }
 
-  String _priorityLabel(
-    TaskPriority priority,
-  ) {
+  String _priorityLabel(TaskPriority priority) {
     switch (priority) {
       case TaskPriority.low:
         return 'Bassa';
-
       case TaskPriority.normal:
         return 'Normale';
-
       case TaskPriority.high:
         return 'Alta';
     }
@@ -90,20 +126,58 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   ) {
     switch (priority) {
       case TaskPriority.low:
-        return const Color(
-          0xFF5F8F73,
-        );
-
+        return const Color(0xFF5F8F73);
       case TaskPriority.normal:
         return Theme.of(context)
             .colorScheme
             .primary;
-
       case TaskPriority.high:
-        return const Color(
-          0xFFC65B61,
-        );
+        return const Color(0xFFC65B61);
     }
+  }
+
+  bool _isPastUnfinished(LifeTask task) {
+    if (task.isCompleted ||
+        task.scheduledDate == null) {
+      return false;
+    }
+
+    final now = DateTime.now();
+
+    final today = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final date = DateTime(
+      task.scheduledDate!.year,
+      task.scheduledDate!.month,
+      task.scheduledDate!.day,
+    );
+
+    if (date.isBefore(today)) {
+      return true;
+    }
+
+    if (date.isAfter(today)) {
+      return false;
+    }
+
+    if (task.allDay ||
+        task.startTimeMinutes == null) {
+      return false;
+    }
+
+    final cutoffMinutes =
+        task.startTimeMinutes! +
+        (task.durationMinutes ?? 0);
+
+    final cutoff = date.add(
+      Duration(minutes: cutoffMinutes),
+    );
+
+    return now.isAfter(cutoff);
   }
 
   Future<void> _setCompleted(
@@ -170,9 +244,39 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     });
   }
 
+  Future<void> _rescheduleTask() async {
+    final result =
+        await Navigator.push<TaskFormResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TaskFormPage(
+          initialTask: _task,
+          rescheduleOnly: true,
+        ),
+      ),
+    );
+
+    final updatedTask = result?.task;
+
+    if (updatedTask == null) {
+      return;
+    }
+
+    await widget.taskRepository.updateTask(
+      updatedTask,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _task = updatedTask;
+    });
+  }
+
   Future<void> _deleteTask() async {
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -191,9 +295,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   false,
                 );
               },
-              child: const Text(
-                'Annulla',
-              ),
+              child: const Text('Annulla'),
             ),
             FilledButton(
               onPressed: () {
@@ -202,9 +304,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   true,
                 );
               },
-              child: const Text(
-                'Elimina',
-              ),
+              child: const Text('Elimina'),
             ),
           ],
         );
@@ -231,22 +331,19 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     final colorScheme =
         Theme.of(context).colorScheme;
 
-    final priorityColor =
-        _priorityColor(
+    final priorityColor = _priorityColor(
       context,
       _task.priority,
     );
 
+    final isPast = _isPastUnfinished(_task);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Attività',
-        ),
+        title: const Text('Attività'),
       ),
-
       body: ListView(
-        padding:
-            const EdgeInsets.fromLTRB(
+        padding: const EdgeInsets.fromLTRB(
           24,
           12,
           24,
@@ -259,26 +356,17 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 .textTheme
                 .headlineMedium
                 ?.copyWith(
-                  fontWeight:
-                      FontWeight.w700,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -0.7,
-                  decoration:
-                      _task.isCompleted
-                          ? TextDecoration
-                              .lineThrough
-                          : null,
+                  decoration: _task.isCompleted
+                      ? TextDecoration.lineThrough
+                      : null,
                 ),
           ),
-
-          const SizedBox(
-            height: 18,
-          ),
-
+          const SizedBox(height: 18),
           InkWell(
             borderRadius:
-                BorderRadius.circular(
-              12,
-            ),
+                BorderRadius.circular(12),
             onTap: () {
               _setCompleted(
                 !_task.isCompleted,
@@ -294,43 +382,29 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   Container(
                     width: 24,
                     height: 24,
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          _task.isCompleted
-                              ? colorScheme
-                                  .primary
-                              : Colors
-                                  .transparent,
-                      shape:
-                          BoxShape.circle,
-                      border:
-                          Border.all(
-                        color:
-                            _task.isCompleted
-                                ? colorScheme
-                                    .primary
-                                : colorScheme
-                                    .onSurfaceVariant,
+                    decoration: BoxDecoration(
+                      color: _task.isCompleted
+                          ? colorScheme.primary
+                          : Colors.transparent,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _task.isCompleted
+                            ? colorScheme.primary
+                            : colorScheme
+                                .onSurfaceVariant,
                         width: 2,
                       ),
                     ),
-                    child:
-                        _task.isCompleted
-                            ? Icon(
-                                Icons.check,
-                                size: 16,
-                                color:
-                                    colorScheme
-                                        .onPrimary,
-                              )
-                            : null,
+                    child: _task.isCompleted
+                        ? Icon(
+                            Icons.check,
+                            size: 16,
+                            color:
+                                colorScheme.onPrimary,
+                          )
+                        : null,
                   ),
-
-                  const SizedBox(
-                    width: 12,
-                  ),
-
+                  const SizedBox(width: 12),
                   Text(
                     _task.isCompleted
                         ? 'Completata'
@@ -340,115 +414,124 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                         .titleMedium
                         ?.copyWith(
                           fontWeight:
-                              FontWeight
-                                  .w600,
-                          color:
-                              _task.isCompleted
-                                  ? colorScheme
-                                      .primary
-                                  : null,
+                              FontWeight.w600,
+                          color: _task.isCompleted
+                              ? colorScheme.primary
+                              : null,
                         ),
                   ),
                 ],
               ),
             ),
           ),
-
-          const SizedBox(
-            height: 30,
-          ),
-
+          if (isPast) ...[
+            const SizedBox(height: 18),
+            FilledButton.tonalIcon(
+              onPressed: _rescheduleTask,
+              icon: const Icon(
+                Icons.event_repeat_outlined,
+              ),
+              label: const Text('Sposta a…'),
+              style: FilledButton.styleFrom(
+                minimumSize:
+                    const Size.fromHeight(48),
+              ),
+            ),
+          ],
+          const SizedBox(height: 30),
           Text(
             'Quando',
             style: Theme.of(context)
                 .textTheme
                 .titleLarge
                 ?.copyWith(
-                  fontWeight:
-                      FontWeight.w700,
+                  fontWeight: FontWeight.w700,
                 ),
           ),
-
-          const SizedBox(
-            height: 18,
-          ),
-
-          if (_task.startAt == null)
+          const SizedBox(height: 18),
+          if (_task.scheduledDate == null)
             const _SimpleInfoRow(
-              icon:
-                  Icons.calendar_today_outlined,
-              text: 'Nessuna data',
+              icon: Icons.inbox_outlined,
+              text: 'Nessuna data · Inbox',
             )
-          else ...[
+          else
             Text(
-              _dateLabel(
-                _task.startAt!,
-              ),
+              _dateLabel(_task.scheduledDate!),
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
                   ?.copyWith(
-                    fontWeight:
-                        FontWeight.w600,
+                    fontWeight: FontWeight.w600,
                   ),
             ),
-
-            const SizedBox(
-              height: 18,
+          if (_task.allDay) ...[
+            const SizedBox(height: 16),
+            const _SimpleInfoRow(
+              icon: Icons.today_outlined,
+              text: 'Tutto il giorno',
             ),
-
-            if (_task.allDay)
-              const _SimpleInfoRow(
-                icon:
-                    Icons.schedule_outlined,
-                text:
-                    'Tutto il giorno',
+          ] else if (_task.startTimeMinutes !=
+              null) ...[
+            const SizedBox(height: 16),
+            Text(
+              _task.scheduledDate == null
+                  ? 'Orario preferito'
+                  : 'Orario',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(
+                    color: colorScheme
+                        .onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            if (_task.durationMinutes != null)
+              _TimeRange(
+                start: _formatClockMinutes(
+                  _task.startTimeMinutes!,
+                ),
+                end: _formatEndTime(_task),
               )
             else
-              _TimeRange(
-                start: _formatTime(
-                  _task.startAt!,
-                ),
-                end:
-                    _task.endAt == null
-                        ? null
-                        : _formatTime(
-                            _task.endAt!,
-                          ),
+              _SimpleInfoRow(
+                icon: Icons.schedule_outlined,
+                text: 'Inizio alle '
+                    '${_formatClockMinutes(_task.startTimeMinutes!)}',
               ),
-          ],
-
-          const SizedBox(
-            height: 34,
-          ),
-
-          Divider(
-            color: colorScheme
-                .outlineVariant
-                .withValues(
-              alpha: 0.6,
+          ] else if (_task.scheduledDate !=
+              null) ...[
+            const SizedBox(height: 16),
+            const _SimpleInfoRow(
+              icon: Icons.schedule_outlined,
+              text: 'Nessun orario',
             ),
+          ],
+          if (_task.durationMinutes != null) ...[
+            const SizedBox(height: 16),
+            _SimpleInfoRow(
+              icon: Icons.timer_outlined,
+              text: 'Durata stimata: '
+                  '${_durationLabel(_task.durationMinutes!)}',
+            ),
+          ],
+          const SizedBox(height: 34),
+          Divider(
+            color: colorScheme.outlineVariant
+                .withValues(alpha: 0.6),
           ),
-
-          const SizedBox(
-            height: 24,
-          ),
-
+          const SizedBox(height: 24),
           Text(
             'Priorità',
             style: Theme.of(context)
                 .textTheme
                 .titleLarge
                 ?.copyWith(
-                  fontWeight:
-                      FontWeight.w700,
+                  fontWeight: FontWeight.w700,
                 ),
           ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
+          const SizedBox(height: 12),
           Row(
             children: [
               Icon(
@@ -456,64 +539,38 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 size: 20,
                 color: priorityColor,
               ),
-
-              const SizedBox(
-                width: 10,
-              ),
-
+              const SizedBox(width: 10),
               Text(
-                _priorityLabel(
-                  _task.priority,
-                ),
+                _priorityLabel(_task.priority),
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge
                     ?.copyWith(
-                      color:
-                          priorityColor,
+                      color: priorityColor,
                       fontWeight:
-                          FontWeight
-                              .w600,
+                          FontWeight.w600,
                     ),
               ),
             ],
           ),
-
-          const SizedBox(
-            height: 34,
-          ),
-
+          const SizedBox(height: 34),
           Divider(
-            color: colorScheme
-                .outlineVariant
-                .withValues(
-              alpha: 0.6,
-            ),
+            color: colorScheme.outlineVariant
+                .withValues(alpha: 0.6),
           ),
-
-          const SizedBox(
-            height: 24,
-          ),
-
+          const SizedBox(height: 24),
           Text(
             'Descrizione',
             style: Theme.of(context)
                 .textTheme
                 .titleLarge
                 ?.copyWith(
-                  fontWeight:
-                      FontWeight.w700,
+                  fontWeight: FontWeight.w700,
                 ),
           ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
+          const SizedBox(height: 12),
           Text(
-            _task.description
-                    .trim()
-                    .isEmpty
+            _task.description.trim().isEmpty
                 ? 'Nessuna descrizione.'
                 : _task.description,
             style: Theme.of(context)
@@ -521,22 +578,18 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 .bodyLarge
                 ?.copyWith(
                   height: 1.5,
-                  color:
-                      _task.description
-                              .trim()
-                              .isEmpty
-                          ? colorScheme
-                              .onSurfaceVariant
-                          : null,
+                  color: _task.description
+                          .trim()
+                          .isEmpty
+                      ? colorScheme
+                          .onSurfaceVariant
+                      : null,
                 ),
           ),
         ],
       ),
-
-      bottomNavigationBar:
-          SafeArea(
-        minimum:
-            const EdgeInsets.fromLTRB(
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(
           20,
           10,
           20,
@@ -546,61 +599,32 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           children: [
             Expanded(
               flex: 2,
-              child:
-                  OutlinedButton.icon(
-                onPressed:
-                    _deleteTask,
-                icon:
-                    const Icon(
-                  Icons
-                      .delete_outline,
+              child: OutlinedButton.icon(
+                onPressed: _deleteTask,
+                icon: const Icon(
+                  Icons.delete_outline,
                 ),
-                label:
-                    const Text(
-                  'Elimina',
-                ),
-                style:
-                    OutlinedButton
-                        .styleFrom(
+                label: const Text('Elimina'),
+                style: OutlinedButton.styleFrom(
                   minimumSize:
-                      const Size
-                          .fromHeight(
-                    52,
-                  ),
+                      const Size.fromHeight(52),
                   foregroundColor:
-                      colorScheme
-                          .error,
+                      colorScheme.error,
                 ),
               ),
             ),
-
-            const SizedBox(
-              width: 12,
-            ),
-
+            const SizedBox(width: 12),
             Expanded(
               flex: 3,
-              child:
-                  FilledButton.icon(
-                onPressed:
-                    _editTask,
-                icon:
-                    const Icon(
-                  Icons
-                      .edit_outlined,
+              child: FilledButton.icon(
+                onPressed: _editTask,
+                icon: const Icon(
+                  Icons.edit_outlined,
                 ),
-                label:
-                    const Text(
-                  'Modifica',
-                ),
-                style:
-                    FilledButton
-                        .styleFrom(
+                label: const Text('Modifica'),
+                style: FilledButton.styleFrom(
                   minimumSize:
-                      const Size
-                          .fromHeight(
-                    52,
-                  ),
+                      const Size.fromHeight(52),
                 ),
               ),
             ),
@@ -611,8 +635,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   }
 }
 
-class _SimpleInfoRow
-    extends StatelessWidget {
+class _SimpleInfoRow extends StatelessWidget {
   final IconData icon;
   final String text;
 
@@ -622,41 +645,34 @@ class _SimpleInfoRow
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+        Theme.of(context).colorScheme;
 
     return Row(
       children: [
         Icon(
           icon,
           size: 20,
-          color: colorScheme
-              .onSurfaceVariant,
+          color: colorScheme.onSurfaceVariant,
         ),
-
-        const SizedBox(
-          width: 10,
-        ),
-
-        Text(
-          text,
-          style: Theme.of(context)
-              .textTheme
-              .bodyLarge,
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context)
+                .textTheme
+                .bodyLarge,
+          ),
         ),
       ],
     );
   }
 }
 
-class _TimeRange
-    extends StatelessWidget {
+class _TimeRange extends StatelessWidget {
   final String start;
-  final String? end;
+  final String end;
 
   const _TimeRange({
     required this.start,
@@ -664,12 +680,9 @@ class _TimeRange
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+        Theme.of(context).colorScheme;
 
     return Row(
       children: [
@@ -679,39 +692,29 @@ class _TimeRange
               .textTheme
               .titleLarge
               ?.copyWith(
-                fontWeight:
-                    FontWeight.w700,
+                fontWeight: FontWeight.w700,
               ),
         ),
-
-        const SizedBox(
-          width: 14,
-        ),
-
+        const SizedBox(width: 14),
         Expanded(
           child: Container(
             height: 1,
-            color: colorScheme
-                .outlineVariant,
+            color: colorScheme.outlineVariant,
           ),
         ),
-
-        if (end != null) ...[
-          const SizedBox(
-            width: 14,
-          ),
-
-          Text(
-            end!,
+        const SizedBox(width: 14),
+        Flexible(
+          child: Text(
+            end,
+            textAlign: TextAlign.right,
             style: Theme.of(context)
                 .textTheme
                 .titleLarge
                 ?.copyWith(
-                  fontWeight:
-                      FontWeight.w700,
+                  fontWeight: FontWeight.w700,
                 ),
           ),
-        ],
+        ),
       ],
     );
   }

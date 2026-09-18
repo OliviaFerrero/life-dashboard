@@ -5,7 +5,6 @@ import '../repositories/task_repository.dart';
 import '../widgets/dashboard_card.dart';
 import '../widgets/life_section_header.dart';
 import '../widgets/task_timeline.dart';
-import 'calendar/calendar_page.dart';
 import 'tasks/task_detail_page.dart';
 import 'tasks/tasks_page.dart';
 
@@ -17,6 +16,18 @@ class TodayPage
     super.key,
     required this.taskRepository,
   });
+
+  bool _sameDay(
+    DateTime first,
+    DateTime second,
+  ) {
+    return first.year ==
+            second.year &&
+        first.month ==
+            second.month &&
+        first.day ==
+            second.day;
+  }
 
   String _dayLabel(
     DateTime date,
@@ -59,11 +70,37 @@ class TodayPage
         .padLeft(2, '0');
   }
 
-  String _formatTime(
-    DateTime date,
+  String _formatClockMinutes(
+    int minutes,
   ) {
-    return '${_twoDigits(date.hour)}:'
-        '${_twoDigits(date.minute)}';
+    final normalized =
+        minutes % (24 * 60);
+
+    return '${_twoDigits(normalized ~/ 60)}:'
+        '${_twoDigits(normalized % 60)}';
+  }
+
+  String _durationLabel(
+    int minutes,
+  ) {
+    final hours =
+        minutes ~/ 60;
+
+    final remaining =
+        minutes % 60;
+
+    if (hours == 0) {
+      return '$remaining min';
+    }
+
+    if (remaining == 0) {
+      return hours == 1
+          ? '1 ora'
+          : '$hours ore';
+    }
+
+    return '$hours h '
+        '$remaining min';
   }
 
   String _timeLabel(
@@ -73,26 +110,60 @@ class TodayPage
       return 'Tutto il\ngiorno';
     }
 
-    if (task.startAt == null) {
+    final start =
+        task.startTimeMinutes;
+
+    if (start == null) {
       return '';
     }
 
-    return _formatTime(
-      task.startAt!,
+    return _formatClockMinutes(
+      start,
     );
   }
 
   String _secondaryLabel(
     LifeTask task,
   ) {
-    final parts =
-        <String>[];
+    final parts = <String>[];
+
+    final start =
+        task.startTimeMinutes;
+
+    final duration =
+        task.durationMinutes;
 
     if (!task.allDay &&
-        task.endAt != null) {
+        start != null &&
+        duration != null) {
+      final end =
+          start + duration;
+
+      var endLabel =
+          _formatClockMinutes(
+        end,
+      );
+
+      final extraDays =
+          end ~/ (24 * 60);
+
+      if (extraDays > 0) {
+        endLabel +=
+            extraDays == 1
+                ? ' (+1 g)'
+                : ' (+$extraDays g)';
+      }
+
       parts.add(
-        'fino alle '
-        '${_formatTime(task.endAt!)}',
+        'fino alle $endLabel',
+      );
+    }
+
+    if (duration != null) {
+      parts.add(
+        _durationLabel(
+          duration,
+        ),
       );
     }
 
@@ -134,34 +205,59 @@ class TodayPage
     DateTime now,
   ) {
     final incomplete =
-        tasks.where(
-      (task) =>
-          !task.isCompleted,
-    );
+        tasks
+            .where(
+              (task) =>
+                  !task.isCompleted,
+            )
+            .toList();
+
+    if (incomplete.isEmpty) {
+      return null;
+    }
 
     for (final task
         in incomplete) {
-      if (!task.allDay &&
-          task.startAt != null &&
-          !task.startAt!
-              .isBefore(now)) {
+      if (task.allDay ||
+          task.startTimeMinutes == null) {
+        continue;
+      }
+
+      final date =
+          task.scheduledDate!;
+
+      final start =
+          DateTime(
+        date.year,
+        date.month,
+        date.day,
+      ).add(
+        Duration(
+          minutes:
+              task.startTimeMinutes!,
+        ),
+      );
+
+      if (!start.isBefore(now)) {
         return task;
       }
     }
 
     for (final task
         in incomplete) {
-      if (task.allDay) {
+      if (task.allDay ||
+          task.startTimeMinutes == null) {
         return task;
       }
     }
 
-    return null;
+    return incomplete.first;
   }
 
   void _openTasks(
-    BuildContext context,
-  ) {
+    BuildContext context, {
+    bool inbox = false,
+  }) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -169,6 +265,8 @@ class TodayPage
             TasksPage(
           taskRepository:
               taskRepository,
+          openInbox:
+              inbox,
         ),
       ),
     );
@@ -216,19 +314,42 @@ class TodayPage
           List<LifeTask>>(
         stream:
             taskRepository
-                .watchTasksForDay(
-          today,
-        ),
+                .watchAllTasks(),
 
         initialData:
             const [],
 
         builder:
             (context, snapshot) {
-          final tasks =
+          final allTasks =
               snapshot.data ??
                   const <
                       LifeTask>[];
+
+          final tasks =
+              allTasks.where(
+            (task) {
+              final date =
+                  task.scheduledDate;
+
+              if (date == null) {
+                return false;
+              }
+
+              return _sameDay(
+                date,
+                today,
+              );
+            },
+          ).toList();
+
+          final inboxCount =
+              allTasks.where(
+            (task) =>
+                task.scheduledDate ==
+                    null &&
+                !task.isCompleted,
+          ).length;
 
           final completedCount =
               tasks.where(
@@ -267,7 +388,6 @@ class TodayPage
                   Expanded(
                     child: Text(
                       'Oggi',
-
                       style:
                           Theme.of(
                         context,
@@ -278,7 +398,6 @@ class TodayPage
                                 fontWeight:
                                     FontWeight
                                         .w700,
-
                                 letterSpacing:
                                     -1.2,
                               ),
@@ -287,26 +406,25 @@ class TodayPage
 
                   IconButton(
                     tooltip:
-                        'Calendario',
-
-                    icon: const Icon(
-                      Icons
-                          .calendar_month_outlined,
-                    ),
-
+                        'Inbox',
                     onPressed: () {
-                      Navigator.push(
+                      _openTasks(
                         context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) =>
-                                  CalendarPage(
-                            taskRepository:
-                                taskRepository,
-                          ),
-                        ),
+                        inbox: true,
                       );
                     },
+                    icon: Badge(
+                      isLabelVisible:
+                          inboxCount > 0,
+                      label: Text(
+                        '$inboxCount',
+                      ),
+                      child:
+                          const Icon(
+                        Icons
+                            .inbox_outlined,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -319,7 +437,6 @@ class TodayPage
                 _dayLabel(
                   today,
                 ),
-
                 style:
                     Theme.of(context)
                         .textTheme
@@ -328,7 +445,6 @@ class TodayPage
                           color:
                               colorScheme
                                   .onSurfaceVariant,
-
                           fontWeight:
                               FontWeight
                                   .w500,
@@ -342,18 +458,15 @@ class TodayPage
               LifeSectionHeader(
                 title:
                     'La tua giornata',
-
                 value:
                     tasks.isEmpty
                         ? null
                         : '$completedCount/'
                             '${tasks.length}',
-
                 actionLabel:
                     tasks.isEmpty
                         ? null
                         : 'Vedi tutte',
-
                 onAction:
                     tasks.isEmpty
                         ? null
@@ -375,12 +488,10 @@ class TodayPage
                           .symmetric(
                     vertical: 26,
                   ),
-
                   child: Row(
                     crossAxisAlignment:
                         CrossAxisAlignment
                             .start,
-
                     children: [
                       Icon(
                         Icons
@@ -398,7 +509,6 @@ class TodayPage
                         child: Text(
                           'Nessuna attività '
                           'programmata per oggi.',
-
                           style:
                               Theme.of(
                             context,
@@ -419,16 +529,12 @@ class TodayPage
                 TaskTimeline(
                   tasks:
                       visibleTasks,
-
                   nextTaskId:
                       nextTask?.id,
-
                   timeLabelBuilder:
                       _timeLabel,
-
                   secondaryLabelBuilder:
                       _secondaryLabel,
-
                   accentColorBuilder:
                       (task) {
                     return _priorityColor(
@@ -436,7 +542,6 @@ class TodayPage
                       task.priority,
                     );
                   },
-
                   onCompletedChanged:
                       (
                     task,
@@ -448,7 +553,6 @@ class TodayPage
                       completed,
                     );
                   },
-
                   onTaskTap:
                       (task) {
                     _openTaskDetail(
@@ -461,15 +565,15 @@ class TodayPage
               if (tasks.length > 5)
                 Align(
                   alignment:
-                      Alignment.centerLeft,
-
-                  child: TextButton(
+                      Alignment
+                          .centerLeft,
+                  child:
+                      TextButton(
                     onPressed: () {
                       _openTasks(
                         context,
                       );
                     },
-
                     child: Text(
                       'Altre '
                       '${tasks.length - 5} '
@@ -485,14 +589,14 @@ class TodayPage
                           .only(
                     top: 8,
                   ),
-
                   child: Text(
-                    incompleteCount == 0
+                    incompleteCount ==
+                            0
                         ? 'Tutto completato per oggi'
-                        : incompleteCount == 1
+                        : incompleteCount ==
+                                1
                             ? '1 attività ancora da completare'
                             : '$incompleteCount attività ancora da completare',
-
                     style:
                         Theme.of(
                       context,
@@ -520,32 +624,82 @@ class TodayPage
                 height: 4,
               ),
 
-              const DashboardCard(
-                icon: Icons.repeat,
-                title: 'Abitudini',
-                value: '0 completate oggi',
+              DashboardCard(
+                icon:
+                    Icons.task_alt,
+                title:
+                    'Attività',
+                value:
+                    inboxCount > 0
+                        ? inboxCount ==
+                                1
+                            ? '1 attività in Inbox'
+                            : '$inboxCount attività in Inbox'
+                        : incompleteCount ==
+                                1
+                            ? '1 da completare oggi'
+                            : '$incompleteCount da completare oggi',
+                onTap: () {
+                  _openTasks(
+                    context,
+                  );
+                },
               ),
 
               Divider(
-                color: colorScheme.outlineVariant
-                    .withValues(alpha: 0.55),
+                color:
+                    colorScheme
+                        .outlineVariant
+                        .withValues(
+                  alpha: 0.55,
+                ),
               ),
 
               const DashboardCard(
-                icon: Icons.shopping_bag_outlined,
-                title: 'Lista della spesa',
-                value: '0 prodotti',
+                icon:
+                    Icons.repeat,
+                title:
+                    'Abitudini',
+                value:
+                    '0 completate oggi',
               ),
 
               Divider(
-                color: colorScheme.outlineVariant
-                    .withValues(alpha: 0.55),
+                color:
+                    colorScheme
+                        .outlineVariant
+                        .withValues(
+                  alpha: 0.55,
+                ),
               ),
 
               const DashboardCard(
-                icon: Icons.account_balance_wallet_outlined,
-                title: 'Spese del mese',
-                value: '€ 0,00',
+                icon:
+                    Icons
+                        .shopping_bag_outlined,
+                title:
+                    'Lista della spesa',
+                value:
+                    '0 prodotti',
+              ),
+
+              Divider(
+                color:
+                    colorScheme
+                        .outlineVariant
+                        .withValues(
+                  alpha: 0.55,
+                ),
+              ),
+
+              const DashboardCard(
+                icon:
+                    Icons
+                        .account_balance_wallet_outlined,
+                title:
+                    'Spese del mese',
+                value:
+                    '€ 0,00',
               ),
             ],
           );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/life_task.dart';
 
@@ -18,11 +19,13 @@ class TaskFormResult {
 class TaskFormPage extends StatefulWidget {
   final LifeTask? initialTask;
   final DateTime? initialDate;
+  final bool rescheduleOnly;
 
   const TaskFormPage({
     super.key,
     this.initialTask,
     this.initialDate,
+    this.rescheduleOnly = false,
   });
 
   @override
@@ -41,9 +44,9 @@ class _TaskFormPageState
       TextEditingController();
 
   DateTime? _selectedDate;
-
   TimeOfDay? _startTime;
-  TimeOfDay? _endTime;
+
+  int? _durationMinutes;
 
   bool _allDay = false;
 
@@ -66,30 +69,22 @@ class _TaskFormPageState
       _descriptionController.text =
           task.description;
 
-      _allDay = task.allDay;
+      _selectedDate =
+          task.scheduledDate;
 
-      _priority = task.priority;
+      _durationMinutes =
+          task.durationMinutes;
 
-      if (task.startAt != null) {
-        _selectedDate = DateTime(
-          task.startAt!.year,
-          task.startAt!.month,
-          task.startAt!.day,
-        );
+      _allDay =
+          task.allDay;
 
-        if (!task.allDay) {
-          _startTime =
-              TimeOfDay.fromDateTime(
-            task.startAt!,
-          );
-        }
-      }
+      _priority =
+          task.priority;
 
-      if (task.endAt != null &&
-          !task.allDay) {
-        _endTime =
-            TimeOfDay.fromDateTime(
-          task.endAt!,
+      if (task.startTimeMinutes != null) {
+        _startTime =
+            _timeOfDayFromMinutes(
+          task.startTimeMinutes!,
         );
       }
     } else if (widget.initialDate != null) {
@@ -109,236 +104,55 @@ class _TaskFormPageState
     super.dispose();
   }
 
-  Future<void> _selectDate() async {
-    final now = DateTime.now();
-
-    final result = await showDatePicker(
-      context: context,
-      initialDate:
-          _selectedDate ?? now,
-      firstDate:
-          DateTime(now.year - 1),
-      lastDate:
-          DateTime(now.year + 10),
-    );
-
-    if (result != null) {
-      setState(() {
-        _selectedDate = result;
-      });
-    }
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
-  Future<void> _selectStartTime() async {
-    final result =
-        await showTimePicker(
-      context: context,
-      initialTime:
-          _startTime ??
-              TimeOfDay.now(),
-    );
-
-    if (result != null) {
-      setState(() {
-        _startTime = result;
-
-        if (_endTime != null) {
-          final startMinutes =
-              _startTime!.hour * 60 +
-                  _startTime!.minute;
-
-          final endMinutes =
-              _endTime!.hour * 60 +
-                  _endTime!.minute;
-
-          if (endMinutes <=
-              startMinutes) {
-            _endTime = null;
-          }
-        }
-      });
-    }
-  }
-
-  Future<void> _selectEndTime() async {
-    final result =
-        await showTimePicker(
-      context: context,
-      initialTime:
-          _endTime ??
-              TimeOfDay(
-                hour:
-                    (_startTime!.hour +
-                            1) %
-                        24,
-                minute:
-                    _startTime!.minute,
-              ),
-    );
-
-    if (result != null) {
-      final startMinutes =
-          _startTime!.hour * 60 +
-              _startTime!.minute;
-
-      final endMinutes =
-          result.hour * 60 +
-              result.minute;
-
-      if (endMinutes <=
-          startMinutes) {
-        if (!mounted) {
-          return;
-        }
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'L’ora di fine deve essere '
-              'successiva all’ora di inizio.',
-            ),
-          ),
-        );
-
-        return;
-      }
-
-      setState(() {
-        _endTime = result;
-      });
-    }
-  }
-
-  DateTime? _combineDateAndTime(
-    DateTime? date,
-    TimeOfDay? time,
+  int _minutesFromTimeOfDay(
+    TimeOfDay time,
   ) {
-    if (date == null) {
-      return null;
-    }
+    return time.hour * 60 +
+        time.minute;
+  }
 
-    if (time == null) {
-      return DateTime(
-        date.year,
-        date.month,
-        date.day,
-      );
-    }
+  TimeOfDay _timeOfDayFromMinutes(
+    int minutes,
+  ) {
+    final normalized =
+        minutes % (24 * 60);
 
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
+    return TimeOfDay(
+      hour: normalized ~/ 60,
+      minute: normalized % 60,
     );
   }
 
-  void _saveTask() {
-    if (!_formKey.currentState!
-        .validate()) {
-      return;
+  String _durationLabel(
+    int? minutes,
+  ) {
+    if (minutes == null ||
+        minutes <= 0) {
+      return 'Nessuna';
     }
 
-    final oldTask =
-        widget.initialTask;
+    final hours =
+        minutes ~/ 60;
 
-    final task = LifeTask(
-      id: oldTask?.id ??
-          DateTime.now()
-              .microsecondsSinceEpoch
-              .toString(),
+    final remaining =
+        minutes % 60;
 
-      title:
-          _titleController.text.trim(),
-
-      description:
-          _descriptionController.text
-              .trim(),
-
-      startAt:
-          _combineDateAndTime(
-        _selectedDate,
-        _allDay
-            ? null
-            : _startTime,
-      ),
-
-      endAt: _allDay
-          ? null
-          : _combineDateAndTime(
-              _selectedDate,
-              _endTime,
-            ),
-
-      allDay: _allDay,
-
-      priority: _priority,
-
-      isCompleted:
-          oldTask?.isCompleted ??
-              false,
-    );
-
-    Navigator.pop(
-      context,
-      TaskFormResult.save(task),
-    );
-  }
-
-  Future<void> _deleteTask() async {
-    final confirmed =
-        await showDialog<bool>(
-      context: context,
-
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(
-            'Eliminare attività?',
-          ),
-
-          content: Text(
-            'Vuoi eliminare '
-            '"${widget.initialTask!.title}"?',
-          ),
-
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  false,
-                );
-              },
-              child:
-                  const Text('Annulla'),
-            ),
-
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  true,
-                );
-              },
-              child:
-                  const Text('Elimina'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true ||
-        !mounted) {
-      return;
+    if (hours == 0) {
+      return '$remaining min';
     }
 
-    Navigator.pop(
-      context,
-      const TaskFormResult.delete(),
-    );
+    if (remaining == 0) {
+      return hours == 1
+          ? '1 ora'
+          : '$hours ore';
+    }
+
+    return '${hours} h '
+        '${remaining} min';
   }
 
   String _formatDate(
@@ -364,6 +178,205 @@ class _TaskFormPageState
         '${date.year}';
   }
 
+  String _endTimeLabel(
+    BuildContext context,
+  ) {
+    if (_startTime == null ||
+        _durationMinutes == null) {
+      return 'Nessuna';
+    }
+
+    final start =
+        _minutesFromTimeOfDay(
+      _startTime!,
+    );
+
+    final total =
+        start + _durationMinutes!;
+
+    final end =
+        _timeOfDayFromMinutes(
+      total,
+    );
+
+    final extraDays =
+        total ~/ (24 * 60);
+
+    final daySuffix =
+        extraDays > 0
+            ? extraDays == 1
+                ? ' (+1 giorno)'
+                : ' (+$extraDays giorni)'
+            : '';
+
+    return '${end.format(context)}'
+        '$daySuffix';
+  }
+
+  Future<void> _selectDate() async {
+    _dismissKeyboard();
+
+    final now = DateTime.now();
+
+    final result =
+        await showDatePicker(
+      context: context,
+      initialDate:
+          _selectedDate ?? now,
+      firstDate:
+          DateTime(now.year - 5),
+      lastDate:
+          DateTime(now.year + 10),
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedDate =
+            DateTime(
+          result.year,
+          result.month,
+          result.day,
+        );
+      });
+    }
+  }
+
+  void _clearDate() {
+    _dismissKeyboard();
+
+    setState(() {
+      _selectedDate = null;
+      _allDay = false;
+    });
+  }
+
+  Future<void> _selectStartTime() async {
+    _dismissKeyboard();
+
+    final result =
+        await showTimePicker(
+      context: context,
+      initialTime:
+          _startTime ??
+              TimeOfDay.now(),
+    );
+
+    if (result != null) {
+      setState(() {
+        _startTime = result;
+      });
+    }
+  }
+
+  void _clearStartTime() {
+    _dismissKeyboard();
+
+    setState(() {
+      _startTime = null;
+    });
+  }
+
+  Future<void> _selectEndTime() async {
+    _dismissKeyboard();
+
+    if (_startTime == null) {
+      return;
+    }
+
+    final initialTime =
+        _durationMinutes == null
+            ? _timeOfDayFromMinutes(
+                _minutesFromTimeOfDay(
+                      _startTime!,
+                    ) +
+                    60,
+              )
+            : _timeOfDayFromMinutes(
+                _minutesFromTimeOfDay(
+                      _startTime!,
+                    ) +
+                    _durationMinutes!,
+              );
+
+    final result =
+        await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    final start =
+        _minutesFromTimeOfDay(
+      _startTime!,
+    );
+
+    var end =
+        _minutesFromTimeOfDay(
+      result,
+    );
+
+    if (end == start) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'L’ora di fine non può '
+            'coincidere con l’ora di inizio.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    if (end < start) {
+      end += 24 * 60;
+    }
+
+    setState(() {
+      _durationMinutes =
+          end - start;
+    });
+  }
+
+  Future<void> _selectDuration() async {
+    _dismissKeyboard();
+
+    final result =
+        await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+
+      builder: (context) {
+        return _DurationPickerSheet(
+          initialMinutes:
+              _durationMinutes,
+        );
+      },
+    );
+
+    if (!mounted ||
+        result == null) {
+      return;
+    }
+
+    setState(() {
+      _durationMinutes =
+          result < 0
+              ? null
+              : result;
+    });
+  }
+
   String _priorityLabel(
     TaskPriority priority,
   ) {
@@ -379,102 +392,306 @@ class _TaskFormPageState
     }
   }
 
+  void _saveTask() {
+    _dismissKeyboard();
+
+    if (!_formKey.currentState!
+        .validate()) {
+      return;
+    }
+
+    final oldTask =
+        widget.initialTask;
+
+    final title =
+        widget.rescheduleOnly
+            ? oldTask!.title
+            : _titleController.text.trim();
+
+    final description =
+        widget.rescheduleOnly
+            ? oldTask!.description
+            : _descriptionController.text.trim();
+
+    final priority =
+        widget.rescheduleOnly
+            ? oldTask!.priority
+            : _priority;
+
+    final effectiveAllDay =
+        _selectedDate != null &&
+        _allDay;
+
+    final task = LifeTask(
+      id: oldTask?.id ??
+          DateTime.now()
+              .microsecondsSinceEpoch
+              .toString(),
+
+      title: title,
+
+      description: description,
+
+      scheduledDate:
+          _selectedDate,
+
+      startTimeMinutes:
+          effectiveAllDay ||
+                  _startTime == null
+              ? null
+              : _minutesFromTimeOfDay(
+                  _startTime!,
+                ),
+
+      durationMinutes:
+          _durationMinutes,
+
+      allDay:
+          effectiveAllDay,
+
+      priority:
+          priority,
+
+      isCompleted:
+          oldTask?.isCompleted ??
+              false,
+    );
+
+    Navigator.pop(
+      context,
+      TaskFormResult.save(task),
+    );
+  }
+
+  Future<void> _deleteTask() async {
+    _dismissKeyboard();
+
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+
+      builder: (context) {
+        return AlertDialog(
+          title:
+              const Text(
+            'Eliminare attività?',
+          ),
+
+          content: Text(
+            'Vuoi eliminare '
+            '"${widget.initialTask!.title}"?',
+          ),
+
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  false,
+                );
+              },
+              child:
+                  const Text(
+                'Annulla',
+              ),
+            ),
+
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
+              child:
+                  const Text(
+                'Elimina',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true ||
+        !mounted) {
+      return;
+    }
+
+    Navigator.pop(
+      context,
+      const TaskFormResult.delete(),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final colorScheme =
-        Theme.of(context).colorScheme;
+        Theme.of(context)
+            .colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _isEditing
-              ? 'Modifica attività'
-              : 'Nuova attività',
+          widget.rescheduleOnly
+              ? 'Sposta attività'
+              : _isEditing
+                  ? 'Modifica attività'
+                  : 'Nuova attività',
         ),
 
         actions: [
-          if (_isEditing)
+          if (_isEditing &&
+              !widget.rescheduleOnly)
             IconButton(
-              tooltip: 'Elimina attività',
-              icon: const Icon(
+              tooltip:
+                  'Elimina attività',
+              icon:
+                  const Icon(
                 Icons.delete_outline,
               ),
               color:
                   colorScheme.error,
-              onPressed: _deleteTask,
+              onPressed:
+                  _deleteTask,
             ),
         ],
       ),
 
-      body: Form(
-        key: _formKey,
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _dismissKeyboard,
 
-        child: ListView(
-          padding:
-              const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+
+          child: ListView(
+            keyboardDismissBehavior:
+                ScrollViewKeyboardDismissBehavior
+                    .onDrag,
+
+            padding:
+                const EdgeInsets.all(
+              20,
+            ),
 
           children: [
-            TextFormField(
-              controller:
-                  _titleController,
-
-              autofocus: !_isEditing,
-
-              decoration:
-                  const InputDecoration(
-                labelText: 'Titolo',
-                hintText:
-                    'Es. Dentista',
-                border:
-                    OutlineInputBorder(),
+            if (widget.rescheduleOnly) ...[
+              Text(
+                widget
+                    .initialTask!
+                    .title,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(
+                          fontWeight:
+                              FontWeight
+                                  .w700,
+                        ),
               ),
 
-              validator: (value) {
-                if (value == null ||
-                    value
-                        .trim()
-                        .isEmpty) {
-                  return 'Inserisci un titolo.';
-                }
-
-                return null;
-              },
-            ),
-
-            const SizedBox(
-              height: 16,
-            ),
-
-            TextFormField(
-              controller:
-                  _descriptionController,
-
-              maxLines: 3,
-
-              decoration:
-                  const InputDecoration(
-                labelText:
-                    'Descrizione',
-                hintText: 'Opzionale',
-                border:
-                    OutlineInputBorder(),
+              const SizedBox(
+                height: 6,
               ),
-            ),
 
-            const SizedBox(
-              height: 24,
-            ),
+              Text(
+                'Scegli una nuova '
+                'pianificazione. La durata '
+                'rimane modificabile.',
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(
+                          color:
+                              colorScheme
+                                  .onSurfaceVariant,
+                        ),
+              ),
+
+              const SizedBox(
+                height: 28,
+              ),
+            ] else ...[
+              TextFormField(
+                controller:
+                    _titleController,
+
+                autofocus:
+                    !_isEditing,
+
+                onTapOutside: (_) {
+                  _dismissKeyboard();
+                },
+
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Titolo',
+                  hintText:
+                      'Es. Dentista',
+                  border:
+                      OutlineInputBorder(),
+                ),
+
+                validator:
+                    (value) {
+                  if (value == null ||
+                      value
+                          .trim()
+                          .isEmpty) {
+                    return 'Inserisci un titolo.';
+                  }
+
+                  return null;
+                },
+              ),
+
+              const SizedBox(
+                height: 16,
+              ),
+
+              TextFormField(
+                controller:
+                    _descriptionController,
+
+                maxLines: 3,
+
+                onTapOutside: (_) {
+                  _dismissKeyboard();
+                },
+
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Descrizione',
+                  hintText:
+                      'Opzionale',
+                  border:
+                      OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(
+                height: 24,
+              ),
+            ],
 
             Text(
-              'Quando',
-
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(
-                    fontWeight:
-                        FontWeight.w700,
-                  ),
+              'Pianificazione',
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(
+                        fontWeight:
+                            FontWeight
+                                .w700,
+                      ),
             ),
 
             const SizedBox(
@@ -482,10 +699,43 @@ class _TaskFormPageState
             ),
 
             Card(
-              margin: EdgeInsets.zero,
+              margin:
+                  EdgeInsets.zero,
 
               child: Column(
                 children: [
+                  ListTile(
+                    leading:
+                        const Icon(
+                      Icons
+                          .timer_outlined,
+                    ),
+
+                    title:
+                        const Text(
+                      'Durata',
+                    ),
+
+                    subtitle: Text(
+                      _durationLabel(
+                        _durationMinutes,
+                      ),
+                    ),
+
+                    trailing:
+                        const Icon(
+                      Icons
+                          .chevron_right,
+                    ),
+
+                    onTap:
+                        _selectDuration,
+                  ),
+
+                  const Divider(
+                    height: 1,
+                  ),
+
                   ListTile(
                     leading:
                         const Icon(
@@ -501,7 +751,7 @@ class _TaskFormPageState
                     subtitle: Text(
                       _selectedDate ==
                               null
-                          ? 'Nessuna data'
+                          ? 'Nessuna data · Inbox'
                           : _formatDate(
                               _selectedDate!,
                             ),
@@ -515,26 +765,15 @@ class _TaskFormPageState
                                     .chevron_right,
                               )
                             : IconButton(
+                                tooltip:
+                                    'Rimuovi data',
                                 icon:
                                     const Icon(
                                   Icons
                                       .close,
                                 ),
                                 onPressed:
-                                    () {
-                                  setState(
-                                    () {
-                                      _selectedDate =
-                                          null;
-
-                                      _startTime =
-                                          null;
-
-                                      _endTime =
-                                          null;
-                                    },
-                                  );
-                                },
+                                    _clearDate,
                               ),
 
                     onTap:
@@ -567,22 +806,12 @@ class _TaskFormPageState
                         setState(() {
                           _allDay =
                               value;
-
-                          if (_allDay) {
-                            _startTime =
-                                null;
-
-                            _endTime =
-                                null;
-                          }
                         });
                       },
                     ),
                   ],
 
-                  if (_selectedDate !=
-                          null &&
-                      !_allDay) ...[
+                  if (!_allDay) ...[
                     const Divider(
                       height: 1,
                     ),
@@ -609,10 +838,23 @@ class _TaskFormPageState
                       ),
 
                       trailing:
-                          const Icon(
-                        Icons
-                            .chevron_right,
-                      ),
+                          _startTime ==
+                                  null
+                              ? const Icon(
+                                  Icons
+                                      .chevron_right,
+                                )
+                              : IconButton(
+                                  tooltip:
+                                      'Rimuovi orario',
+                                  icon:
+                                      const Icon(
+                                    Icons
+                                        .close,
+                                  ),
+                                  onPressed:
+                                      _clearStartTime,
+                                ),
 
                       onTap:
                           _selectStartTime,
@@ -630,7 +872,7 @@ class _TaskFormPageState
                       leading:
                           const Icon(
                         Icons
-                            .schedule_outlined,
+                            .more_time_outlined,
                       ),
 
                       title:
@@ -639,13 +881,9 @@ class _TaskFormPageState
                       ),
 
                       subtitle: Text(
-                        _endTime ==
-                                null
-                            ? 'Nessuna'
-                            : _endTime!
-                                .format(
-                                  context,
-                                ),
+                        _endTimeLabel(
+                          context,
+                        ),
                       ),
 
                       trailing:
@@ -665,97 +903,114 @@ class _TaskFormPageState
               ),
             ),
 
-            const SizedBox(
-              height: 24,
-            ),
-
-            Text(
-              'Priorità',
-
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(
-                    fontWeight:
-                        FontWeight.w700,
-                  ),
-            ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
-            DropdownButtonFormField<
-                TaskPriority>(
-              initialValue:
-                  _priority,
-
-              decoration:
-                  const InputDecoration(
-                border:
-                    OutlineInputBorder(),
+            if (!widget
+                .rescheduleOnly) ...[
+              const SizedBox(
+                height: 24,
               ),
 
-              items: TaskPriority
-                  .values
-                  .map(
-                    (priority) =>
-                        DropdownMenuItem(
-                      value: priority,
+              Text(
+                'Priorità',
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(
+                          fontWeight:
+                              FontWeight
+                                  .w700,
+                        ),
+              ),
 
-                      child: Text(
-                        _priorityLabel(
-                          priority,
+              const SizedBox(
+                height: 8,
+              ),
+
+              DropdownButtonFormField<
+                  TaskPriority>(
+                initialValue:
+                    _priority,
+
+                decoration:
+                    const InputDecoration(
+                  border:
+                      OutlineInputBorder(),
+                ),
+
+                items: TaskPriority
+                    .values
+                    .map(
+                      (priority) =>
+                          DropdownMenuItem(
+                        value:
+                            priority,
+                        child: Text(
+                          _priorityLabel(
+                            priority,
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                  .toList(),
+                    )
+                    .toList(),
 
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _priority =
-                        value;
-                  });
-                }
-              },
-            ),
+                onChanged:
+                    (value) {
+                  if (value != null) {
+                    setState(() {
+                      _priority =
+                          value;
+                    });
+                  }
+                },
+              ),
+            ],
 
             const SizedBox(
               height: 100,
             ),
-          ],
+            ],
+          ),
         ),
       ),
 
       bottomNavigationBar:
           SafeArea(
         minimum:
-            const EdgeInsets.all(16),
+            const EdgeInsets.all(
+          16,
+        ),
 
-        child: FilledButton.icon(
-          onPressed: _saveTask,
+        child:
+            FilledButton.icon(
+          onPressed:
+              _saveTask,
 
           icon: Icon(
-            _isEditing
-                ? Icons.save_outlined
-                : Icons.add_task,
+            widget.rescheduleOnly
+                ? Icons
+                    .event_repeat_outlined
+                : _isEditing
+                    ? Icons
+                        .save_outlined
+                    : Icons
+                        .add_task,
           ),
 
           label: Text(
-            _isEditing
-                ? 'Salva modifiche'
-                : 'Crea attività',
+            widget.rescheduleOnly
+                ? 'Sposta attività'
+                : _isEditing
+                    ? 'Salva modifiche'
+                    : 'Crea attività',
           ),
 
           style:
               FilledButton.styleFrom(
             minimumSize:
-                const Size.fromHeight(
+                const Size
+                    .fromHeight(
               54,
             ),
-
             backgroundColor:
                 colorScheme.primary,
           ),
@@ -764,3 +1019,440 @@ class _TaskFormPageState
     );
   }
 }
+
+class _DurationPickerSheet
+    extends StatefulWidget {
+  final int? initialMinutes;
+
+  const _DurationPickerSheet({
+    required this.initialMinutes,
+  });
+
+  @override
+  State<_DurationPickerSheet>
+      createState() =>
+          _DurationPickerSheetState();
+}
+
+class _DurationPickerSheetState
+    extends State<_DurationPickerSheet> {
+  late final TextEditingController
+      _hoursController;
+
+  late final TextEditingController
+      _minutesController;
+
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final current =
+        widget.initialMinutes ?? 0;
+
+    _hoursController =
+        TextEditingController(
+      text: current >= 60
+          ? (current ~/ 60)
+              .toString()
+          : '',
+    );
+
+    _minutesController =
+        TextEditingController(
+      text: current % 60 == 0
+          ? ''
+          : (current % 60)
+              .toString(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _hoursController.dispose();
+    _minutesController.dispose();
+
+    super.dispose();
+  }
+
+  String _durationLabel(
+    int minutes,
+  ) {
+    final hours =
+        minutes ~/ 60;
+
+    final remaining =
+        minutes % 60;
+
+    if (hours == 0) {
+      return '$remaining min';
+    }
+
+    if (remaining == 0) {
+      return hours == 1
+          ? '1 ora'
+          : '$hours ore';
+    }
+
+    return '${hours} h '
+        '${remaining} min';
+  }
+
+  void _applyQuickDuration(
+    int minutes,
+  ) {
+    FocusScope.of(context)
+        .unfocus();
+
+    Navigator.pop(
+      context,
+      minutes,
+    );
+  }
+
+  void _confirmCustomDuration() {
+    final hours =
+        int.tryParse(
+              _hoursController.text,
+            ) ??
+            0;
+
+    final minutes =
+        int.tryParse(
+              _minutesController.text,
+            ) ??
+            0;
+
+    if (minutes >= 60) {
+      setState(() {
+        _errorText =
+            'I minuti devono essere '
+            'compresi tra 0 e 59.';
+      });
+      return;
+    }
+
+    final total =
+        hours * 60 + minutes;
+
+    if (total <= 0) {
+      setState(() {
+        _errorText =
+            'Inserisci una durata '
+            'maggiore di zero.';
+      });
+      return;
+    }
+
+    FocusScope.of(context)
+        .unfocus();
+
+    Navigator.pop(
+      context,
+      total,
+    );
+  }
+
+  void _removeDuration() {
+    FocusScope.of(context)
+        .unfocus();
+
+    Navigator.pop(
+      context,
+      -1,
+    );
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom:
+            MediaQuery.viewInsetsOf(
+          context,
+        ).bottom,
+      ),
+
+      child: SingleChildScrollView(
+        keyboardDismissBehavior:
+            ScrollViewKeyboardDismissBehavior
+                .onDrag,
+
+        padding:
+            const EdgeInsets
+                .fromLTRB(
+          20,
+          4,
+          20,
+          24,
+        ),
+
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+
+          children: [
+            Text(
+              'Durata',
+
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(
+                        fontWeight:
+                            FontWeight
+                                .w700,
+                      ),
+            ),
+
+            const SizedBox(
+              height: 6,
+            ),
+
+            Text(
+              'Scegli una durata rapida '
+              'oppure inserisci ore e minuti '
+              'con precisione al minuto.',
+
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+                      ),
+            ),
+
+            const SizedBox(
+              height: 20,
+            ),
+
+            Text(
+              'Scelte rapide',
+
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(
+                        fontWeight:
+                            FontWeight
+                                .w700,
+                      ),
+            ),
+
+            const SizedBox(
+              height: 10,
+            ),
+
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+
+              children: [
+                for (final minutes
+                    in const [
+                  5,
+                  10,
+                  15,
+                  20,
+                  25,
+                  30,
+                  45,
+                  60,
+                  90,
+                  120,
+                ])
+                  ActionChip(
+                    label: Text(
+                      _durationLabel(
+                        minutes,
+                      ),
+                    ),
+
+                    onPressed: () {
+                      _applyQuickDuration(
+                        minutes,
+                      );
+                    },
+                  ),
+              ],
+            ),
+
+            const SizedBox(
+              height: 26,
+            ),
+
+            Text(
+              'Durata personalizzata',
+
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(
+                        fontWeight:
+                            FontWeight
+                                .w700,
+                      ),
+            ),
+
+            const SizedBox(
+              height: 10,
+            ),
+
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller:
+                        _hoursController,
+
+                    onTapOutside: (_) {
+                      FocusManager.instance
+                          .primaryFocus
+                          ?.unfocus();
+                    },
+
+                    keyboardType:
+                        TextInputType
+                            .number,
+
+                    inputFormatters: [
+                      FilteringTextInputFormatter
+                          .digitsOnly,
+                    ],
+
+                    decoration:
+                        const InputDecoration(
+                      labelText:
+                          'Ore',
+                      hintText:
+                          '0',
+                      border:
+                          OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 12,
+                ),
+
+                Expanded(
+                  child: TextField(
+                    controller:
+                        _minutesController,
+
+                    onTapOutside: (_) {
+                      FocusManager.instance
+                          .primaryFocus
+                          ?.unfocus();
+                    },
+
+                    keyboardType:
+                        TextInputType
+                            .number,
+
+                    inputFormatters: [
+                      FilteringTextInputFormatter
+                          .digitsOnly,
+                    ],
+
+                    decoration:
+                        const InputDecoration(
+                      labelText:
+                          'Minuti',
+                      hintText:
+                          '0',
+                      helperText:
+                          '0–59',
+                      border:
+                          OutlineInputBorder(),
+                    ),
+
+                    onSubmitted: (_) {
+                      _confirmCustomDuration();
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            if (_errorText !=
+                null) ...[
+              const SizedBox(
+                height: 10,
+              ),
+
+              Text(
+                _errorText!,
+
+                style:
+                    TextStyle(
+                  color:
+                      colorScheme
+                          .error,
+                ),
+              ),
+            ],
+
+            const SizedBox(
+              height: 20,
+            ),
+
+            SizedBox(
+              width:
+                  double.infinity,
+
+              child:
+                  FilledButton(
+                onPressed:
+                    _confirmCustomDuration,
+
+                child:
+                    const Text(
+                  'Conferma durata',
+                ),
+              ),
+            ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            SizedBox(
+              width:
+                  double.infinity,
+
+              child:
+                  TextButton(
+                onPressed:
+                    _removeDuration,
+
+                child:
+                    const Text(
+                  'Rimuovi durata',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

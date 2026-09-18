@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../repositories/task_repository.dart';
+import 'calendar/calendar_page.dart';
 import 'placeholder_page.dart';
 import 'today_page.dart';
 
@@ -13,10 +14,12 @@ class MainScreen extends StatefulWidget {
   });
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<MainScreen> createState() =>
+      _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState
+    extends State<MainScreen> {
   int _selectedIndex = 0;
 
   late final List<Widget> _pages;
@@ -27,20 +30,27 @@ class _MainScreenState extends State<MainScreen> {
 
     _pages = [
       TodayPage(
-        taskRepository: widget.taskRepository,
+        taskRepository:
+            widget.taskRepository,
       ),
-      const PlaceholderPage(
-        title: 'Abitudini',
-        icon: Icons.check_circle_outline,
+
+      CalendarPage(
+        taskRepository:
+            widget.taskRepository,
       ),
+
       const PlaceholderPage(
         title: 'Casa',
         icon: Icons.home_outlined,
       ),
+
       const PlaceholderPage(
         title: 'Spese',
-        icon: Icons.account_balance_wallet_outlined,
+        icon:
+            Icons
+                .account_balance_wallet_outlined,
       ),
+
       const PlaceholderPage(
         title: 'Altro',
         icon: Icons.more_horiz,
@@ -49,44 +59,104 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+        index:
+            _selectedIndex,
+        children:
+            _pages,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
+
+      bottomNavigationBar:
+          NavigationBar(
+        selectedIndex:
+            _selectedIndex,
+
+        onDestinationSelected:
+            (index) {
           setState(() {
-            _selectedIndex = index;
+            _selectedIndex =
+                index;
           });
         },
-        destinations: const [
+
+        destinations:
+            const [
           NavigationDestination(
-            icon: Icon(Icons.calendar_today_outlined),
-            selectedIcon: Icon(Icons.calendar_today),
-            label: 'Oggi',
+            icon:
+                Icon(
+              Icons
+                  .calendar_today_outlined,
+            ),
+            selectedIcon:
+                Icon(
+              Icons
+                  .calendar_today,
+            ),
+            label:
+                'Oggi',
           ),
+
           NavigationDestination(
-            icon: Icon(Icons.check_circle_outline),
-            selectedIcon: Icon(Icons.check_circle),
-            label: 'Abitudini',
+            icon:
+                Icon(
+              Icons
+                  .calendar_month_outlined,
+            ),
+            selectedIcon:
+                Icon(
+              Icons
+                  .calendar_month,
+            ),
+            label:
+                'Calendario',
           ),
+
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Casa',
+            icon:
+                Icon(
+              Icons
+                  .home_outlined,
+            ),
+            selectedIcon:
+                Icon(
+              Icons.home,
+            ),
+            label:
+                'Casa',
           ),
+
           NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Spese',
+            icon:
+                Icon(
+              Icons
+                  .account_balance_wallet_outlined,
+            ),
+            selectedIcon:
+                Icon(
+              Icons
+                  .account_balance_wallet,
+            ),
+            label:
+                'Spese',
           ),
+
           NavigationDestination(
-            icon: Icon(Icons.more_horiz),
-            selectedIcon: Icon(Icons.more_horiz),
-            label: 'Altro',
+            icon:
+                Icon(
+              Icons
+                  .more_horiz,
+            ),
+            selectedIcon:
+                Icon(
+              Icons
+                  .more_horiz,
+            ),
+            label:
+                'Altro',
           ),
         ],
       ),

@@ -59,6 +59,40 @@ class $TaskItemsTable extends TaskItems
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _scheduledDateMeta = const VerificationMeta(
+    'scheduledDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduledDate =
+      GeneratedColumn<DateTime>(
+        'scheduled_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _startTimeMinutesMeta = const VerificationMeta(
+    'startTimeMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> startTimeMinutes = GeneratedColumn<int>(
+    'start_time_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMinutesMeta = const VerificationMeta(
+    'durationMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> durationMinutes = GeneratedColumn<int>(
+    'duration_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _allDayMeta = const VerificationMeta('allDay');
   @override
   late final GeneratedColumn<bool> allDay = GeneratedColumn<bool>(
@@ -118,6 +152,9 @@ class $TaskItemsTable extends TaskItems
     description,
     startAt,
     endAt,
+    scheduledDate,
+    startTimeMinutes,
+    durationMinutes,
     allDay,
     priority,
     isCompleted,
@@ -167,6 +204,33 @@ class $TaskItemsTable extends TaskItems
       context.handle(
         _endAtMeta,
         endAt.isAcceptableOrUnknown(data['end_at']!, _endAtMeta),
+      );
+    }
+    if (data.containsKey('scheduled_date')) {
+      context.handle(
+        _scheduledDateMeta,
+        scheduledDate.isAcceptableOrUnknown(
+          data['scheduled_date']!,
+          _scheduledDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('start_time_minutes')) {
+      context.handle(
+        _startTimeMinutesMeta,
+        startTimeMinutes.isAcceptableOrUnknown(
+          data['start_time_minutes']!,
+          _startTimeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('duration_minutes')) {
+      context.handle(
+        _durationMinutesMeta,
+        durationMinutes.isAcceptableOrUnknown(
+          data['duration_minutes']!,
+          _durationMinutesMeta,
+        ),
       );
     }
     if (data.containsKey('all_day')) {
@@ -225,6 +289,18 @@ class $TaskItemsTable extends TaskItems
         DriftSqlType.dateTime,
         data['${effectivePrefix}end_at'],
       ),
+      scheduledDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scheduled_date'],
+      ),
+      startTimeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_time_minutes'],
+      ),
+      durationMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_minutes'],
+      ),
       allDay: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}all_day'],
@@ -254,8 +330,15 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
   final String id;
   final String title;
   final String description;
+
+  /// Colonne legacy mantenute per una migrazione sicura e per
+  /// retrocompatibilità interna. Il nuovo modello usa i tre campi
+  /// scheduledDate / startTimeMinutes / durationMinutes.
   final DateTime? startAt;
   final DateTime? endAt;
+  final DateTime? scheduledDate;
+  final int? startTimeMinutes;
+  final int? durationMinutes;
   final bool allDay;
   final int priority;
   final bool isCompleted;
@@ -266,6 +349,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     required this.description,
     this.startAt,
     this.endAt,
+    this.scheduledDate,
+    this.startTimeMinutes,
+    this.durationMinutes,
     required this.allDay,
     required this.priority,
     required this.isCompleted,
@@ -282,6 +368,15 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     }
     if (!nullToAbsent || endAt != null) {
       map['end_at'] = Variable<DateTime>(endAt);
+    }
+    if (!nullToAbsent || scheduledDate != null) {
+      map['scheduled_date'] = Variable<DateTime>(scheduledDate);
+    }
+    if (!nullToAbsent || startTimeMinutes != null) {
+      map['start_time_minutes'] = Variable<int>(startTimeMinutes);
+    }
+    if (!nullToAbsent || durationMinutes != null) {
+      map['duration_minutes'] = Variable<int>(durationMinutes);
     }
     map['all_day'] = Variable<bool>(allDay);
     map['priority'] = Variable<int>(priority);
@@ -301,6 +396,15 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       endAt: endAt == null && nullToAbsent
           ? const Value.absent()
           : Value(endAt),
+      scheduledDate: scheduledDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduledDate),
+      startTimeMinutes: startTimeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startTimeMinutes),
+      durationMinutes: durationMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMinutes),
       allDay: Value(allDay),
       priority: Value(priority),
       isCompleted: Value(isCompleted),
@@ -319,6 +423,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       description: serializer.fromJson<String>(json['description']),
       startAt: serializer.fromJson<DateTime?>(json['startAt']),
       endAt: serializer.fromJson<DateTime?>(json['endAt']),
+      scheduledDate: serializer.fromJson<DateTime?>(json['scheduledDate']),
+      startTimeMinutes: serializer.fromJson<int?>(json['startTimeMinutes']),
+      durationMinutes: serializer.fromJson<int?>(json['durationMinutes']),
       allDay: serializer.fromJson<bool>(json['allDay']),
       priority: serializer.fromJson<int>(json['priority']),
       isCompleted: serializer.fromJson<bool>(json['isCompleted']),
@@ -334,6 +441,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       'description': serializer.toJson<String>(description),
       'startAt': serializer.toJson<DateTime?>(startAt),
       'endAt': serializer.toJson<DateTime?>(endAt),
+      'scheduledDate': serializer.toJson<DateTime?>(scheduledDate),
+      'startTimeMinutes': serializer.toJson<int?>(startTimeMinutes),
+      'durationMinutes': serializer.toJson<int?>(durationMinutes),
       'allDay': serializer.toJson<bool>(allDay),
       'priority': serializer.toJson<int>(priority),
       'isCompleted': serializer.toJson<bool>(isCompleted),
@@ -347,6 +457,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     String? description,
     Value<DateTime?> startAt = const Value.absent(),
     Value<DateTime?> endAt = const Value.absent(),
+    Value<DateTime?> scheduledDate = const Value.absent(),
+    Value<int?> startTimeMinutes = const Value.absent(),
+    Value<int?> durationMinutes = const Value.absent(),
     bool? allDay,
     int? priority,
     bool? isCompleted,
@@ -357,6 +470,15 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     description: description ?? this.description,
     startAt: startAt.present ? startAt.value : this.startAt,
     endAt: endAt.present ? endAt.value : this.endAt,
+    scheduledDate: scheduledDate.present
+        ? scheduledDate.value
+        : this.scheduledDate,
+    startTimeMinutes: startTimeMinutes.present
+        ? startTimeMinutes.value
+        : this.startTimeMinutes,
+    durationMinutes: durationMinutes.present
+        ? durationMinutes.value
+        : this.durationMinutes,
     allDay: allDay ?? this.allDay,
     priority: priority ?? this.priority,
     isCompleted: isCompleted ?? this.isCompleted,
@@ -371,6 +493,15 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
           : this.description,
       startAt: data.startAt.present ? data.startAt.value : this.startAt,
       endAt: data.endAt.present ? data.endAt.value : this.endAt,
+      scheduledDate: data.scheduledDate.present
+          ? data.scheduledDate.value
+          : this.scheduledDate,
+      startTimeMinutes: data.startTimeMinutes.present
+          ? data.startTimeMinutes.value
+          : this.startTimeMinutes,
+      durationMinutes: data.durationMinutes.present
+          ? data.durationMinutes.value
+          : this.durationMinutes,
       allDay: data.allDay.present ? data.allDay.value : this.allDay,
       priority: data.priority.present ? data.priority.value : this.priority,
       isCompleted: data.isCompleted.present
@@ -388,6 +519,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
           ..write('description: $description, ')
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
+          ..write('scheduledDate: $scheduledDate, ')
+          ..write('startTimeMinutes: $startTimeMinutes, ')
+          ..write('durationMinutes: $durationMinutes, ')
           ..write('allDay: $allDay, ')
           ..write('priority: $priority, ')
           ..write('isCompleted: $isCompleted, ')
@@ -403,6 +537,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     description,
     startAt,
     endAt,
+    scheduledDate,
+    startTimeMinutes,
+    durationMinutes,
     allDay,
     priority,
     isCompleted,
@@ -417,6 +554,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
           other.description == this.description &&
           other.startAt == this.startAt &&
           other.endAt == this.endAt &&
+          other.scheduledDate == this.scheduledDate &&
+          other.startTimeMinutes == this.startTimeMinutes &&
+          other.durationMinutes == this.durationMinutes &&
           other.allDay == this.allDay &&
           other.priority == this.priority &&
           other.isCompleted == this.isCompleted &&
@@ -429,6 +569,9 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
   final Value<String> description;
   final Value<DateTime?> startAt;
   final Value<DateTime?> endAt;
+  final Value<DateTime?> scheduledDate;
+  final Value<int?> startTimeMinutes;
+  final Value<int?> durationMinutes;
   final Value<bool> allDay;
   final Value<int> priority;
   final Value<bool> isCompleted;
@@ -440,6 +583,9 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     this.description = const Value.absent(),
     this.startAt = const Value.absent(),
     this.endAt = const Value.absent(),
+    this.scheduledDate = const Value.absent(),
+    this.startTimeMinutes = const Value.absent(),
+    this.durationMinutes = const Value.absent(),
     this.allDay = const Value.absent(),
     this.priority = const Value.absent(),
     this.isCompleted = const Value.absent(),
@@ -452,6 +598,9 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     this.description = const Value.absent(),
     this.startAt = const Value.absent(),
     this.endAt = const Value.absent(),
+    this.scheduledDate = const Value.absent(),
+    this.startTimeMinutes = const Value.absent(),
+    this.durationMinutes = const Value.absent(),
     this.allDay = const Value.absent(),
     this.priority = const Value.absent(),
     this.isCompleted = const Value.absent(),
@@ -465,6 +614,9 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     Expression<String>? description,
     Expression<DateTime>? startAt,
     Expression<DateTime>? endAt,
+    Expression<DateTime>? scheduledDate,
+    Expression<int>? startTimeMinutes,
+    Expression<int>? durationMinutes,
     Expression<bool>? allDay,
     Expression<int>? priority,
     Expression<bool>? isCompleted,
@@ -477,6 +629,9 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
       if (description != null) 'description': description,
       if (startAt != null) 'start_at': startAt,
       if (endAt != null) 'end_at': endAt,
+      if (scheduledDate != null) 'scheduled_date': scheduledDate,
+      if (startTimeMinutes != null) 'start_time_minutes': startTimeMinutes,
+      if (durationMinutes != null) 'duration_minutes': durationMinutes,
       if (allDay != null) 'all_day': allDay,
       if (priority != null) 'priority': priority,
       if (isCompleted != null) 'is_completed': isCompleted,
@@ -491,6 +646,9 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     Value<String>? description,
     Value<DateTime?>? startAt,
     Value<DateTime?>? endAt,
+    Value<DateTime?>? scheduledDate,
+    Value<int?>? startTimeMinutes,
+    Value<int?>? durationMinutes,
     Value<bool>? allDay,
     Value<int>? priority,
     Value<bool>? isCompleted,
@@ -503,6 +661,9 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
       description: description ?? this.description,
       startAt: startAt ?? this.startAt,
       endAt: endAt ?? this.endAt,
+      scheduledDate: scheduledDate ?? this.scheduledDate,
+      startTimeMinutes: startTimeMinutes ?? this.startTimeMinutes,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
       allDay: allDay ?? this.allDay,
       priority: priority ?? this.priority,
       isCompleted: isCompleted ?? this.isCompleted,
@@ -528,6 +689,15 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     }
     if (endAt.present) {
       map['end_at'] = Variable<DateTime>(endAt.value);
+    }
+    if (scheduledDate.present) {
+      map['scheduled_date'] = Variable<DateTime>(scheduledDate.value);
+    }
+    if (startTimeMinutes.present) {
+      map['start_time_minutes'] = Variable<int>(startTimeMinutes.value);
+    }
+    if (durationMinutes.present) {
+      map['duration_minutes'] = Variable<int>(durationMinutes.value);
     }
     if (allDay.present) {
       map['all_day'] = Variable<bool>(allDay.value);
@@ -555,6 +725,9 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
           ..write('description: $description, ')
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
+          ..write('scheduledDate: $scheduledDate, ')
+          ..write('startTimeMinutes: $startTimeMinutes, ')
+          ..write('durationMinutes: $durationMinutes, ')
           ..write('allDay: $allDay, ')
           ..write('priority: $priority, ')
           ..write('isCompleted: $isCompleted, ')
@@ -582,6 +755,9 @@ typedef $$TaskItemsTableCreateCompanionBuilder = TaskItemsCompanion Function({
   Value<String> description,
   Value<DateTime?> startAt,
   Value<DateTime?> endAt,
+  Value<DateTime?> scheduledDate,
+  Value<int?> startTimeMinutes,
+  Value<int?> durationMinutes,
   Value<bool> allDay,
   Value<int> priority,
   Value<bool> isCompleted,
@@ -594,6 +770,9 @@ typedef $$TaskItemsTableUpdateCompanionBuilder = TaskItemsCompanion Function({
   Value<String> description,
   Value<DateTime?> startAt,
   Value<DateTime?> endAt,
+  Value<DateTime?> scheduledDate,
+  Value<int?> startTimeMinutes,
+  Value<int?> durationMinutes,
   Value<bool> allDay,
   Value<int> priority,
   Value<bool> isCompleted,
@@ -632,6 +811,21 @@ class $$TaskItemsTableFilterComposer
 
   ColumnFilters<DateTime> get endAt => $composableBuilder(
     column: $table.endAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startTimeMinutes => $composableBuilder(
+    column: $table.startTimeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMinutes => $composableBuilder(
+    column: $table.durationMinutes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -690,6 +884,21 @@ class $$TaskItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startTimeMinutes => $composableBuilder(
+    column: $table.startTimeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMinutes => $composableBuilder(
+    column: $table.durationMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get allDay => $composableBuilder(
     column: $table.allDay,
     builder: (column) => ColumnOrderings(column),
@@ -736,6 +945,21 @@ class $$TaskItemsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get endAt =>
       $composableBuilder(column: $table.endAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get startTimeMinutes => $composableBuilder(
+    column: $table.startTimeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMinutes => $composableBuilder(
+    column: $table.durationMinutes,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get allDay =>
       $composableBuilder(column: $table.allDay, builder: (column) => column);
@@ -785,6 +1009,9 @@ class $$TaskItemsTableTableManager
                 Value<String> description = const Value.absent(),
                 Value<DateTime?> startAt = const Value.absent(),
                 Value<DateTime?> endAt = const Value.absent(),
+                Value<DateTime?> scheduledDate = const Value.absent(),
+                Value<int?> startTimeMinutes = const Value.absent(),
+                Value<int?> durationMinutes = const Value.absent(),
                 Value<bool> allDay = const Value.absent(),
                 Value<int> priority = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
@@ -796,6 +1023,9 @@ class $$TaskItemsTableTableManager
                 description: description,
                 startAt: startAt,
                 endAt: endAt,
+                scheduledDate: scheduledDate,
+                startTimeMinutes: startTimeMinutes,
+                durationMinutes: durationMinutes,
                 allDay: allDay,
                 priority: priority,
                 isCompleted: isCompleted,
@@ -809,6 +1039,9 @@ class $$TaskItemsTableTableManager
                 Value<String> description = const Value.absent(),
                 Value<DateTime?> startAt = const Value.absent(),
                 Value<DateTime?> endAt = const Value.absent(),
+                Value<DateTime?> scheduledDate = const Value.absent(),
+                Value<int?> startTimeMinutes = const Value.absent(),
+                Value<int?> durationMinutes = const Value.absent(),
                 Value<bool> allDay = const Value.absent(),
                 Value<int> priority = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
@@ -820,6 +1053,9 @@ class $$TaskItemsTableTableManager
                 description: description,
                 startAt: startAt,
                 endAt: endAt,
+                scheduledDate: scheduledDate,
+                startTimeMinutes: startTimeMinutes,
+                durationMinutes: durationMinutes,
                 allDay: allDay,
                 priority: priority,
                 isCompleted: isCompleted,

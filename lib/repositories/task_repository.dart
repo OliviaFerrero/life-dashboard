@@ -21,10 +21,30 @@ class TaskRepository {
     });
   }
 
+  Stream<List<LifeTask>> watchScheduledTasks() {
+    return watchAllTasks().map(
+      (tasks) => tasks
+          .where(
+            (task) => task.scheduledDate != null,
+          )
+          .toList(),
+    );
+  }
+
+  Stream<List<LifeTask>> watchInboxTasks() {
+    return watchAllTasks().map(
+      (tasks) => tasks
+          .where(
+            (task) => task.scheduledDate == null,
+          )
+          .toList(),
+    );
+  }
+
   Stream<List<LifeTask>> watchTasksForDay(DateTime day) {
     return watchAllTasks().map((tasks) {
       return tasks.where((task) {
-        final date = task.startAt;
+        final date = task.scheduledDate;
 
         if (date == null) {
           return false;
@@ -48,18 +68,23 @@ class TaskRepository {
     );
   }
 
-  Future<void> addTask(
-    LifeTask task,
-  ) async {
-    await _database
-        .into(_database.taskItems)
-        .insert(
+  Future<void> addTask(LifeTask task) async {
+    await _database.into(_database.taskItems).insert(
           TaskItemsCompanion.insert(
             id: task.id,
             title: task.title,
             description: Value(task.description),
+
+            // Legacy mantenuto sincronizzato.
             startAt: Value(task.startAt),
             endAt: Value(task.endAt),
+
+            scheduledDate: Value(task.scheduledDate),
+            startTimeMinutes: Value(
+              task.allDay ? null : task.startTimeMinutes,
+            ),
+            durationMinutes: Value(task.durationMinutes),
+
             allDay: Value(task.allDay),
             priority: Value(task.priority.index),
             isCompleted: Value(task.isCompleted),
@@ -67,20 +92,26 @@ class TaskRepository {
         );
   }
 
-  Future<void> updateTask(
-    LifeTask task,
-  ) async {
-    await (_database.update(
-      _database.taskItems,
-    )..where(
+  Future<void> updateTask(LifeTask task) async {
+    await (_database.update(_database.taskItems)
+          ..where(
             (row) => row.id.equals(task.id),
           ))
         .write(
       TaskItemsCompanion(
         title: Value(task.title),
         description: Value(task.description),
+
+        // Legacy mantenuto sincronizzato.
         startAt: Value(task.startAt),
         endAt: Value(task.endAt),
+
+        scheduledDate: Value(task.scheduledDate),
+        startTimeMinutes: Value(
+          task.allDay ? null : task.startTimeMinutes,
+        ),
+        durationMinutes: Value(task.durationMinutes),
+
         allDay: Value(task.allDay),
         priority: Value(task.priority.index),
         isCompleted: Value(task.isCompleted),
@@ -88,12 +119,9 @@ class TaskRepository {
     );
   }
 
-  Future<void> deleteTask(
-    String id,
-  ) async {
-    await (_database.delete(
-      _database.taskItems,
-    )..where(
+  Future<void> deleteTask(String id) async {
+    await (_database.delete(_database.taskItems)
+          ..where(
             (row) => row.id.equals(id),
           ))
         .go();
@@ -103,9 +131,8 @@ class TaskRepository {
     String id,
     bool completed,
   ) async {
-    await (_database.update(
-      _database.taskItems,
-    )..where(
+    await (_database.update(_database.taskItems)
+          ..where(
             (row) => row.id.equals(id),
           ))
         .write(
@@ -119,39 +146,109 @@ class TaskRepository {
     LifeTask a,
     LifeTask b,
   ) {
-    if (a.startAt == null && b.startAt == null) {
-      return 0;
-    }
+    final aDate = a.scheduledDate;
+    final bDate = b.scheduledDate;
 
-    if (a.startAt == null) {
+    if (aDate == null && bDate != null) {
       return 1;
     }
 
-    if (b.startAt == null) {
+    if (aDate != null && bDate == null) {
       return -1;
     }
 
-    return a.startAt!.compareTo(b.startAt!);
+    if (aDate != null && bDate != null) {
+      final dateComparison = aDate.compareTo(bDate);
+
+      if (dateComparison != 0) {
+        return dateComparison;
+      }
+    }
+
+    if (a.allDay != b.allDay) {
+      return a.allDay ? -1 : 1;
+    }
+
+    final aTime = a.startTimeMinutes;
+    final bTime = b.startTimeMinutes;
+
+    if (aTime == null && bTime != null) {
+      return -1;
+    }
+
+    if (aTime != null && bTime == null) {
+      return 1;
+    }
+
+    if (aTime != null && bTime != null) {
+      final timeComparison = aTime.compareTo(bTime);
+
+      if (timeComparison != 0) {
+        return timeComparison;
+      }
+    }
+
+    return a.title.toLowerCase().compareTo(
+          b.title.toLowerCase(),
+        );
   }
 
-  LifeTask _taskFromRow(
-    TaskItem row,
-  ) {
+  LifeTask _taskFromRow(TaskItem row) {
+    final fallbackDate = row.startAt == null
+        ? null
+        : DateTime(
+            row.startAt!.year,
+            row.startAt!.month,
+            row.startAt!.day,
+          );
+
+    final scheduledDate = row.scheduledDate ?? fallbackDate;
+
+    int? startTimeMinutes = row.startTimeMinutes;
+
+    if (startTimeMinutes == null &&
+        !row.allDay &&
+        row.startAt != null) {
+      final oldStart = row.startAt!;
+
+      final hasExplicitTime =
+          oldStart.hour != 0 ||
+          oldStart.minute != 0 ||
+          oldStart.second != 0 ||
+          row.endAt != null;
+
+      if (hasExplicitTime) {
+        startTimeMinutes =
+            oldStart.hour * 60 + oldStart.minute;
+      }
+    }
+
+    int? durationMinutes = row.durationMinutes;
+
+    if (durationMinutes == null &&
+        row.startAt != null &&
+        row.endAt != null) {
+      final difference = row.endAt!.difference(row.startAt!);
+
+      if (difference.inMinutes > 0) {
+        durationMinutes = difference.inMinutes;
+      }
+    }
+
     return LifeTask(
       id: row.id,
       title: row.title,
       description: row.description,
-      startAt: row.startAt,
-      endAt: row.endAt,
+      scheduledDate: scheduledDate,
+      startTimeMinutes: startTimeMinutes,
+      durationMinutes: durationMinutes,
       allDay: row.allDay,
       priority: _priorityFromInt(row.priority),
       isCompleted: row.isCompleted,
     );
   }
 
-  TaskPriority _priorityFromInt(
-    int value,
-  ) {
+  TaskPriority _priorityFromInt(int value) {
     switch (value) {
       case 0:
         return TaskPriority.low;
