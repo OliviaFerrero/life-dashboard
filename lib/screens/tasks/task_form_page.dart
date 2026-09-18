@@ -35,7 +35,8 @@ class TaskFormPage extends StatefulWidget {
 
 class _TaskFormPageState
     extends State<TaskFormPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _formKey =
+      GlobalKey<FormState>();
 
   final _titleController =
       TextEditingController();
@@ -60,7 +61,8 @@ class _TaskFormPageState
   void initState() {
     super.initState();
 
-    final task = widget.initialTask;
+    final task =
+        widget.initialTask;
 
     if (task != null) {
       _titleController.text =
@@ -81,14 +83,17 @@ class _TaskFormPageState
       _priority =
           task.priority;
 
-      if (task.startTimeMinutes != null) {
+      if (task.startTimeMinutes !=
+          null) {
         _startTime =
             _timeOfDayFromMinutes(
           task.startTimeMinutes!,
         );
       }
-    } else if (widget.initialDate != null) {
-      _selectedDate = DateTime(
+    } else if (widget.initialDate !=
+        null) {
+      _selectedDate =
+          DateTime(
         widget.initialDate!.year,
         widget.initialDate!.month,
         widget.initialDate!.day,
@@ -105,7 +110,10 @@ class _TaskFormPageState
   }
 
   void _dismissKeyboard() {
-    FocusManager.instance.primaryFocus?.unfocus();
+    FocusManager
+        .instance
+        .primaryFocus
+        ?.unfocus();
   }
 
   int _minutesFromTimeOfDay(
@@ -122,8 +130,10 @@ class _TaskFormPageState
         minutes % (24 * 60);
 
     return TimeOfDay(
-      hour: normalized ~/ 60,
-      minute: normalized % 60,
+      hour:
+          normalized ~/ 60,
+      minute:
+          normalized % 60,
     );
   }
 
@@ -151,8 +161,8 @@ class _TaskFormPageState
           : '$hours ore';
     }
 
-    return '${hours} h '
-        '${remaining} min';
+    return '$hours h '
+        '$remaining min';
   }
 
   String _formatDate(
@@ -216,7 +226,8 @@ class _TaskFormPageState
   Future<void> _selectDate() async {
     _dismissKeyboard();
 
-    final now = DateTime.now();
+    final now =
+        DateTime.now();
 
     final result =
         await showDatePicker(
@@ -263,7 +274,8 @@ class _TaskFormPageState
 
     if (result != null) {
       setState(() {
-        _startTime = result;
+        _startTime =
+            result;
       });
     }
   }
@@ -301,7 +313,8 @@ class _TaskFormPageState
     final result =
         await showTimePicker(
       context: context,
-      initialTime: initialTime,
+      initialTime:
+          initialTime,
     );
 
     if (result == null) {
@@ -323,7 +336,8 @@ class _TaskFormPageState
         return;
       }
 
-      ScaffoldMessenger.of(context)
+      ScaffoldMessenger
+          .of(context)
           .showSnackBar(
         const SnackBar(
           content: Text(
@@ -352,9 +366,12 @@ class _TaskFormPageState
     final result =
         await showModalBottomSheet<int>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
+      isScrollControlled:
+          true,
+      useSafeArea:
+          true,
+      showDragHandle:
+          true,
 
       builder: (context) {
         return _DurationPickerSheet(
@@ -392,10 +409,33 @@ class _TaskFormPageState
     }
   }
 
+  Color _priorityColor(
+    BuildContext context,
+    TaskPriority priority,
+  ) {
+    switch (priority) {
+      case TaskPriority.low:
+        return const Color(
+          0xFF5F8F73,
+        );
+
+      case TaskPriority.normal:
+        return Theme.of(context)
+            .colorScheme
+            .primary;
+
+      case TaskPriority.high:
+        return const Color(
+          0xFFC65B61,
+        );
+    }
+  }
+
   void _saveTask() {
     _dismissKeyboard();
 
-    if (!_formKey.currentState!
+    if (!_formKey
+        .currentState!
         .validate()) {
       return;
     }
@@ -406,12 +446,15 @@ class _TaskFormPageState
     final title =
         widget.rescheduleOnly
             ? oldTask!.title
-            : _titleController.text.trim();
+            : _titleController.text
+                .trim();
 
     final description =
         widget.rescheduleOnly
             ? oldTask!.description
-            : _descriptionController.text.trim();
+            : _descriptionController
+                .text
+                .trim();
 
     final priority =
         widget.rescheduleOnly
@@ -422,15 +465,19 @@ class _TaskFormPageState
         _selectedDate != null &&
         _allDay;
 
-    final task = LifeTask(
-      id: oldTask?.id ??
-          DateTime.now()
-              .microsecondsSinceEpoch
-              .toString(),
+    final task =
+        LifeTask(
+      id:
+          oldTask?.id ??
+              DateTime.now()
+                  .microsecondsSinceEpoch
+                  .toString(),
 
-      title: title,
+      title:
+          title,
 
-      description: description,
+      description:
+          description,
 
       scheduledDate:
           _selectedDate,
@@ -459,7 +506,9 @@ class _TaskFormPageState
 
     Navigator.pop(
       context,
-      TaskFormResult.save(task),
+      TaskFormResult.save(
+        task,
+      ),
     );
   }
 
@@ -476,12 +525,10 @@ class _TaskFormPageState
               const Text(
             'Eliminare attività?',
           ),
-
           content: Text(
             'Vuoi eliminare '
             '"${widget.initialTask!.title}"?',
           ),
-
           actions: [
             TextButton(
               onPressed: () {
@@ -495,7 +542,6 @@ class _TaskFormPageState
                 'Annulla',
               ),
             ),
-
             FilledButton(
               onPressed: () {
                 Navigator.pop(
@@ -534,13 +580,9 @@ class _TaskFormPageState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.rescheduleOnly
-              ? 'Sposta attività'
-              : _isEditing
-                  ? 'Modifica attività'
-                  : 'Nuova attività',
-        ),
+        title:
+            const SizedBox
+                .shrink(),
 
         actions: [
           if (_isEditing &&
@@ -550,22 +592,32 @@ class _TaskFormPageState
                   'Elimina attività',
               icon:
                   const Icon(
-                Icons.delete_outline,
+                Icons
+                    .delete_outline,
               ),
               color:
                   colorScheme.error,
               onPressed:
                   _deleteTask,
             ),
+
+          const SizedBox(
+            width: 8,
+          ),
         ],
       ),
 
       body: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: _dismissKeyboard,
+        behavior:
+            HitTestBehavior
+                .translucent,
+
+        onTap:
+            _dismissKeyboard,
 
         child: Form(
-          key: _formKey,
+          key:
+              _formKey,
 
           child: ListView(
             keyboardDismissBehavior:
@@ -573,401 +625,350 @@ class _TaskFormPageState
                     .onDrag,
 
             padding:
-                const EdgeInsets.all(
-              20,
+                const EdgeInsets
+                    .fromLTRB(
+              24,
+              8,
+              24,
+              120,
             ),
 
-          children: [
-            if (widget.rescheduleOnly) ...[
+            children: [
               Text(
-                widget
-                    .initialTask!
-                    .title,
+                widget.rescheduleOnly
+                    ? 'Sposta attività'
+                    : _isEditing
+                        ? 'Modifica attività'
+                        : 'Nuova attività',
+
                 style:
                     Theme.of(context)
                         .textTheme
-                        .headlineSmall
+                        .headlineMedium
                         ?.copyWith(
                           fontWeight:
                               FontWeight
                                   .w700,
+                          letterSpacing:
+                              -0.7,
                         ),
               ),
 
-              const SizedBox(
-                height: 6,
-              ),
-
-              Text(
-                'Scegli una nuova '
-                'pianificazione. La durata '
-                'rimane modificabile.',
-                style:
-                    Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(
-                          color:
-                              colorScheme
-                                  .onSurfaceVariant,
-                        ),
-              ),
-
-              const SizedBox(
-                height: 28,
-              ),
-            ] else ...[
-              TextFormField(
-                controller:
-                    _titleController,
-
-                autofocus:
-                    !_isEditing,
-
-                onTapOutside: (_) {
-                  _dismissKeyboard();
-                },
-
-                decoration:
-                    const InputDecoration(
-                  labelText:
-                      'Titolo',
-                  hintText:
-                      'Es. Dentista',
-                  border:
-                      OutlineInputBorder(),
+              if (widget
+                  .rescheduleOnly) ...[
+                const SizedBox(
+                  height: 8,
                 ),
 
-                validator:
-                    (value) {
-                  if (value == null ||
-                      value
-                          .trim()
-                          .isEmpty) {
-                    return 'Inserisci un titolo.';
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(
-                height: 16,
-              ),
-
-              TextFormField(
-                controller:
-                    _descriptionController,
-
-                maxLines: 3,
-
-                onTapOutside: (_) {
-                  _dismissKeyboard();
-                },
-
-                decoration:
-                    const InputDecoration(
-                  labelText:
-                      'Descrizione',
-                  hintText:
-                      'Opzionale',
-                  border:
-                      OutlineInputBorder(),
+                Text(
+                  widget
+                      .initialTask!
+                      .title,
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(
+                            fontWeight:
+                                FontWeight
+                                    .w600,
+                          ),
                 ),
-              ),
 
-              const SizedBox(
-                height: 24,
-              ),
-            ],
+                const SizedBox(
+                  height: 5,
+                ),
 
-            Text(
-              'Pianificazione',
-              style:
-                  Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(
-                        fontWeight:
-                            FontWeight
-                                .w700,
+                Text(
+                  'Scegli una nuova data, '
+                  'un nuovo orario oppure '
+                  'modifica la durata.',
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                            color:
+                                colorScheme
+                                    .onSurfaceVariant,
+                          ),
+                ),
+
+                const SizedBox(
+                  height: 34,
+                ),
+              ] else ...[
+                const SizedBox(
+                  height: 28,
+                ),
+
+                TextFormField(
+                  controller:
+                      _titleController,
+
+                  autofocus:
+                      !_isEditing,
+
+                  onTapOutside:
+                      (_) {
+                    _dismissKeyboard();
+                  },
+
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(
+                            fontWeight:
+                                FontWeight
+                                    .w600,
+                          ),
+
+                  decoration:
+                      InputDecoration(
+                    hintText:
+                        'Titolo attività',
+                    hintStyle:
+                        TextStyle(
+                      color:
+                          colorScheme
+                              .onSurfaceVariant
+                              .withValues(
+                        alpha:
+                            0.75,
                       ),
-            ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
-            Card(
-              margin:
-                  EdgeInsets.zero,
-
-              child: Column(
-                children: [
-                  ListTile(
-                    leading:
-                        const Icon(
-                      Icons
-                          .timer_outlined,
                     ),
-
-                    title:
-                        const Text(
-                      'Durata',
-                    ),
-
-                    subtitle: Text(
-                      _durationLabel(
-                        _durationMinutes,
-                      ),
-                    ),
-
-                    trailing:
-                        const Icon(
-                      Icons
-                          .chevron_right,
-                    ),
-
-                    onTap:
-                        _selectDuration,
+                    border:
+                        InputBorder.none,
+                    enabledBorder:
+                        InputBorder.none,
+                    focusedBorder:
+                        InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.zero,
                   ),
 
-                  const Divider(
-                    height: 1,
+                  validator:
+                      (value) {
+                    if (value == null ||
+                        value
+                            .trim()
+                            .isEmpty) {
+                      return 'Inserisci un titolo.';
+                    }
+
+                    return null;
+                  },
+                ),
+
+                const SizedBox(
+                  height: 12,
+                ),
+
+                Divider(
+                  color:
+                      colorScheme
+                          .outlineVariant
+                          .withValues(
+                    alpha:
+                        0.65,
                   ),
+                ),
 
-                  ListTile(
-                    leading:
-                        const Icon(
-                      Icons
-                          .calendar_today_outlined,
+                const SizedBox(
+                  height: 12,
+                ),
+
+                TextFormField(
+                  controller:
+                      _descriptionController,
+
+                  minLines: 2,
+                  maxLines: 5,
+
+                  onTapOutside:
+                      (_) {
+                    _dismissKeyboard();
+                  },
+
+                  decoration:
+                      InputDecoration(
+                    hintText:
+                        'Aggiungi una descrizione…',
+                    hintStyle:
+                        TextStyle(
+                      color:
+                          colorScheme
+                              .onSurfaceVariant,
                     ),
-
-                    title:
-                        const Text(
-                      'Data',
-                    ),
-
-                    subtitle: Text(
-                      _selectedDate ==
-                              null
-                          ? 'Nessuna data · Inbox'
-                          : _formatDate(
-                              _selectedDate!,
-                            ),
-                    ),
-
-                    trailing:
-                        _selectedDate ==
-                                null
-                            ? const Icon(
-                                Icons
-                                    .chevron_right,
-                              )
-                            : IconButton(
-                                tooltip:
-                                    'Rimuovi data',
-                                icon:
-                                    const Icon(
-                                  Icons
-                                      .close,
-                                ),
-                                onPressed:
-                                    _clearDate,
-                              ),
-
-                    onTap:
-                        _selectDate,
+                    border:
+                        InputBorder.none,
+                    enabledBorder:
+                        InputBorder.none,
+                    focusedBorder:
+                        InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.zero,
                   ),
+                ),
 
-                  if (_selectedDate !=
-                      null) ...[
-                    const Divider(
-                      height: 1,
-                    ),
+                const SizedBox(
+                  height: 30,
+                ),
+              ],
 
-                    SwitchListTile(
-                      secondary:
-                          const Icon(
-                        Icons
-                            .today_outlined,
-                      ),
-
-                      title:
-                          const Text(
-                        'Tutto il giorno',
-                      ),
-
-                      value:
-                          _allDay,
-
-                      onChanged:
-                          (value) {
-                        setState(() {
-                          _allDay =
-                              value;
-                        });
-                      },
-                    ),
-                  ],
-
-                  if (!_allDay) ...[
-                    const Divider(
-                      height: 1,
-                    ),
-
-                    ListTile(
-                      leading:
-                          const Icon(
-                        Icons.schedule,
-                      ),
-
-                      title:
-                          const Text(
-                        'Ora inizio',
-                      ),
-
-                      subtitle: Text(
-                        _startTime ==
-                                null
-                            ? 'Nessuna'
-                            : _startTime!
-                                .format(
-                                  context,
-                                ),
-                      ),
-
-                      trailing:
-                          _startTime ==
-                                  null
-                              ? const Icon(
-                                  Icons
-                                      .chevron_right,
-                                )
-                              : IconButton(
-                                  tooltip:
-                                      'Rimuovi orario',
-                                  icon:
-                                      const Icon(
-                                    Icons
-                                        .close,
-                                  ),
-                                  onPressed:
-                                      _clearStartTime,
-                                ),
-
-                      onTap:
-                          _selectStartTime,
-                    ),
-
-                    const Divider(
-                      height: 1,
-                    ),
-
-                    ListTile(
-                      enabled:
-                          _startTime !=
-                              null,
-
-                      leading:
-                          const Icon(
-                        Icons
-                            .more_time_outlined,
-                      ),
-
-                      title:
-                          const Text(
-                        'Ora fine',
-                      ),
-
-                      subtitle: Text(
-                        _endTimeLabel(
-                          context,
-                        ),
-                      ),
-
-                      trailing:
-                          const Icon(
-                        Icons
-                            .chevron_right,
-                      ),
-
-                      onTap:
-                          _startTime ==
-                                  null
-                              ? null
-                              : _selectEndTime,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            if (!widget
-                .rescheduleOnly) ...[
-              const SizedBox(
-                height: 24,
-              ),
-
-              Text(
-                'Priorità',
-                style:
-                    Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                          fontWeight:
-                              FontWeight
-                                  .w700,
-                        ),
+              const _FormSectionLabel(
+                text:
+                    'PIANIFICAZIONE',
               ),
 
               const SizedBox(
                 height: 8,
               ),
 
-              DropdownButtonFormField<
-                  TaskPriority>(
-                initialValue:
-                    _priority,
-
-                decoration:
-                    const InputDecoration(
-                  border:
-                      OutlineInputBorder(),
+              _SettingRow(
+                icon:
+                    Icons
+                        .timer_outlined,
+                title:
+                    'Durata',
+                value:
+                    _durationLabel(
+                  _durationMinutes,
                 ),
+                onTap:
+                    _selectDuration,
+              ),
 
-                items: TaskPriority
-                    .values
-                    .map(
-                      (priority) =>
-                          DropdownMenuItem(
-                        value:
-                            priority,
-                        child: Text(
-                          _priorityLabel(
-                            priority,
+              const _FormDivider(),
+
+              _SettingRow(
+                icon:
+                    Icons
+                        .calendar_today_outlined,
+                title:
+                    'Data',
+                value:
+                    _selectedDate ==
+                            null
+                        ? 'Inbox'
+                        : _formatDate(
+                            _selectedDate!,
                           ),
-                        ),
-                      ),
-                    )
-                    .toList(),
+                onTap:
+                    _selectDate,
+                onClear:
+                    _selectedDate ==
+                            null
+                        ? null
+                        : _clearDate,
+              ),
 
-                onChanged:
-                    (value) {
-                  if (value != null) {
+              if (_selectedDate !=
+                  null) ...[
+                const _FormDivider(),
+
+                _SwitchSettingRow(
+                  icon:
+                      Icons
+                          .today_outlined,
+                  title:
+                      'Tutto il giorno',
+                  value:
+                      _allDay,
+                  onChanged:
+                      (value) {
                     setState(() {
-                      _priority =
+                      _allDay =
                           value;
                     });
-                  }
-                },
-              ),
-            ],
+                  },
+                ),
+              ],
 
-            const SizedBox(
-              height: 100,
-            ),
+              if (!_allDay) ...[
+                const _FormDivider(),
+
+                _SettingRow(
+                  icon:
+                      Icons.schedule,
+                  title:
+                      'Ora inizio',
+                  value:
+                      _startTime ==
+                              null
+                          ? 'Nessuna'
+                          : _startTime!
+                              .format(
+                                context,
+                              ),
+                  onTap:
+                      _selectStartTime,
+                  onClear:
+                      _startTime ==
+                              null
+                          ? null
+                          : _clearStartTime,
+                ),
+
+                const _FormDivider(),
+
+                _SettingRow(
+                  icon:
+                      Icons
+                          .more_time_outlined,
+                  title:
+                      'Ora fine',
+                  value:
+                      _endTimeLabel(
+                    context,
+                  ),
+                  enabled:
+                      _startTime !=
+                          null,
+                  onTap:
+                      _startTime ==
+                              null
+                          ? null
+                          : _selectEndTime,
+                ),
+              ],
+
+              if (!widget
+                  .rescheduleOnly) ...[
+                const SizedBox(
+                  height: 34,
+                ),
+
+                const _FormSectionLabel(
+                  text:
+                      'PRIORITÀ',
+                ),
+
+                const SizedBox(
+                  height: 12,
+                ),
+
+                _PrioritySelector(
+                  value:
+                      _priority,
+                  labelBuilder:
+                      _priorityLabel,
+                  colorBuilder:
+                      (priority) =>
+                          _priorityColor(
+                    context,
+                    priority,
+                  ),
+                  onChanged:
+                      (priority) {
+                    setState(() {
+                      _priority =
+                          priority;
+                    });
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -976,7 +977,11 @@ class _TaskFormPageState
       bottomNavigationBar:
           SafeArea(
         minimum:
-            const EdgeInsets.all(
+            const EdgeInsets
+                .fromLTRB(
+          20,
+          8,
+          20,
           16,
         ),
 
@@ -991,28 +996,522 @@ class _TaskFormPageState
                     .event_repeat_outlined
                 : _isEditing
                     ? Icons
-                        .save_outlined
+                        .check
                     : Icons
-                        .add_task,
+                        .add,
           ),
 
           label: Text(
             widget.rescheduleOnly
                 ? 'Sposta attività'
                 : _isEditing
-                    ? 'Salva modifiche'
+                    ? 'Salva'
                     : 'Crea attività',
           ),
 
           style:
-              FilledButton.styleFrom(
+              FilledButton
+                  .styleFrom(
             minimumSize:
                 const Size
                     .fromHeight(
               54,
             ),
-            backgroundColor:
-                colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FormSectionLabel
+    extends StatelessWidget {
+  final String text;
+
+  const _FormSectionLabel({
+    required this.text,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Text(
+      text,
+      style:
+          Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(
+                color:
+                    Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant,
+                fontWeight:
+                    FontWeight.w800,
+                letterSpacing:
+                    1.0,
+              ),
+    );
+  }
+}
+
+class _FormDivider
+    extends StatelessWidget {
+  const _FormDivider();
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Divider(
+      height: 1,
+      indent: 44,
+      color:
+          Theme.of(context)
+              .colorScheme
+              .outlineVariant
+              .withValues(
+                alpha: 0.5,
+              ),
+    );
+  }
+}
+
+class _SettingRow
+    extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  final bool enabled;
+
+  final VoidCallback? onTap;
+  final VoidCallback? onClear;
+
+  const _SettingRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+    this.enabled = true,
+    this.onTap,
+    this.onClear,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Opacity(
+      opacity:
+          enabled
+              ? 1
+              : 0.42,
+
+      child: Material(
+        color:
+            Colors.transparent,
+
+        child: InkWell(
+          onTap:
+              enabled
+                  ? onTap
+                  : null,
+
+          child: Padding(
+            padding:
+                const EdgeInsets
+                    .symmetric(
+              vertical: 16,
+            ),
+
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 32,
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color:
+                        colorScheme
+                            .onSurfaceVariant,
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 12,
+                ),
+
+                Expanded(
+                  child: Text(
+                    title,
+                    style:
+                        Theme.of(
+                      context,
+                    )
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(
+                              fontWeight:
+                                  FontWeight
+                                      .w600,
+                            ),
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 12,
+                ),
+
+                Flexible(
+                  child: Text(
+                    value,
+                    textAlign:
+                        TextAlign.right,
+                    maxLines: 2,
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
+                    style:
+                        Theme.of(
+                      context,
+                    )
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color:
+                                  colorScheme
+                                      .onSurfaceVariant,
+                              fontWeight:
+                                  FontWeight
+                                      .w500,
+                            ),
+                  ),
+                ),
+
+                if (onClear !=
+                    null) ...[
+                  const SizedBox(
+                    width: 4,
+                  ),
+
+                  IconButton(
+                    tooltip:
+                        'Rimuovi',
+                    visualDensity:
+                        VisualDensity
+                            .compact,
+                    onPressed:
+                        onClear,
+                    icon:
+                        const Icon(
+                      Icons.close,
+                      size: 18,
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(
+                    width: 8,
+                  ),
+
+                  Icon(
+                    Icons
+                        .chevron_right,
+                    size: 18,
+                    color:
+                        colorScheme
+                            .onSurfaceVariant
+                            .withValues(
+                      alpha: 0.6,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SwitchSettingRow
+    extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final bool value;
+  final ValueChanged<bool>
+      onChanged;
+
+  const _SwitchSettingRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Padding(
+      padding:
+          const EdgeInsets
+              .symmetric(
+        vertical: 8,
+      ),
+
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Icon(
+              icon,
+              size: 20,
+              color:
+                  colorScheme
+                      .onSurfaceVariant,
+            ),
+          ),
+
+          const SizedBox(
+            width: 12,
+          ),
+
+          Expanded(
+            child: Text(
+              title,
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(
+                        fontWeight:
+                            FontWeight
+                                .w600,
+                      ),
+            ),
+          ),
+
+          Switch.adaptive(
+            value:
+                value,
+            onChanged:
+                onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrioritySelector
+    extends StatelessWidget {
+  final TaskPriority value;
+
+  final String Function(
+    TaskPriority priority,
+  ) labelBuilder;
+
+  final Color Function(
+    TaskPriority priority,
+  ) colorBuilder;
+
+  final ValueChanged<TaskPriority>
+      onChanged;
+
+  const _PrioritySelector({
+    required this.value,
+    required this.labelBuilder,
+    required this.colorBuilder,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Row(
+      children: [
+        for (int i = 0;
+            i <
+                TaskPriority
+                    .values.length;
+            i++) ...[
+          Expanded(
+            child: _PriorityChoice(
+              priority:
+                  TaskPriority
+                      .values[i],
+              label:
+                  labelBuilder(
+                TaskPriority
+                    .values[i],
+              ),
+              color:
+                  colorBuilder(
+                TaskPriority
+                    .values[i],
+              ),
+              selected:
+                  value ==
+                      TaskPriority
+                          .values[i],
+              onTap: () {
+                onChanged(
+                  TaskPriority
+                      .values[i],
+                );
+              },
+            ),
+          ),
+
+          if (i !=
+              TaskPriority
+                      .values.length -
+                  1)
+            const SizedBox(
+              width: 12,
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PriorityChoice
+    extends StatelessWidget {
+  final TaskPriority priority;
+  final String label;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PriorityChoice({
+    required this.priority,
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          Colors.transparent,
+
+      child: InkWell(
+        onTap:
+            onTap,
+
+        borderRadius:
+            BorderRadius.circular(
+          10,
+        ),
+
+        child: Padding(
+          padding:
+              const EdgeInsets
+                  .fromLTRB(
+            4,
+            10,
+            4,
+            7,
+          ),
+
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment:
+                    MainAxisAlignment
+                        .center,
+
+                children: [
+                  Icon(
+                    Icons
+                        .flag_outlined,
+                    size: 16,
+                    color:
+                        selected
+                            ? color
+                            : colorScheme
+                                .onSurfaceVariant,
+                  ),
+
+                  const SizedBox(
+                    width: 5,
+                  ),
+
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          Theme.of(
+                        context,
+                      )
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color:
+                                    selected
+                                        ? color
+                                        : colorScheme
+                                            .onSurfaceVariant,
+                                fontWeight:
+                                    selected
+                                        ? FontWeight
+                                            .w700
+                                        : FontWeight
+                                            .w500,
+                              ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(
+                height: 9,
+              ),
+
+              AnimatedContainer(
+                duration:
+                    const Duration(
+                  milliseconds: 150,
+                ),
+                height: 2,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      selected
+                          ? color
+                          : Colors
+                              .transparent,
+                  borderRadius:
+                      BorderRadius
+                          .circular(
+                    2,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1053,18 +1552,20 @@ class _DurationPickerSheetState
 
     _hoursController =
         TextEditingController(
-      text: current >= 60
-          ? (current ~/ 60)
-              .toString()
-          : '',
+      text:
+          current >= 60
+              ? (current ~/ 60)
+                  .toString()
+              : '',
     );
 
     _minutesController =
         TextEditingController(
-      text: current % 60 == 0
-          ? ''
-          : (current % 60)
-              .toString(),
+      text:
+          current % 60 == 0
+              ? ''
+              : (current % 60)
+                  .toString(),
     );
   }
 
@@ -1095,8 +1596,8 @@ class _DurationPickerSheetState
           : '$hours ore';
     }
 
-    return '${hours} h '
-        '${remaining} min';
+    return '$hours h '
+        '$remaining min';
   }
 
   void _applyQuickDuration(
@@ -1173,14 +1674,17 @@ class _DurationPickerSheetState
             .colorScheme;
 
     return Padding(
-      padding: EdgeInsets.only(
+      padding:
+          EdgeInsets.only(
         bottom:
-            MediaQuery.viewInsetsOf(
+            MediaQuery
+                .viewInsetsOf(
           context,
         ).bottom,
       ),
 
-      child: SingleChildScrollView(
+      child:
+          SingleChildScrollView(
         keyboardDismissBehavior:
             ScrollViewKeyboardDismissBehavior
                 .onDrag,
@@ -1188,9 +1692,9 @@ class _DurationPickerSheetState
         padding:
             const EdgeInsets
                 .fromLTRB(
-          20,
+          22,
           4,
-          20,
+          22,
           24,
         ),
 
@@ -1199,12 +1703,12 @@ class _DurationPickerSheetState
               MainAxisSize.min,
 
           crossAxisAlignment:
-              CrossAxisAlignment.start,
+              CrossAxisAlignment
+                  .start,
 
           children: [
             Text(
               'Durata',
-
               style:
                   Theme.of(context)
                       .textTheme
@@ -1217,14 +1721,12 @@ class _DurationPickerSheetState
             ),
 
             const SizedBox(
-              height: 6,
+              height: 5,
             ),
 
             Text(
-              'Scegli una durata rapida '
-              'oppure inserisci ore e minuti '
-              'con precisione al minuto.',
-
+              'Scelta rapida oppure '
+              'precisione al minuto.',
               style:
                   Theme.of(context)
                       .textTheme
@@ -1238,24 +1740,6 @@ class _DurationPickerSheetState
 
             const SizedBox(
               height: 20,
-            ),
-
-            Text(
-              'Scelte rapide',
-
-              style:
-                  Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(
-                        fontWeight:
-                            FontWeight
-                                .w700,
-                      ),
-            ),
-
-            const SizedBox(
-              height: 10,
             ),
 
             Wrap(
@@ -1276,14 +1760,15 @@ class _DurationPickerSheetState
                   90,
                   120,
                 ])
-                  ActionChip(
-                    label: Text(
-                      _durationLabel(
-                        minutes,
-                      ),
+                  _QuickDuration(
+                    label:
+                        _durationLabel(
+                      minutes,
                     ),
-
-                    onPressed: () {
+                    selected:
+                        widget.initialMinutes ==
+                            minutes,
+                    onTap: () {
                       _applyQuickDuration(
                         minutes,
                       );
@@ -1293,12 +1778,11 @@ class _DurationPickerSheetState
             ),
 
             const SizedBox(
-              height: 26,
+              height: 28,
             ),
 
             Text(
-              'Durata personalizzata',
-
+              'Personalizzata',
               style:
                   Theme.of(context)
                       .textTheme
@@ -1311,18 +1795,21 @@ class _DurationPickerSheetState
             ),
 
             const SizedBox(
-              height: 10,
+              height: 12,
             ),
 
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child:
+                      TextField(
                     controller:
                         _hoursController,
 
-                    onTapOutside: (_) {
-                      FocusManager.instance
+                    onTapOutside:
+                        (_) {
+                      FocusManager
+                          .instance
                           .primaryFocus
                           ?.unfocus();
                     },
@@ -1343,22 +1830,25 @@ class _DurationPickerSheetState
                       hintText:
                           '0',
                       border:
-                          OutlineInputBorder(),
+                          UnderlineInputBorder(),
                     ),
                   ),
                 ),
 
                 const SizedBox(
-                  width: 12,
+                  width: 22,
                 ),
 
                 Expanded(
-                  child: TextField(
+                  child:
+                      TextField(
                     controller:
                         _minutesController,
 
-                    onTapOutside: (_) {
-                      FocusManager.instance
+                    onTapOutside:
+                        (_) {
+                      FocusManager
+                          .instance
                           .primaryFocus
                           ?.unfocus();
                     },
@@ -1381,10 +1871,11 @@ class _DurationPickerSheetState
                       helperText:
                           '0–59',
                       border:
-                          OutlineInputBorder(),
+                          UnderlineInputBorder(),
                     ),
 
-                    onSubmitted: (_) {
+                    onSubmitted:
+                        (_) {
                       _confirmCustomDuration();
                     },
                   ),
@@ -1400,7 +1891,6 @@ class _DurationPickerSheetState
 
               Text(
                 _errorText!,
-
                 style:
                     TextStyle(
                   color:
@@ -1422,16 +1912,15 @@ class _DurationPickerSheetState
                   FilledButton(
                 onPressed:
                     _confirmCustomDuration,
-
                 child:
                     const Text(
-                  'Conferma durata',
+                  'Conferma',
                 ),
               ),
             ),
 
             const SizedBox(
-              height: 8,
+              height: 6,
             ),
 
             SizedBox(
@@ -1442,7 +1931,6 @@ class _DurationPickerSheetState
                   TextButton(
                 onPressed:
                     _removeDuration,
-
                 child:
                     const Text(
                   'Rimuovi durata',
@@ -1456,3 +1944,99 @@ class _DurationPickerSheetState
   }
 }
 
+class _QuickDuration
+    extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _QuickDuration({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          selected
+              ? colorScheme.primary
+                  .withValues(
+                    alpha: 0.1,
+                  )
+              : Colors
+                  .transparent,
+
+      borderRadius:
+          BorderRadius.circular(
+        999,
+      ),
+
+      child: InkWell(
+        onTap:
+            onTap,
+
+        borderRadius:
+            BorderRadius.circular(
+          999,
+        ),
+
+        child: Container(
+          padding:
+              const EdgeInsets
+                  .symmetric(
+            horizontal: 13,
+            vertical: 8,
+          ),
+
+          decoration:
+              BoxDecoration(
+            border:
+                Border.all(
+              color:
+                  selected
+                      ? colorScheme
+                          .primary
+                      : colorScheme
+                          .outlineVariant,
+            ),
+            borderRadius:
+                BorderRadius
+                    .circular(
+              999,
+            ),
+          ),
+
+          child: Text(
+            label,
+            style:
+                Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      color:
+                          selected
+                              ? colorScheme
+                                  .primary
+                              : colorScheme
+                                  .onSurface,
+                      fontWeight:
+                          selected
+                              ? FontWeight
+                                  .w700
+                              : FontWeight
+                                  .w500,
+                    ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -31,6 +31,8 @@ class _TasksPageState
     extends State<TasksPage> {
   late _TaskListMode _mode;
 
+  bool _pastExpanded = false;
+
   @override
   void initState() {
     super.initState();
@@ -42,8 +44,7 @@ class _TasksPageState
 
   Future<void> _addTask() async {
     final result =
-        await Navigator.push<
-            TaskFormResult>(
+        await Navigator.push<TaskFormResult>(
       context,
       MaterialPageRoute(
         builder: (_) =>
@@ -57,8 +58,7 @@ class _TasksPageState
       return;
     }
 
-    await widget.taskRepository
-        .addTask(
+    await widget.taskRepository.addTask(
       result.task!,
     );
   }
@@ -79,6 +79,16 @@ class _TasksPageState
     );
   }
 
+  DateTime _dateOnly(
+    DateTime date,
+  ) {
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
+  }
+
   bool _sameDay(
     DateTime first,
     DateTime second,
@@ -89,6 +99,82 @@ class _TasksPageState
             second.month &&
         first.day ==
             second.day;
+  }
+
+  bool _isPastTask(
+    LifeTask task,
+    DateTime now,
+  ) {
+    final scheduledDate =
+        task.scheduledDate;
+
+    if (scheduledDate == null) {
+      return false;
+    }
+
+    final today =
+        _dateOnly(now);
+
+    final date =
+        _dateOnly(
+      scheduledDate,
+    );
+
+    if (date.isBefore(today)) {
+      return true;
+    }
+
+    if (date.isAfter(today)) {
+      return false;
+    }
+
+    if (task.allDay ||
+        task.startTimeMinutes == null) {
+      return false;
+    }
+
+    final endMinutes =
+        task.startTimeMinutes! +
+        (task.durationMinutes ?? 0);
+
+    final endMoment =
+        date.add(
+      Duration(
+        minutes: endMinutes,
+      ),
+    );
+
+    return now.isAfter(
+      endMoment,
+    );
+  }
+
+  int _comparePastNewestFirst(
+    LifeTask a,
+    LifeTask b,
+  ) {
+    final aDate =
+        a.scheduledDate!;
+    final bDate =
+        b.scheduledDate!;
+
+    final dateComparison =
+        bDate.compareTo(aDate);
+
+    if (dateComparison != 0) {
+      return dateComparison;
+    }
+
+    final aTime =
+        a.startTimeMinutes ??
+            -1;
+    final bTime =
+        b.startTimeMinutes ??
+            -1;
+
+    return bTime.compareTo(
+      aTime,
+    );
   }
 
   String _twoDigits(
@@ -216,16 +302,19 @@ class _TasksPageState
   String _groupLabel(
     DateTime date,
   ) {
-    final now = DateTime.now();
+    final now =
+        DateTime.now();
 
-    final today = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    final today =
+        _dateOnly(now);
 
     final tomorrow =
         today.add(
+      const Duration(days: 1),
+    );
+
+    final yesterday =
+        today.subtract(
       const Duration(days: 1),
     );
 
@@ -241,6 +330,13 @@ class _TasksPageState
       tomorrow,
     )) {
       return 'Domani';
+    }
+
+    if (_sameDay(
+      date,
+      yesterday,
+    )) {
+      return 'Ieri';
     }
 
     const weekdays = [
@@ -321,10 +417,35 @@ class _TasksPageState
     }
   }
 
+  Map<String, List<LifeTask>>
+      _groupScheduledTasks(
+    List<LifeTask> tasks,
+  ) {
+    final groups =
+        <String, List<LifeTask>>{};
+
+    for (final task in tasks) {
+      final key =
+          _groupKey(task);
+
+      groups
+          .putIfAbsent(
+            key,
+            () => [],
+          )
+          .add(task);
+    }
+
+    return groups;
+  }
+
   @override
   Widget build(
     BuildContext context,
   ) {
+    final now =
+        DateTime.now();
+
     return Scaffold(
       appBar: AppBar(
         title:
@@ -398,136 +519,184 @@ class _TasksPageState
                   )
                   .toList();
 
-          final visibleTasks =
-              _mode ==
-                      _TaskListMode
-                          .scheduled
-                  ? scheduledTasks
-                  : inboxTasks;
+          final currentTasks =
+              scheduledTasks
+                  .where(
+                    (task) =>
+                        !_isPastTask(
+                      task,
+                      now,
+                    ),
+                  )
+                  .toList();
+
+          final pastTasks =
+              scheduledTasks
+                  .where(
+                    (task) =>
+                        _isPastTask(
+                      task,
+                      now,
+                    ),
+                  )
+                  .toList()
+                ..sort(
+                  _comparePastNewestFirst,
+                );
 
           return ListView(
             padding:
                 const EdgeInsets
                     .fromLTRB(
               20,
-              8,
+              4,
               20,
-              40,
+              44,
             ),
 
             children: [
-              SegmentedButton<
-                  _TaskListMode>(
-                showSelectedIcon:
-                    false,
-
-                segments: [
-                  ButtonSegment(
-                    value:
-                        _TaskListMode
-                            .scheduled,
-                    icon:
-                        const Icon(
-                      Icons
-                          .calendar_today_outlined,
-                    ),
-                    label: Text(
-                      'Programmate '
-                      '(${scheduledTasks.length})',
-                    ),
-                  ),
-
-                  ButtonSegment(
-                    value:
-                        _TaskListMode
-                            .inbox,
-                    icon:
-                        const Icon(
-                      Icons
-                          .inbox_outlined,
-                    ),
-                    label: Text(
-                      'Inbox '
-                      '(${inboxTasks.length})',
-                    ),
-                  ),
-                ],
-
-                selected: {
-                  _mode,
-                },
-
-                onSelectionChanged:
-                    (selection) {
+              _TaskModeSwitch(
+                selected:
+                    _mode,
+                scheduledCount:
+                    scheduledTasks.length,
+                inboxCount:
+                    inboxTasks.length,
+                onChanged:
+                    (mode) {
                   setState(() {
                     _mode =
-                        selection.first;
+                        mode;
                   });
                 },
               ),
 
               const SizedBox(
-                height: 28,
+                height: 30,
               ),
 
-              if (visibleTasks.isEmpty)
-                _EmptyTaskList(
-                  isInbox:
-                      _mode ==
-                          _TaskListMode
-                              .inbox,
-                  onAdd:
-                      _addTask,
-                )
-              else if (_mode ==
+              if (_mode ==
                   _TaskListMode.inbox)
-                _InboxSection(
-                  tasks:
-                      inboxTasks,
-                  timeLabelBuilder:
-                      _timeLabel,
-                  secondaryLabelBuilder:
-                      _secondaryLabel,
-                  priorityColorBuilder:
-                      (task) =>
-                          _priorityColor(
-                    context,
-                    task.priority,
-                  ),
-                  priorityLabelBuilder:
-                      (task) =>
-                          _priorityLabel(
-                    task.priority,
-                  ),
-                  onCompletedChanged:
-                      (
-                    task,
-                    completed,
-                  ) async {
-                    await widget
-                        .taskRepository
-                        .setCompleted(
-                      task.id,
-                      completed,
-                    );
-                  },
-                  onTaskTap:
-                      _openTaskDetail,
-                )
-              else ...[
-                for (final entry
-                    in _groupScheduledTasks(
-                  scheduledTasks,
-                ).entries) ...[
-                  _TaskGroup(
-                    title:
-                        _groupLabel(
-                      entry.value
-                          .first
-                          .scheduledDate!,
-                    ),
+                if (inboxTasks.isEmpty)
+                  _EmptyTaskList(
+                    isInbox:
+                        true,
+                    onAdd:
+                        _addTask,
+                  )
+                else
+                  _InboxSection(
                     tasks:
-                        entry.value,
+                        inboxTasks,
+                    timeLabelBuilder:
+                        _timeLabel,
+                    secondaryLabelBuilder:
+                        _secondaryLabel,
+                    priorityColorBuilder:
+                        (task) =>
+                            _priorityColor(
+                      context,
+                      task.priority,
+                    ),
+                    priorityLabelBuilder:
+                        (task) =>
+                            _priorityLabel(
+                      task.priority,
+                    ),
+                    onCompletedChanged:
+                        (
+                      task,
+                      completed,
+                    ) async {
+                      await widget
+                          .taskRepository
+                          .setCompleted(
+                        task.id,
+                        completed,
+                      );
+                    },
+                    onTaskTap:
+                        _openTaskDetail,
+                  )
+              else ...[
+                if (currentTasks.isEmpty)
+                  _EmptyCurrentTasks(
+                    hasPast:
+                        pastTasks
+                            .isNotEmpty,
+                    onAdd:
+                        _addTask,
+                  )
+                else
+                  for (final entry
+                      in _groupScheduledTasks(
+                    currentTasks,
+                  ).entries) ...[
+                    _TaskGroup(
+                      title:
+                          _groupLabel(
+                        entry.value
+                            .first
+                            .scheduledDate!,
+                      ),
+                      tasks:
+                          entry.value,
+                      timeLabelBuilder:
+                          _timeLabel,
+                      secondaryLabelBuilder:
+                          _secondaryLabel,
+                      priorityColorBuilder:
+                          (task) =>
+                              _priorityColor(
+                        context,
+                        task.priority,
+                      ),
+                      priorityLabelBuilder:
+                          (task) =>
+                              _priorityLabel(
+                        task.priority,
+                      ),
+                      onCompletedChanged:
+                          (
+                        task,
+                        completed,
+                      ) async {
+                        await widget
+                            .taskRepository
+                            .setCompleted(
+                          task.id,
+                          completed,
+                        );
+                      },
+                      onTaskTap:
+                          _openTaskDetail,
+                    ),
+
+                    const SizedBox(
+                      height: 30,
+                    ),
+                  ],
+
+                if (pastTasks.isNotEmpty) ...[
+                  const SizedBox(
+                    height: 2,
+                  ),
+
+                  _PastSection(
+                    tasks:
+                        pastTasks,
+                    expanded:
+                        _pastExpanded,
+                    onToggle: () {
+                      setState(() {
+                        _pastExpanded =
+                            !_pastExpanded;
+                      });
+                    },
+                    groupLabelBuilder:
+                        _groupLabel,
+                    groupKeyBuilder:
+                        _groupKey,
                     timeLabelBuilder:
                         _timeLabel,
                     secondaryLabelBuilder:
@@ -558,10 +727,6 @@ class _TasksPageState
                     onTaskTap:
                         _openTaskDetail,
                   ),
-
-                  const SizedBox(
-                    height: 30,
-                  ),
                 ],
               ],
             ],
@@ -570,27 +735,295 @@ class _TasksPageState
       ),
     );
   }
+}
 
-  Map<String, List<LifeTask>>
-      _groupScheduledTasks(
-    List<LifeTask> tasks,
+class _TaskModeSwitch
+    extends StatelessWidget {
+  final _TaskListMode selected;
+  final int scheduledCount;
+  final int inboxCount;
+  final ValueChanged<_TaskListMode>
+      onChanged;
+
+  const _TaskModeSwitch({
+    required this.selected,
+    required this.scheduledCount,
+    required this.inboxCount,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
   ) {
-    final groups =
-        <String, List<LifeTask>>{};
+    return Row(
+      children: [
+        Expanded(
+          child: _ModeTab(
+            label:
+                'Programmate',
+            count:
+                scheduledCount,
+            selected:
+                selected ==
+                    _TaskListMode
+                        .scheduled,
+            onTap: () {
+              onChanged(
+                _TaskListMode
+                    .scheduled,
+              );
+            },
+          ),
+        ),
 
-    for (final task in tasks) {
-      final key =
-          _groupKey(task);
+        const SizedBox(
+          width: 22,
+        ),
 
-      groups
-          .putIfAbsent(
-            key,
-            () => [],
-          )
-          .add(task);
-    }
+        Expanded(
+          child: _ModeTab(
+            label:
+                'Inbox',
+            count:
+                inboxCount,
+            selected:
+                selected ==
+                    _TaskListMode
+                        .inbox,
+            onTap: () {
+              onChanged(
+                _TaskListMode
+                    .inbox,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-    return groups;
+class _ModeTab
+    extends StatelessWidget {
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ModeTab({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          Colors.transparent,
+
+      child: InkWell(
+        onTap:
+            onTap,
+
+        child: Padding(
+          padding:
+              const EdgeInsets
+                  .fromLTRB(
+            0,
+            12,
+            0,
+            10,
+          ),
+
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment
+                    .start,
+
+            children: [
+              Row(
+                children: [
+                  Text(
+                    label,
+                    style:
+                        Theme.of(
+                      context,
+                    )
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(
+                              fontWeight:
+                                  selected
+                                      ? FontWeight
+                                          .w700
+                                      : FontWeight
+                                          .w500,
+                              color:
+                                  selected
+                                      ? colorScheme
+                                          .onSurface
+                                      : colorScheme
+                                          .onSurfaceVariant,
+                            ),
+                  ),
+
+                  const SizedBox(
+                    width: 7,
+                  ),
+
+                  Text(
+                    '$count',
+                    style:
+                        Theme.of(
+                      context,
+                    )
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              color:
+                                  selected
+                                      ? colorScheme
+                                          .primary
+                                      : colorScheme
+                                          .onSurfaceVariant,
+                              fontWeight:
+                                  FontWeight
+                                      .w700,
+                            ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(
+                height: 9,
+              ),
+
+              AnimatedContainer(
+                duration:
+                    const Duration(
+                  milliseconds: 160,
+                ),
+                height: 2,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      selected
+                          ? colorScheme
+                              .primary
+                          : colorScheme
+                              .outlineVariant
+                              .withValues(
+                            alpha:
+                                0.45,
+                          ),
+                  borderRadius:
+                      BorderRadius
+                          .circular(
+                    2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyCurrentTasks
+    extends StatelessWidget {
+  final bool hasPast;
+  final VoidCallback onAdd;
+
+  const _EmptyCurrentTasks({
+    required this.hasPast,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+        bottom: 30,
+      ),
+
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
+        children: [
+          Text(
+            hasPast
+                ? 'Niente in programma'
+                : 'Nessuna attività',
+            style:
+                Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(
+                      fontWeight:
+                          FontWeight
+                              .w700,
+                    ),
+          ),
+
+          const SizedBox(
+            height: 7,
+          ),
+
+          Text(
+            hasPast
+                ? 'Le attività passate sono '
+                    'raccolte più sotto.'
+                : 'Aggiungi qualcosa da fare '
+                    'quando vuoi.',
+            style:
+                Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(
+                      color:
+                          colorScheme
+                              .onSurfaceVariant,
+                    ),
+          ),
+
+          const SizedBox(
+            height: 16,
+          ),
+
+          TextButton.icon(
+            onPressed:
+                onAdd,
+            icon:
+                const Icon(
+              Icons.add,
+            ),
+            label:
+                const Text(
+              'Nuova attività',
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -614,34 +1047,23 @@ class _EmptyTaskList
 
     return Padding(
       padding:
-          const EdgeInsets.symmetric(
-        vertical: 54,
-        horizontal: 20,
+          const EdgeInsets
+              .fromLTRB(
+        0,
+        30,
+        0,
+        20,
       ),
 
       child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
         children: [
-          Icon(
-            isInbox
-                ? Icons
-                    .inbox_outlined
-                : Icons
-                    .event_available_outlined,
-            size: 54,
-            color:
-                colorScheme.primary,
-          ),
-
-          const SizedBox(
-            height: 18,
-          ),
-
           Text(
             isInbox
                 ? 'Inbox vuota'
-                : 'Nessuna attività programmata',
-            textAlign:
-                TextAlign.center,
+                : 'Nessuna attività',
             style:
                 Theme.of(context)
                     .textTheme
@@ -654,18 +1076,16 @@ class _EmptyTaskList
           ),
 
           const SizedBox(
-            height: 8,
+            height: 7,
           ),
 
           Text(
             isInbox
-                ? 'Qui compariranno le attività '
-                    'a cui non hai ancora assegnato '
-                    'una data.'
-                : 'Le attività con una data '
-                    'compariranno qui.',
-            textAlign:
-                TextAlign.center,
+                ? 'Qui raccogliamo le cose '
+                    'che vuoi fare ma che non '
+                    'hai ancora programmato.'
+                : 'Aggiungi qualcosa da fare '
+                    'quando vuoi.',
             style:
                 Theme.of(context)
                     .textTheme
@@ -678,10 +1098,10 @@ class _EmptyTaskList
           ),
 
           const SizedBox(
-            height: 22,
+            height: 16,
           ),
 
-          FilledButton.icon(
+          TextButton.icon(
             onPressed:
                 onAdd,
             icon:
@@ -749,6 +1169,7 @@ class _InboxSection
     return Column(
       crossAxisAlignment:
           CrossAxisAlignment.start,
+
       children: [
         Text(
           'Da programmare',
@@ -758,20 +1179,20 @@ class _InboxSection
                   .titleLarge
                   ?.copyWith(
                     fontWeight:
-                        FontWeight.w700,
+                        FontWeight
+                            .w700,
                     letterSpacing:
                         -0.3,
                   ),
         ),
 
         const SizedBox(
-          height: 4,
+          height: 5,
         ),
 
         Text(
-          'Puoi già indicare durata e '
-          'orario preferito, anche senza '
-          'scegliere un giorno.',
+          'Durata e orario possono '
+          'esserci anche senza una data.',
           style:
               Theme.of(context)
                   .textTheme
@@ -784,7 +1205,7 @@ class _InboxSection
         ),
 
         const SizedBox(
-          height: 12,
+          height: 14,
         ),
 
         for (int i = 0;
@@ -831,9 +1252,301 @@ class _InboxSection
                   colorScheme
                       .outlineVariant
                       .withValues(
-                alpha: 0.55,
+                alpha: 0.45,
               ),
             ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PastSection
+    extends StatelessWidget {
+  final List<LifeTask> tasks;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  final String Function(
+    DateTime date,
+  ) groupLabelBuilder;
+
+  final String Function(
+    LifeTask task,
+  ) groupKeyBuilder;
+
+  final String Function(
+    LifeTask task,
+  ) timeLabelBuilder;
+
+  final String Function(
+    LifeTask task,
+  ) secondaryLabelBuilder;
+
+  final Color Function(
+    LifeTask task,
+  ) priorityColorBuilder;
+
+  final String Function(
+    LifeTask task,
+  ) priorityLabelBuilder;
+
+  final Future<void> Function(
+    LifeTask task,
+    bool completed,
+  ) onCompletedChanged;
+
+  final void Function(
+    LifeTask task,
+  ) onTaskTap;
+
+  const _PastSection({
+    required this.tasks,
+    required this.expanded,
+    required this.onToggle,
+    required this.groupLabelBuilder,
+    required this.groupKeyBuilder,
+    required this.timeLabelBuilder,
+    required this.secondaryLabelBuilder,
+    required this.priorityColorBuilder,
+    required this.priorityLabelBuilder,
+    required this.onCompletedChanged,
+    required this.onTaskTap,
+  });
+
+  Map<String, List<LifeTask>>
+      _groups() {
+    final groups =
+        <String, List<LifeTask>>{};
+
+    for (final task in tasks) {
+      final key =
+          groupKeyBuilder(task);
+
+      groups
+          .putIfAbsent(
+            key,
+            () => [],
+          )
+          .add(task);
+    }
+
+    return groups;
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    final groups =
+        _groups();
+
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+
+      children: [
+        Divider(
+          color:
+              colorScheme
+                  .outlineVariant
+                  .withValues(
+            alpha: 0.55,
+          ),
+        ),
+
+        Material(
+          color:
+              Colors.transparent,
+
+          child: InkWell(
+            onTap:
+                onToggle,
+
+            child: Padding(
+              padding:
+                  const EdgeInsets
+                      .symmetric(
+                vertical: 17,
+              ),
+
+              child: Row(
+                children: [
+                  Icon(
+                    Icons
+                        .history_outlined,
+                    size: 20,
+                    color:
+                        colorScheme
+                            .onSurfaceVariant,
+                  ),
+
+                  const SizedBox(
+                    width: 10,
+                  ),
+
+                  Expanded(
+                    child: Text(
+                      'Passate',
+                      style:
+                          Theme.of(
+                        context,
+                      )
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                fontWeight:
+                                    FontWeight
+                                        .w700,
+                              ),
+                    ),
+                  ),
+
+                  Text(
+                    '${tasks.length}',
+                    style:
+                        Theme.of(
+                      context,
+                    )
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color:
+                                  colorScheme
+                                      .onSurfaceVariant,
+                              fontWeight:
+                                  FontWeight
+                                      .w600,
+                            ),
+                  ),
+
+                  const SizedBox(
+                    width: 8,
+                  ),
+
+                  AnimatedRotation(
+                    duration:
+                        const Duration(
+                      milliseconds: 160,
+                    ),
+                    turns:
+                        expanded
+                            ? 0.5
+                            : 0,
+                    child:
+                        Icon(
+                      Icons
+                          .keyboard_arrow_down,
+                      color:
+                          colorScheme
+                              .onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        if (expanded) ...[
+          const SizedBox(
+            height: 4,
+          ),
+
+          for (final entry
+              in groups.entries) ...[
+            Padding(
+              padding:
+                  const EdgeInsets
+                      .only(
+                top: 8,
+                bottom: 4,
+              ),
+              child: Text(
+                groupLabelBuilder(
+                  entry.value
+                      .first
+                      .scheduledDate!,
+                ),
+                style:
+                    Theme.of(
+                  context,
+                )
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(
+                          color:
+                              colorScheme
+                                  .onSurfaceVariant,
+                          fontWeight:
+                              FontWeight
+                                  .w700,
+                        ),
+              ),
+            ),
+
+            for (int i = 0;
+                i <
+                    entry.value
+                        .length;
+                i++) ...[
+              _TaskRow(
+                task:
+                    entry.value[i],
+                timeLabel:
+                    timeLabelBuilder(
+                  entry.value[i],
+                ),
+                secondaryLabel:
+                    secondaryLabelBuilder(
+                  entry.value[i],
+                ),
+                priorityColor:
+                    priorityColorBuilder(
+                  entry.value[i],
+                ),
+                priorityLabel:
+                    priorityLabelBuilder(
+                  entry.value[i],
+                ),
+                isPast:
+                    true,
+                onCompletedChanged:
+                    (completed) {
+                  return onCompletedChanged(
+                    entry.value[i],
+                    completed,
+                  );
+                },
+                onTap: () {
+                  onTaskTap(
+                    entry.value[i],
+                  );
+                },
+              ),
+
+              if (i !=
+                  entry.value.length -
+                      1)
+                Divider(
+                  indent: 96,
+                  color:
+                      colorScheme
+                          .outlineVariant
+                          .withValues(
+                    alpha: 0.4,
+                  ),
+                ),
+            ],
+
+            const SizedBox(
+              height: 14,
+            ),
+          ],
         ],
       ],
     );
@@ -893,6 +1606,7 @@ class _TaskGroup
     return Column(
       crossAxisAlignment:
           CrossAxisAlignment.start,
+
       children: [
         Text(
           title,
@@ -902,7 +1616,8 @@ class _TaskGroup
                   .titleLarge
                   ?.copyWith(
                     fontWeight:
-                        FontWeight.w700,
+                        FontWeight
+                            .w700,
                     letterSpacing:
                         -0.3,
                   ),
@@ -956,7 +1671,7 @@ class _TaskGroup
                   colorScheme
                       .outlineVariant
                       .withValues(
-                alpha: 0.55,
+                alpha: 0.45,
               ),
             ),
         ],
@@ -975,6 +1690,8 @@ class _TaskRow
   final Color priorityColor;
   final String priorityLabel;
 
+  final bool isPast;
+
   final Future<void> Function(
     bool completed,
   ) onCompletedChanged;
@@ -989,6 +1706,7 @@ class _TaskRow
     required this.priorityLabel,
     required this.onCompletedChanged,
     required this.onTap,
+    this.isPast = false,
   });
 
   @override
@@ -999,235 +1717,299 @@ class _TaskRow
         Theme.of(context)
             .colorScheme;
 
-    return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 58,
+    final muted =
+        isPast;
 
-          child: Padding(
-            padding:
-                const EdgeInsets.only(
-              top: 18,
-              right: 8,
-            ),
+    return Opacity(
+      opacity:
+          muted
+              ? 0.82
+              : 1,
 
-            child: Text(
-              timeLabel,
-              textAlign:
-                  TextAlign.right,
-              style:
-                  Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(
-                        color:
-                            colorScheme
-                                .onSurfaceVariant,
-                        fontWeight:
-                            FontWeight
-                                .w500,
-                      ),
-            ),
-          ),
-        ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
 
-        InkResponse(
-          radius: 24,
+        children: [
+          SizedBox(
+            width: 58,
 
-          onTap: () {
-            onCompletedChanged(
-              !task.isCompleted,
-            );
-          },
-
-          child: Padding(
-            padding:
-                const EdgeInsets
-                    .fromLTRB(
-              8,
-              16,
-              10,
-              16,
-            ),
-
-            child: Container(
-              width: 18,
-              height: 18,
-
-              decoration:
-                  BoxDecoration(
-                color:
-                    task.isCompleted
-                        ? priorityColor
-                        : Colors
-                            .transparent,
-                shape:
-                    BoxShape.circle,
-                border:
-                    Border.all(
-                  color:
-                      priorityColor,
-                  width: 2,
-                ),
+            child: Padding(
+              padding:
+                  const EdgeInsets
+                      .only(
+                top: 18,
+                right: 8,
               ),
 
-              child:
-                  task.isCompleted
-                      ? const Icon(
-                          Icons.check,
-                          size: 12,
-                          color:
-                              Colors.white,
-                        )
-                      : null,
-            ),
-          ),
-        ),
-
-        Expanded(
-          child: Material(
-            color:
-                Colors.transparent,
-
-            child: InkWell(
-              onTap: onTap,
-
-              child: Padding(
-                padding:
-                    const EdgeInsets
-                        .fromLTRB(
-                  4,
-                  13,
-                  4,
-                  14,
-                ),
-
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
-
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            task.title,
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow
-                                    .ellipsis,
-                            style:
-                                Theme.of(
-                              context,
-                            )
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      fontWeight:
-                                          FontWeight
-                                              .w600,
-                                      decoration:
-                                          task.isCompleted
-                                              ? TextDecoration
-                                                  .lineThrough
-                                              : null,
-                                    ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 8,
-                        ),
-
-                        Icon(
-                          Icons
-                              .chevron_right,
-                          size: 19,
+              child: Text(
+                timeLabel,
+                textAlign:
+                    TextAlign.right,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(
                           color:
                               colorScheme
-                                  .onSurfaceVariant
-                                  .withValues(
-                            alpha: 0.6,
+                                  .onSurfaceVariant,
+                          fontWeight:
+                              FontWeight
+                                  .w500,
+                        ),
+              ),
+            ),
+          ),
+
+          InkResponse(
+            radius: 24,
+
+            onTap: () {
+              onCompletedChanged(
+                !task.isCompleted,
+              );
+            },
+
+            child: Padding(
+              padding:
+                  const EdgeInsets
+                      .fromLTRB(
+                8,
+                16,
+                10,
+                16,
+              ),
+
+              child: Container(
+                width: 18,
+                height: 18,
+
+                decoration:
+                    BoxDecoration(
+                  color:
+                      task.isCompleted
+                          ? priorityColor
+                          : Colors
+                              .transparent,
+                  shape:
+                      BoxShape.circle,
+                  border:
+                      Border.all(
+                    color:
+                        priorityColor,
+                    width: 2,
+                  ),
+                ),
+
+                child:
+                    task.isCompleted
+                        ? const Icon(
+                            Icons.check,
+                            size: 12,
+                            color:
+                                Colors.white,
+                          )
+                        : null,
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: Material(
+              color:
+                  Colors.transparent,
+
+              child: InkWell(
+                onTap:
+                    onTap,
+
+                child: Padding(
+                  padding:
+                      const EdgeInsets
+                          .fromLTRB(
+                    4,
+                    13,
+                    4,
+                    14,
+                  ),
+
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              task.title,
+                              maxLines: 1,
+                              overflow:
+                                  TextOverflow
+                                      .ellipsis,
+                              style:
+                                  Theme.of(
+                                context,
+                              )
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight:
+                                            FontWeight
+                                                .w600,
+                                        decoration:
+                                            task.isCompleted
+                                                ? TextDecoration
+                                                    .lineThrough
+                                                : null,
+                                      ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
 
-                    if (secondaryLabel
-                        .isNotEmpty) ...[
-                      const SizedBox(
-                        height: 4,
+                          const SizedBox(
+                            width: 8,
+                          ),
+
+                          Icon(
+                            Icons
+                                .chevron_right,
+                            size: 18,
+                            color:
+                                colorScheme
+                                    .onSurfaceVariant
+                                    .withValues(
+                              alpha: 0.55,
+                            ),
+                          ),
+                        ],
                       ),
 
-                      Text(
-                        secondaryLabel,
-                        maxLines: 2,
-                        overflow:
-                            TextOverflow
-                                .ellipsis,
-                        style:
-                            Theme.of(
-                          context,
-                        )
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color:
-                                      colorScheme
-                                          .onSurfaceVariant,
-                                ),
-                      ),
-                    ],
-
-                    const SizedBox(
-                      height: 6,
-                    ),
-
-                    Row(
-                      mainAxisSize:
-                          MainAxisSize.min,
-
-                      children: [
-                        Icon(
-                          Icons
-                              .flag_outlined,
-                          size: 14,
-                          color:
-                              priorityColor,
-                        ),
-
+                      if (secondaryLabel
+                          .isNotEmpty) ...[
                         const SizedBox(
-                          width: 4,
+                          height: 4,
                         ),
 
                         Text(
-                          priorityLabel,
+                          secondaryLabel,
+                          maxLines: 2,
+                          overflow:
+                              TextOverflow
+                                  .ellipsis,
                           style:
                               Theme.of(
                             context,
                           )
                                   .textTheme
-                                  .bodySmall
+                                  .bodyMedium
                                   ?.copyWith(
                                     color:
-                                        priorityColor,
-                                    fontWeight:
-                                        FontWeight
-                                            .w600,
+                                        colorScheme
+                                            .onSurfaceVariant,
                                   ),
                         ),
                       ],
-                    ),
-                  ],
+
+                      const SizedBox(
+                        height: 6,
+                      ),
+
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        crossAxisAlignment:
+                            WrapCrossAlignment
+                                .center,
+
+                        children: [
+                          Row(
+                            mainAxisSize:
+                                MainAxisSize.min,
+
+                            children: [
+                              Icon(
+                                Icons
+                                    .flag_outlined,
+                                size: 14,
+                                color:
+                                    priorityColor,
+                              ),
+
+                              const SizedBox(
+                                width: 4,
+                              ),
+
+                              Text(
+                                priorityLabel,
+                                style:
+                                    Theme.of(
+                                  context,
+                                )
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color:
+                                              priorityColor,
+                                          fontWeight:
+                                              FontWeight
+                                                  .w600,
+                                        ),
+                              ),
+                            ],
+                          ),
+
+                          if (isPast &&
+                              !task
+                                  .isCompleted)
+                            Row(
+                              mainAxisSize:
+                                  MainAxisSize.min,
+
+                              children: [
+                                Icon(
+                                  Icons
+                                      .event_repeat_outlined,
+                                  size: 14,
+                                  color:
+                                      colorScheme
+                                          .error,
+                                ),
+
+                                const SizedBox(
+                                  width: 4,
+                                ),
+
+                                Text(
+                                  'Da riprogrammare',
+                                  style:
+                                      Theme.of(
+                                    context,
+                                  )
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color:
+                                                colorScheme
+                                                    .error,
+                                            fontWeight:
+                                                FontWeight
+                                                    .w600,
+                                          ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
