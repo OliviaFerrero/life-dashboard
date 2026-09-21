@@ -48,18 +48,6 @@ class LifeTask {
                 scheduledDate.day,
               );
 
-  bool get hasDate => scheduledDate != null;
-
-  bool get hasTime =>
-      !allDay && startTimeMinutes != null;
-
-  bool get hasDuration =>
-      durationMinutes != null && durationMinutes! > 0;
-
-  bool get hasCategory => categoryId != null;
-
-  bool get isInInbox => scheduledDate == null;
-
   /// Getter di compatibilità utile per le viste calendario.
   /// Se c'è solo la data, restituisce la mezzanotte di quel giorno.
   DateTime? get startAt {

@@ -21,53 +21,6 @@ class TaskRepository {
     });
   }
 
-  Stream<List<LifeTask>> watchScheduledTasks() {
-    return watchAllTasks().map(
-      (tasks) => tasks
-          .where(
-            (task) => task.scheduledDate != null,
-          )
-          .toList(),
-    );
-  }
-
-  Stream<List<LifeTask>> watchInboxTasks() {
-    return watchAllTasks().map(
-      (tasks) => tasks
-          .where(
-            (task) => task.scheduledDate == null,
-          )
-          .toList(),
-    );
-  }
-
-  Stream<List<LifeTask>> watchTasksForDay(DateTime day) {
-    return watchAllTasks().map((tasks) {
-      return tasks.where((task) {
-        final date = task.scheduledDate;
-
-        if (date == null) {
-          return false;
-        }
-
-        return date.year == day.year &&
-            date.month == day.month &&
-            date.day == day.day;
-      }).toList()
-        ..sort(_compareTasks);
-    });
-  }
-
-  Stream<int> watchIncompleteCount() {
-    return watchAllTasks().map(
-      (tasks) => tasks
-          .where(
-            (task) => !task.isCompleted,
-          )
-          .length,
-    );
-  }
-
   Future<void> addTask(LifeTask task) async {
     await _database.into(_database.taskItems).insert(
           TaskItemsCompanion.insert(
@@ -142,21 +95,6 @@ class TaskRepository {
         .write(
       TaskItemsCompanion(
         isCompleted: Value(completed),
-      ),
-    );
-  }
-
-  Future<void> setCategory(
-    String id,
-    String? categoryId,
-  ) async {
-    await (_database.update(_database.taskItems)
-          ..where(
-            (row) => row.id.equals(id),
-          ))
-        .write(
-      TaskItemsCompanion(
-        categoryId: Value(categoryId),
       ),
     );
   }
