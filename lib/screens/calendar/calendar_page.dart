@@ -2,16 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../models/life_task.dart';
+import '../../models/task_category.dart';
+import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
+import '../../utils/task_category_icons.dart';
 import '../tasks/task_detail_page.dart';
 import '../tasks/task_form_page.dart';
 
 class CalendarPage extends StatefulWidget {
   final TaskRepository taskRepository;
+  final CategoryRepository categoryRepository;
 
   const CalendarPage({
     super.key,
     required this.taskRepository,
+    required this.categoryRepository,
   });
 
   @override
@@ -48,6 +53,8 @@ class _CalendarPageState
       context,
       MaterialPageRoute(
         builder: (_) => TaskFormPage(
+          categoryRepository:
+              widget.categoryRepository,
           initialDate: _selectedDay,
         ),
       ),
@@ -74,6 +81,8 @@ class _CalendarPageState
           task: task,
           taskRepository:
               widget.taskRepository,
+          categoryRepository:
+              widget.categoryRepository,
         ),
       ),
     );
@@ -284,6 +293,28 @@ class _CalendarPageState
     }
   }
 
+  Color _categoryColor(
+    BuildContext context,
+    LifeTask task,
+    Map<String, TaskCategory> categoryMap,
+  ) {
+    final category =
+        task.categoryId == null
+            ? null
+            : categoryMap[task.categoryId];
+
+    if (category == null) {
+      return Theme.of(context)
+          .colorScheme
+          .onSurfaceVariant
+          .withValues(
+            alpha: 0.72,
+          );
+    }
+
+    return Color(category.colorValue);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme =
@@ -326,14 +357,29 @@ class _CalendarPageState
             _selectedDay,
           );
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              8,
-              20,
-              100,
-            ),
-            children: [
+          return StreamBuilder<
+              Map<String, TaskCategory>>(
+            stream:
+                widget.categoryRepository
+                    .watchCategoryMap(),
+            initialData:
+                const {},
+            builder:
+                (context, categorySnapshot) {
+              final categoryMap =
+                  categorySnapshot.data ??
+                      const <
+                          String,
+                          TaskCategory>{};
+
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  20,
+                  8,
+                  20,
+                  100,
+                ),
+                children: [
               SegmentedButton<CalendarFormat>(
                 showSelectedIcon: false,
                 segments: const [
@@ -401,6 +447,52 @@ class _CalendarPageState
                         day,
                       );
                     },
+                    calendarBuilders:
+                        CalendarBuilders<LifeTask>(
+                      markerBuilder:
+                          (context, day, events) {
+                        if (events.isEmpty) {
+                          return null;
+                        }
+
+                        final visible =
+                            events.take(3).toList();
+
+                        return Positioned(
+                          bottom: 5,
+                          child: Row(
+                            mainAxisSize:
+                                MainAxisSize.min,
+                            children: [
+                              for (int i = 0;
+                                  i < visible.length;
+                                  i++) ...[
+                                Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration:
+                                      BoxDecoration(
+                                    color:
+                                        _categoryColor(
+                                      context,
+                                      visible[i],
+                                      categoryMap,
+                                    ),
+                                    shape:
+                                        BoxShape.circle,
+                                  ),
+                                ),
+                                if (i !=
+                                    visible.length - 1)
+                                  const SizedBox(
+                                    width: 3,
+                                  ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                     onDaySelected:
                         (selectedDay, focusedDay) {
                       setState(() {
@@ -602,6 +694,14 @@ class _CalendarPageState
                             _secondaryLabel(
                           selectedTasks[i],
                         ),
+                        category:
+                            selectedTasks[i]
+                                        .categoryId ==
+                                    null
+                                ? null
+                                : categoryMap[
+                                    selectedTasks[i]
+                                        .categoryId],
                         priorityColor:
                             _priorityColor(
                           context,
@@ -641,7 +741,9 @@ class _CalendarPageState
                     ],
                   ],
                 ),
-            ],
+                ],
+              );
+            },
           );
         },
       ),
@@ -659,6 +761,7 @@ class _CalendarTaskRow extends StatelessWidget {
   final LifeTask task;
   final String timeLabel;
   final String secondaryLabel;
+  final TaskCategory? category;
   final Color priorityColor;
   final String priorityLabel;
   final ValueChanged<bool>
@@ -669,6 +772,7 @@ class _CalendarTaskRow extends StatelessWidget {
     required this.task,
     required this.timeLabel,
     required this.secondaryLabel,
+    required this.category,
     required this.priorityColor,
     required this.priorityLabel,
     required this.onCompletedChanged,
@@ -679,6 +783,15 @@ class _CalendarTaskRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme =
         Theme.of(context).colorScheme;
+
+    final categoryColor =
+        category == null
+            ? colorScheme
+                .onSurfaceVariant
+                .withValues(
+                  alpha: 0.72,
+                )
+            : Color(category!.colorValue);
 
     return Row(
       crossAxisAlignment:
@@ -727,11 +840,11 @@ class _CalendarTaskRow extends StatelessWidget {
               height: 18,
               decoration: BoxDecoration(
                 color: task.isCompleted
-                    ? priorityColor
+                    ? categoryColor
                     : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: priorityColor,
+                  color: categoryColor,
                   width: 2,
                 ),
               ),
@@ -814,26 +927,68 @@ class _CalendarTaskRow extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 6),
-                    Row(
-                      mainAxisSize:
-                          MainAxisSize.min,
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      crossAxisAlignment:
+                          WrapCrossAlignment.center,
                       children: [
-                        Icon(
-                          Icons.flag_outlined,
-                          size: 14,
-                          color: priorityColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          priorityLabel,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: priorityColor,
-                                fontWeight:
-                                    FontWeight.w600,
+                        if (category != null)
+                          Row(
+                            mainAxisSize:
+                                MainAxisSize.min,
+                            children: [
+                              Icon(
+                                taskCategoryIcon(
+                                  category!.iconKey,
+                                ),
+                                size: 14,
+                                color:
+                                    categoryColor,
                               ),
+                              const SizedBox(
+                                width: 4,
+                              ),
+                              Text(
+                                category!.name,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color:
+                                          categoryColor,
+                                      fontWeight:
+                                          FontWeight.w600,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        Row(
+                          mainAxisSize:
+                              MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.flag_outlined,
+                              size: 14,
+                              color:
+                                  priorityColor,
+                            ),
+                            const SizedBox(
+                              width: 4,
+                            ),
+                            Text(
+                              priorityLabel,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        priorityColor,
+                                    fontWeight:
+                                        FontWeight.w600,
+                                  ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

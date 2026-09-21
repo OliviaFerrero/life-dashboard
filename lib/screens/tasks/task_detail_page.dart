@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../../models/life_task.dart';
+import '../../models/task_category.dart';
+import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
+import '../../utils/task_category_icons.dart';
 import 'task_form_page.dart';
 
 class TaskDetailPage extends StatefulWidget {
   final LifeTask task;
   final TaskRepository taskRepository;
+  final CategoryRepository categoryRepository;
 
   const TaskDetailPage({
     super.key,
     required this.task,
     required this.taskRepository,
+    required this.categoryRepository,
   });
 
   @override
@@ -252,6 +257,8 @@ class _TaskDetailPageState
       MaterialPageRoute(
         builder: (_) =>
             TaskFormPage(
+          categoryRepository:
+              widget.categoryRepository,
           initialTask:
               _task,
         ),
@@ -306,6 +313,8 @@ class _TaskDetailPageState
       MaterialPageRoute(
         builder: (_) =>
             TaskFormPage(
+          categoryRepository:
+              widget.categoryRepository,
           initialTask:
               _task,
           rescheduleOnly:
@@ -572,17 +581,49 @@ class _TaskDetailPageState
         ],
       ),
 
-      body: ListView(
-        padding:
-            const EdgeInsets
-                .fromLTRB(
-          24,
-          10,
-          24,
-          120,
-        ),
+      body: StreamBuilder<
+          Map<String, TaskCategory>>(
+        stream:
+            widget.categoryRepository
+                .watchCategoryMap(),
+        initialData:
+            const {},
+        builder:
+            (context, categorySnapshot) {
+          final categoryMap =
+              categorySnapshot.data ??
+                  const <
+                      String,
+                      TaskCategory>{};
 
-        children: [
+          final category =
+              _task.categoryId == null
+                  ? null
+                  : categoryMap[
+                      _task.categoryId];
+
+          final categoryColor =
+              category == null
+                  ? colorScheme
+                      .onSurfaceVariant
+                      .withValues(
+                        alpha: 0.72,
+                      )
+                  : Color(
+                      category.colorValue,
+                    );
+
+          return ListView(
+            padding:
+                const EdgeInsets
+                    .fromLTRB(
+              24,
+              10,
+              24,
+              120,
+            ),
+
+            children: [
           Text(
             _task.title,
 
@@ -612,6 +653,8 @@ class _TaskDetailPageState
           _CompletionAction(
             completed:
                 _task.isCompleted,
+            accentColor:
+                categoryColor,
             onTap: () {
               _setCompleted(
                 !_task.isCompleted,
@@ -773,6 +816,75 @@ class _TaskDetailPageState
 
           const _SectionLabel(
             text:
+                'CATEGORIA',
+          ),
+
+          const SizedBox(
+            height: 13,
+          ),
+
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      categoryColor
+                          .withValues(
+                    alpha: 0.11,
+                  ),
+                  shape:
+                      BoxShape.circle,
+                ),
+                child: Icon(
+                  category == null
+                      ? Icons
+                          .remove_circle_outline
+                      : taskCategoryIcon(
+                          category.iconKey,
+                        ),
+                  size: 17,
+                  color:
+                      categoryColor,
+                ),
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Text(
+                category?.name ??
+                    'Nessuna categoria',
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(
+                          color:
+                              categoryColor,
+                          fontWeight:
+                              FontWeight
+                                  .w700,
+                        ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 34,
+          ),
+
+          const _SoftDivider(),
+
+          const SizedBox(
+            height: 28,
+          ),
+
+          const _SectionLabel(
+            text:
                 'PRIORITÀ',
           ),
 
@@ -853,7 +965,9 @@ class _TaskDetailPageState
                               : null,
                     ),
           ),
-        ],
+            ],
+          );
+        },
       ),
 
     );
@@ -945,10 +1059,12 @@ class _ActionSheetRow
 class _CompletionAction
     extends StatelessWidget {
   final bool completed;
+  final Color accentColor;
   final VoidCallback onTap;
 
   const _CompletionAction({
     required this.completed,
+    required this.accentColor,
     required this.onTap,
   });
 
@@ -998,8 +1114,7 @@ class _CompletionAction
                       BoxDecoration(
                     color:
                         completed
-                            ? colorScheme
-                                .primary
+                            ? accentColor
                             : Colors
                                 .transparent,
                     shape:
@@ -1008,8 +1123,7 @@ class _CompletionAction
                         Border.all(
                       color:
                           completed
-                              ? colorScheme
-                                  .primary
+                              ? accentColor
                               : colorScheme
                                   .onSurfaceVariant,
                       width: 2,
@@ -1043,8 +1157,7 @@ class _CompletionAction
                           ?.copyWith(
                             color:
                                 completed
-                                    ? colorScheme
-                                        .primary
+                                    ? accentColor
                                     : colorScheme
                                         .onSurface,
                             fontWeight:

@@ -3,6 +3,366 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
+class $TaskCategoriesTable extends TaskCategories
+    with TableInfo<$TaskCategoriesTable, TaskCategoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
+  @override
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _iconKeyMeta = const VerificationMeta(
+    'iconKey',
+  );
+  @override
+  late final GeneratedColumn<String> iconKey = GeneratedColumn<String>(
+    'icon_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    colorValue,
+    iconKey,
+    sortOrder,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_categories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskCategoryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_colorValueMeta);
+    }
+    if (data.containsKey('icon_key')) {
+      context.handle(
+        _iconKeyMeta,
+        iconKey.isAcceptableOrUnknown(data['icon_key']!, _iconKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_iconKeyMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TaskCategoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskCategoryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      )!,
+      iconKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_key'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskCategoriesTable createAlias(String alias) {
+    return $TaskCategoriesTable(attachedDatabase, alias);
+  }
+}
+
+class TaskCategoryRow extends DataClass implements Insertable<TaskCategoryRow> {
+  final String id;
+  final String name;
+  final int colorValue;
+  final String iconKey;
+  final int sortOrder;
+  const TaskCategoryRow({
+    required this.id,
+    required this.name,
+    required this.colorValue,
+    required this.iconKey,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['color_value'] = Variable<int>(colorValue);
+    map['icon_key'] = Variable<String>(iconKey);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  TaskCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return TaskCategoriesCompanion(
+      id: Value(id),
+      name: Value(name),
+      colorValue: Value(colorValue),
+      iconKey: Value(iconKey),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory TaskCategoryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskCategoryRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      colorValue: serializer.fromJson<int>(json['colorValue']),
+      iconKey: serializer.fromJson<String>(json['iconKey']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'colorValue': serializer.toJson<int>(colorValue),
+      'iconKey': serializer.toJson<String>(iconKey),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  TaskCategoryRow copyWith({
+    String? id,
+    String? name,
+    int? colorValue,
+    String? iconKey,
+    int? sortOrder,
+  }) => TaskCategoryRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    colorValue: colorValue ?? this.colorValue,
+    iconKey: iconKey ?? this.iconKey,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  TaskCategoryRow copyWithCompanion(TaskCategoriesCompanion data) {
+    return TaskCategoryRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      colorValue: data.colorValue.present
+          ? data.colorValue.value
+          : this.colorValue,
+      iconKey: data.iconKey.present ? data.iconKey.value : this.iconKey,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskCategoryRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('iconKey: $iconKey, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, colorValue, iconKey, sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskCategoryRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.colorValue == this.colorValue &&
+          other.iconKey == this.iconKey &&
+          other.sortOrder == this.sortOrder);
+}
+
+class TaskCategoriesCompanion extends UpdateCompanion<TaskCategoryRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<int> colorValue;
+  final Value<String> iconKey;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const TaskCategoriesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.colorValue = const Value.absent(),
+    this.iconKey = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskCategoriesCompanion.insert({
+    required String id,
+    required String name,
+    required int colorValue,
+    required String iconKey,
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       colorValue = Value(colorValue),
+       iconKey = Value(iconKey);
+  static Insertable<TaskCategoryRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<int>? colorValue,
+    Expression<String>? iconKey,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (colorValue != null) 'color_value': colorValue,
+      if (iconKey != null) 'icon_key': iconKey,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskCategoriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<int>? colorValue,
+    Value<String>? iconKey,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return TaskCategoriesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      colorValue: colorValue ?? this.colorValue,
+      iconKey: iconKey ?? this.iconKey,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (colorValue.present) {
+      map['color_value'] = Variable<int>(colorValue.value);
+    }
+    if (iconKey.present) {
+      map['icon_key'] = Variable<String>(iconKey.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskCategoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('iconKey: $iconKey, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $TaskItemsTable extends TaskItems
     with TableInfo<$TaskItemsTable, TaskItem> {
   @override
@@ -93,6 +453,20 @@ class $TaskItemsTable extends TaskItems
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES task_categories (id) ON DELETE SET NULL',
+    ),
+  );
   static const VerificationMeta _allDayMeta = const VerificationMeta('allDay');
   @override
   late final GeneratedColumn<bool> allDay = GeneratedColumn<bool>(
@@ -155,6 +529,7 @@ class $TaskItemsTable extends TaskItems
     scheduledDate,
     startTimeMinutes,
     durationMinutes,
+    categoryId,
     allDay,
     priority,
     isCompleted,
@@ -233,6 +608,12 @@ class $TaskItemsTable extends TaskItems
         ),
       );
     }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
     if (data.containsKey('all_day')) {
       context.handle(
         _allDayMeta,
@@ -301,6 +682,10 @@ class $TaskItemsTable extends TaskItems
         DriftSqlType.int,
         data['${effectivePrefix}duration_minutes'],
       ),
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
       allDay: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}all_day'],
@@ -339,6 +724,12 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
   final DateTime? scheduledDate;
   final int? startTimeMinutes;
   final int? durationMinutes;
+
+  /// Null significa "Nessuna categoria".
+  ///
+  /// Se una categoria viene eliminata, il task resta esistente e
+  /// categoryId torna automaticamente a null.
+  final String? categoryId;
   final bool allDay;
   final int priority;
   final bool isCompleted;
@@ -352,6 +743,7 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     this.scheduledDate,
     this.startTimeMinutes,
     this.durationMinutes,
+    this.categoryId,
     required this.allDay,
     required this.priority,
     required this.isCompleted,
@@ -377,6 +769,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     }
     if (!nullToAbsent || durationMinutes != null) {
       map['duration_minutes'] = Variable<int>(durationMinutes);
+    }
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
     }
     map['all_day'] = Variable<bool>(allDay);
     map['priority'] = Variable<int>(priority);
@@ -405,6 +800,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       durationMinutes: durationMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(durationMinutes),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
       allDay: Value(allDay),
       priority: Value(priority),
       isCompleted: Value(isCompleted),
@@ -426,6 +824,7 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       scheduledDate: serializer.fromJson<DateTime?>(json['scheduledDate']),
       startTimeMinutes: serializer.fromJson<int?>(json['startTimeMinutes']),
       durationMinutes: serializer.fromJson<int?>(json['durationMinutes']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
       allDay: serializer.fromJson<bool>(json['allDay']),
       priority: serializer.fromJson<int>(json['priority']),
       isCompleted: serializer.fromJson<bool>(json['isCompleted']),
@@ -444,6 +843,7 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       'scheduledDate': serializer.toJson<DateTime?>(scheduledDate),
       'startTimeMinutes': serializer.toJson<int?>(startTimeMinutes),
       'durationMinutes': serializer.toJson<int?>(durationMinutes),
+      'categoryId': serializer.toJson<String?>(categoryId),
       'allDay': serializer.toJson<bool>(allDay),
       'priority': serializer.toJson<int>(priority),
       'isCompleted': serializer.toJson<bool>(isCompleted),
@@ -460,6 +860,7 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     Value<DateTime?> scheduledDate = const Value.absent(),
     Value<int?> startTimeMinutes = const Value.absent(),
     Value<int?> durationMinutes = const Value.absent(),
+    Value<String?> categoryId = const Value.absent(),
     bool? allDay,
     int? priority,
     bool? isCompleted,
@@ -479,6 +880,7 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     durationMinutes: durationMinutes.present
         ? durationMinutes.value
         : this.durationMinutes,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
     allDay: allDay ?? this.allDay,
     priority: priority ?? this.priority,
     isCompleted: isCompleted ?? this.isCompleted,
@@ -502,6 +904,9 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       durationMinutes: data.durationMinutes.present
           ? data.durationMinutes.value
           : this.durationMinutes,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
       allDay: data.allDay.present ? data.allDay.value : this.allDay,
       priority: data.priority.present ? data.priority.value : this.priority,
       isCompleted: data.isCompleted.present
@@ -522,6 +927,7 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
           ..write('scheduledDate: $scheduledDate, ')
           ..write('startTimeMinutes: $startTimeMinutes, ')
           ..write('durationMinutes: $durationMinutes, ')
+          ..write('categoryId: $categoryId, ')
           ..write('allDay: $allDay, ')
           ..write('priority: $priority, ')
           ..write('isCompleted: $isCompleted, ')
@@ -540,6 +946,7 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     scheduledDate,
     startTimeMinutes,
     durationMinutes,
+    categoryId,
     allDay,
     priority,
     isCompleted,
@@ -557,6 +964,7 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
           other.scheduledDate == this.scheduledDate &&
           other.startTimeMinutes == this.startTimeMinutes &&
           other.durationMinutes == this.durationMinutes &&
+          other.categoryId == this.categoryId &&
           other.allDay == this.allDay &&
           other.priority == this.priority &&
           other.isCompleted == this.isCompleted &&
@@ -572,6 +980,7 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
   final Value<DateTime?> scheduledDate;
   final Value<int?> startTimeMinutes;
   final Value<int?> durationMinutes;
+  final Value<String?> categoryId;
   final Value<bool> allDay;
   final Value<int> priority;
   final Value<bool> isCompleted;
@@ -586,6 +995,7 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     this.scheduledDate = const Value.absent(),
     this.startTimeMinutes = const Value.absent(),
     this.durationMinutes = const Value.absent(),
+    this.categoryId = const Value.absent(),
     this.allDay = const Value.absent(),
     this.priority = const Value.absent(),
     this.isCompleted = const Value.absent(),
@@ -601,6 +1011,7 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     this.scheduledDate = const Value.absent(),
     this.startTimeMinutes = const Value.absent(),
     this.durationMinutes = const Value.absent(),
+    this.categoryId = const Value.absent(),
     this.allDay = const Value.absent(),
     this.priority = const Value.absent(),
     this.isCompleted = const Value.absent(),
@@ -617,6 +1028,7 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     Expression<DateTime>? scheduledDate,
     Expression<int>? startTimeMinutes,
     Expression<int>? durationMinutes,
+    Expression<String>? categoryId,
     Expression<bool>? allDay,
     Expression<int>? priority,
     Expression<bool>? isCompleted,
@@ -632,6 +1044,7 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
       if (scheduledDate != null) 'scheduled_date': scheduledDate,
       if (startTimeMinutes != null) 'start_time_minutes': startTimeMinutes,
       if (durationMinutes != null) 'duration_minutes': durationMinutes,
+      if (categoryId != null) 'category_id': categoryId,
       if (allDay != null) 'all_day': allDay,
       if (priority != null) 'priority': priority,
       if (isCompleted != null) 'is_completed': isCompleted,
@@ -649,6 +1062,7 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     Value<DateTime?>? scheduledDate,
     Value<int?>? startTimeMinutes,
     Value<int?>? durationMinutes,
+    Value<String?>? categoryId,
     Value<bool>? allDay,
     Value<int>? priority,
     Value<bool>? isCompleted,
@@ -664,6 +1078,7 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
       scheduledDate: scheduledDate ?? this.scheduledDate,
       startTimeMinutes: startTimeMinutes ?? this.startTimeMinutes,
       durationMinutes: durationMinutes ?? this.durationMinutes,
+      categoryId: categoryId ?? this.categoryId,
       allDay: allDay ?? this.allDay,
       priority: priority ?? this.priority,
       isCompleted: isCompleted ?? this.isCompleted,
@@ -699,6 +1114,9 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     if (durationMinutes.present) {
       map['duration_minutes'] = Variable<int>(durationMinutes.value);
     }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
     if (allDay.present) {
       map['all_day'] = Variable<bool>(allDay.value);
     }
@@ -728,6 +1146,7 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
           ..write('scheduledDate: $scheduledDate, ')
           ..write('startTimeMinutes: $startTimeMinutes, ')
           ..write('durationMinutes: $durationMinutes, ')
+          ..write('categoryId: $categoryId, ')
           ..write('allDay: $allDay, ')
           ..write('priority: $priority, ')
           ..write('isCompleted: $isCompleted, ')
@@ -741,14 +1160,338 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $TaskCategoriesTable taskCategories = $TaskCategoriesTable(this);
   late final $TaskItemsTable taskItems = $TaskItemsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [taskItems];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    taskCategories,
+    taskItems,
+  ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'task_categories',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('task_items', kind: UpdateKind.update)],
+    ),
+  ]);
 }
 
+typedef $$TaskCategoriesTableCreateCompanionBuilder =
+    TaskCategoriesCompanion Function({
+      required String id,
+      required String name,
+      required int colorValue,
+      required String iconKey,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+typedef $$TaskCategoriesTableUpdateCompanionBuilder =
+    TaskCategoriesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<int> colorValue,
+      Value<String> iconKey,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+
+final class $$TaskCategoriesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $TaskCategoriesTable, TaskCategoryRow> {
+  $$TaskCategoriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$TaskItemsTable, List<TaskItem>>
+  _taskItemsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.taskItems,
+    aliasName: 'task_categories__id__task_items__category_id',
+  );
+
+  $$TaskItemsTableProcessedTableManager get taskItemsRefs {
+    final manager = $$TaskItemsTableTableManager(
+      $_db,
+      $_db.taskItems,
+    ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_taskItemsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$TaskCategoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskCategoriesTable> {
+  $$TaskCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> taskItemsRefs(
+    Expression<bool> Function($$TaskItemsTableFilterComposer f) f,
+  ) {
+    final $$TaskItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.taskItems,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.taskItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$TaskCategoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskCategoriesTable> {
+  $$TaskCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TaskCategoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskCategoriesTable> {
+  $$TaskCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get iconKey =>
+      $composableBuilder(column: $table.iconKey, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  Expression<T> taskItemsRefs<T extends Object>(
+    Expression<T> Function($$TaskItemsTableAnnotationComposer a) f,
+  ) {
+    final $$TaskItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.taskItems,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.taskItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$TaskCategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskCategoriesTable,
+          TaskCategoryRow,
+          $$TaskCategoriesTableFilterComposer,
+          $$TaskCategoriesTableOrderingComposer,
+          $$TaskCategoriesTableAnnotationComposer,
+          $$TaskCategoriesTableCreateCompanionBuilder,
+          $$TaskCategoriesTableUpdateCompanionBuilder,
+          (TaskCategoryRow, $$TaskCategoriesTableReferences),
+          TaskCategoryRow,
+          PrefetchHooks Function({bool taskItemsRefs})
+        > {
+  $$TaskCategoriesTableTableManager(
+    _$AppDatabase db,
+    $TaskCategoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskCategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskCategoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> colorValue = const Value.absent(),
+                Value<String> iconKey = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskCategoriesCompanion(
+                id: id,
+                name: name,
+                colorValue: colorValue,
+                iconKey: iconKey,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required int colorValue,
+                required String iconKey,
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskCategoriesCompanion.insert(
+                id: id,
+                name: name,
+                colorValue: colorValue,
+                iconKey: iconKey,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TaskCategoriesTable, TaskCategoryRow>(table),
+                  $$TaskCategoriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({taskItemsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (taskItemsRefs) db.taskItems],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (taskItemsRefs)
+                    await $_getPrefetchedData<
+                      TaskCategoryRow,
+                      $TaskCategoriesTable,
+                      TaskItem
+                    >(
+                      currentTable: table,
+                      referencedTable: $$TaskCategoriesTableReferences
+                          ._taskItemsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$TaskCategoriesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).taskItemsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.categoryId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TaskCategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskCategoriesTable,
+      TaskCategoryRow,
+      $$TaskCategoriesTableFilterComposer,
+      $$TaskCategoriesTableOrderingComposer,
+      $$TaskCategoriesTableAnnotationComposer,
+      $$TaskCategoriesTableCreateCompanionBuilder,
+      $$TaskCategoriesTableUpdateCompanionBuilder,
+      (TaskCategoryRow, $$TaskCategoriesTableReferences),
+      TaskCategoryRow,
+      PrefetchHooks Function({bool taskItemsRefs})
+    >;
 typedef $$TaskItemsTableCreateCompanionBuilder = TaskItemsCompanion Function({
   required String id,
   required String title,
@@ -758,6 +1501,7 @@ typedef $$TaskItemsTableCreateCompanionBuilder = TaskItemsCompanion Function({
   Value<DateTime?> scheduledDate,
   Value<int?> startTimeMinutes,
   Value<int?> durationMinutes,
+  Value<String?> categoryId,
   Value<bool> allDay,
   Value<int> priority,
   Value<bool> isCompleted,
@@ -773,12 +1517,36 @@ typedef $$TaskItemsTableUpdateCompanionBuilder = TaskItemsCompanion Function({
   Value<DateTime?> scheduledDate,
   Value<int?> startTimeMinutes,
   Value<int?> durationMinutes,
+  Value<String?> categoryId,
   Value<bool> allDay,
   Value<int> priority,
   Value<bool> isCompleted,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
+
+final class $$TaskItemsTableReferences
+    extends BaseReferences<_$AppDatabase, $TaskItemsTable, TaskItem> {
+  $$TaskItemsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $TaskCategoriesTable _categoryIdTable(_$AppDatabase db) => db
+      .taskCategories
+      .createAlias('task_items__category_id__task_categories__id');
+
+  $$TaskCategoriesTableProcessedTableManager? get categoryId {
+    final $_column = $_itemColumn<String>('category_id');
+    if ($_column == null) return null;
+    final manager = $$TaskCategoriesTableTableManager(
+      $_db,
+      $_db.taskCategories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
 
 class $$TaskItemsTableFilterComposer
     extends Composer<_$AppDatabase, $TaskItemsTable> {
@@ -848,6 +1616,29 @@ class $$TaskItemsTableFilterComposer
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$TaskCategoriesTableFilterComposer get categoryId {
+    final $$TaskCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.taskCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.taskCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TaskItemsTableOrderingComposer
@@ -918,6 +1709,29 @@ class $$TaskItemsTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$TaskCategoriesTableOrderingComposer get categoryId {
+    final $$TaskCategoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.taskCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskCategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.taskCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TaskItemsTableAnnotationComposer
@@ -974,6 +1788,29 @@ class $$TaskItemsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$TaskCategoriesTableAnnotationComposer get categoryId {
+    final $$TaskCategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.taskCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskCategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.taskCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TaskItemsTableTableManager
@@ -987,9 +1824,9 @@ class $$TaskItemsTableTableManager
           $$TaskItemsTableAnnotationComposer,
           $$TaskItemsTableCreateCompanionBuilder,
           $$TaskItemsTableUpdateCompanionBuilder,
-          (TaskItem, BaseReferences<_$AppDatabase, $TaskItemsTable, TaskItem>),
+          (TaskItem, $$TaskItemsTableReferences),
           TaskItem,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool categoryId})
         > {
   $$TaskItemsTableTableManager(_$AppDatabase db, $TaskItemsTable table)
     : super(
@@ -1012,6 +1849,7 @@ class $$TaskItemsTableTableManager
                 Value<DateTime?> scheduledDate = const Value.absent(),
                 Value<int?> startTimeMinutes = const Value.absent(),
                 Value<int?> durationMinutes = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
                 Value<bool> allDay = const Value.absent(),
                 Value<int> priority = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
@@ -1026,6 +1864,7 @@ class $$TaskItemsTableTableManager
                 scheduledDate: scheduledDate,
                 startTimeMinutes: startTimeMinutes,
                 durationMinutes: durationMinutes,
+                categoryId: categoryId,
                 allDay: allDay,
                 priority: priority,
                 isCompleted: isCompleted,
@@ -1042,6 +1881,7 @@ class $$TaskItemsTableTableManager
                 Value<DateTime?> scheduledDate = const Value.absent(),
                 Value<int?> startTimeMinutes = const Value.absent(),
                 Value<int?> durationMinutes = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
                 Value<bool> allDay = const Value.absent(),
                 Value<int> priority = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
@@ -1056,6 +1896,7 @@ class $$TaskItemsTableTableManager
                 scheduledDate: scheduledDate,
                 startTimeMinutes: startTimeMinutes,
                 durationMinutes: durationMinutes,
+                categoryId: categoryId,
                 allDay: allDay,
                 priority: priority,
                 isCompleted: isCompleted,
@@ -1066,15 +1907,49 @@ class $$TaskItemsTableTableManager
               .map(
                 (e) => (
                   e.readTable<$TaskItemsTable, TaskItem>(table),
-                  BaseReferences<_$AppDatabase, $TaskItemsTable, TaskItem>(
-                    db,
-                    table,
-                    e,
-                  ),
+                  $$TaskItemsTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({categoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (categoryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.categoryId,
+                        referencedTable: $$TaskItemsTableReferences
+                            ._categoryIdTable(db),
+                        referencedColumn: $$TaskItemsTableReferences
+                            ._categoryIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -1089,14 +1964,16 @@ typedef $$TaskItemsTableProcessedTableManager =
       $$TaskItemsTableAnnotationComposer,
       $$TaskItemsTableCreateCompanionBuilder,
       $$TaskItemsTableUpdateCompanionBuilder,
-      (TaskItem, BaseReferences<_$AppDatabase, $TaskItemsTable, TaskItem>),
+      (TaskItem, $$TaskItemsTableReferences),
       TaskItem,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool categoryId})
     >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
+  $$TaskCategoriesTableTableManager get taskCategories =>
+      $$TaskCategoriesTableTableManager(_db, _db.taskCategories);
   $$TaskItemsTableTableManager get taskItems =>
       $$TaskItemsTableTableManager(_db, _db.taskItems);
 }

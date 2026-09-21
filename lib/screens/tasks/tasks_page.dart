@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../models/life_task.dart';
+import '../../models/task_category.dart';
+import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
+import '../../utils/task_category_icons.dart';
 import 'task_detail_page.dart';
 import 'task_form_page.dart';
 
@@ -12,6 +15,7 @@ enum _TaskListMode {
 
 class TasksPage extends StatefulWidget {
   final TaskRepository taskRepository;
+  final CategoryRepository categoryRepository;
 
   /// Se true, la pagina si apre direttamente sulla Inbox.
   final bool openInbox;
@@ -19,6 +23,7 @@ class TasksPage extends StatefulWidget {
   const TasksPage({
     super.key,
     required this.taskRepository,
+    required this.categoryRepository,
     this.openInbox = false,
   });
 
@@ -48,7 +53,10 @@ class _TasksPageState
       context,
       MaterialPageRoute(
         builder: (_) =>
-            const TaskFormPage(),
+            TaskFormPage(
+          categoryRepository:
+              widget.categoryRepository,
+        ),
       ),
     );
 
@@ -74,6 +82,8 @@ class _TasksPageState
           task: task,
           taskRepository:
               widget.taskRepository,
+          categoryRepository:
+              widget.categoryRepository,
         ),
       ),
     );
@@ -544,17 +554,32 @@ class _TasksPageState
                   _comparePastNewestFirst,
                 );
 
-          return ListView(
-            padding:
-                const EdgeInsets
-                    .fromLTRB(
-              20,
-              4,
-              20,
-              44,
-            ),
+          return StreamBuilder<
+              Map<String, TaskCategory>>(
+            stream:
+                widget.categoryRepository
+                    .watchCategoryMap(),
+            initialData:
+                const {},
+            builder:
+                (context, categorySnapshot) {
+              final categoryMap =
+                  categorySnapshot.data ??
+                      const <
+                          String,
+                          TaskCategory>{};
 
-            children: [
+              return ListView(
+                padding:
+                    const EdgeInsets
+                        .fromLTRB(
+                  20,
+                  4,
+                  20,
+                  44,
+                ),
+
+                children: [
               _TaskModeSwitch(
                 selected:
                     _mode,
@@ -592,6 +617,13 @@ class _TasksPageState
                         _timeLabel,
                     secondaryLabelBuilder:
                         _secondaryLabel,
+                    categoryBuilder:
+                        (task) =>
+                            task.categoryId ==
+                                    null
+                                ? null
+                                : categoryMap[
+                                    task.categoryId],
                     priorityColorBuilder:
                         (task) =>
                             _priorityColor(
@@ -645,6 +677,13 @@ class _TasksPageState
                           _timeLabel,
                       secondaryLabelBuilder:
                           _secondaryLabel,
+                      categoryBuilder:
+                          (task) =>
+                              task.categoryId ==
+                                      null
+                                  ? null
+                                  : categoryMap[
+                                      task.categoryId],
                       priorityColorBuilder:
                           (task) =>
                               _priorityColor(
@@ -701,6 +740,13 @@ class _TasksPageState
                         _timeLabel,
                     secondaryLabelBuilder:
                         _secondaryLabel,
+                    categoryBuilder:
+                        (task) =>
+                            task.categoryId ==
+                                    null
+                                ? null
+                                : categoryMap[
+                                    task.categoryId],
                     priorityColorBuilder:
                         (task) =>
                             _priorityColor(
@@ -729,7 +775,9 @@ class _TasksPageState
                   ),
                 ],
               ],
-            ],
+                ],
+              );
+            },
           );
         },
       ),
@@ -1131,6 +1179,10 @@ class _InboxSection
     LifeTask task,
   ) secondaryLabelBuilder;
 
+  final TaskCategory? Function(
+    LifeTask task,
+  ) categoryBuilder;
+
   final Color Function(
     LifeTask task,
   ) priorityColorBuilder;
@@ -1152,6 +1204,7 @@ class _InboxSection
     required this.tasks,
     required this.timeLabelBuilder,
     required this.secondaryLabelBuilder,
+    required this.categoryBuilder,
     required this.priorityColorBuilder,
     required this.priorityLabelBuilder,
     required this.onCompletedChanged,
@@ -1222,6 +1275,10 @@ class _InboxSection
                 secondaryLabelBuilder(
               tasks[i],
             ),
+            category:
+                categoryBuilder(
+              tasks[i],
+            ),
             priorityColor:
                 priorityColorBuilder(
               tasks[i],
@@ -1283,6 +1340,10 @@ class _PastSection
     LifeTask task,
   ) secondaryLabelBuilder;
 
+  final TaskCategory? Function(
+    LifeTask task,
+  ) categoryBuilder;
+
   final Color Function(
     LifeTask task,
   ) priorityColorBuilder;
@@ -1308,6 +1369,7 @@ class _PastSection
     required this.groupKeyBuilder,
     required this.timeLabelBuilder,
     required this.secondaryLabelBuilder,
+    required this.categoryBuilder,
     required this.priorityColorBuilder,
     required this.priorityLabelBuilder,
     required this.onCompletedChanged,
@@ -1505,6 +1567,10 @@ class _PastSection
                     secondaryLabelBuilder(
                   entry.value[i],
                 ),
+                category:
+                    categoryBuilder(
+                  entry.value[i],
+                ),
                 priorityColor:
                     priorityColorBuilder(
                   entry.value[i],
@@ -1567,6 +1633,10 @@ class _TaskGroup
     LifeTask task,
   ) secondaryLabelBuilder;
 
+  final TaskCategory? Function(
+    LifeTask task,
+  ) categoryBuilder;
+
   final Color Function(
     LifeTask task,
   ) priorityColorBuilder;
@@ -1589,6 +1659,7 @@ class _TaskGroup
     required this.tasks,
     required this.timeLabelBuilder,
     required this.secondaryLabelBuilder,
+    required this.categoryBuilder,
     required this.priorityColorBuilder,
     required this.priorityLabelBuilder,
     required this.onCompletedChanged,
@@ -1641,6 +1712,10 @@ class _TaskGroup
                 secondaryLabelBuilder(
               tasks[i],
             ),
+            category:
+                categoryBuilder(
+              tasks[i],
+            ),
             priorityColor:
                 priorityColorBuilder(
               tasks[i],
@@ -1687,6 +1762,8 @@ class _TaskRow
   final String timeLabel;
   final String secondaryLabel;
 
+  final TaskCategory? category;
+
   final Color priorityColor;
   final String priorityLabel;
 
@@ -1702,6 +1779,7 @@ class _TaskRow
     required this.task,
     required this.timeLabel,
     required this.secondaryLabel,
+    required this.category,
     required this.priorityColor,
     required this.priorityLabel,
     required this.onCompletedChanged,
@@ -1719,6 +1797,17 @@ class _TaskRow
 
     final muted =
         isPast;
+
+    final categoryColor =
+        category == null
+            ? colorScheme
+                .onSurfaceVariant
+                .withValues(
+                  alpha: 0.72,
+                )
+            : Color(
+                category!.colorValue,
+              );
 
     return Opacity(
       opacity:
@@ -1789,7 +1878,7 @@ class _TaskRow
                     BoxDecoration(
                   color:
                       task.isCompleted
-                          ? priorityColor
+                          ? categoryColor
                           : Colors
                               .transparent,
                   shape:
@@ -1797,7 +1886,7 @@ class _TaskRow
                   border:
                       Border.all(
                     color:
-                        priorityColor,
+                        categoryColor,
                     width: 2,
                   ),
                 ),
@@ -1924,6 +2013,44 @@ class _TaskRow
                                 .center,
 
                         children: [
+                          if (category != null)
+                            Row(
+                              mainAxisSize:
+                                  MainAxisSize.min,
+
+                              children: [
+                                Icon(
+                                  taskCategoryIcon(
+                                    category!.iconKey,
+                                  ),
+                                  size: 14,
+                                  color:
+                                      categoryColor,
+                                ),
+
+                                const SizedBox(
+                                  width: 4,
+                                ),
+
+                                Text(
+                                  category!.name,
+                                  style:
+                                      Theme.of(
+                                    context,
+                                  )
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color:
+                                                categoryColor,
+                                            fontWeight:
+                                                FontWeight
+                                                    .w600,
+                                          ),
+                                ),
+                              ],
+                            ),
+
                           Row(
                             mainAxisSize:
                                 MainAxisSize.min,

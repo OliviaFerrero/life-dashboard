@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/life_task.dart';
+import '../models/task_category.dart';
+import '../repositories/category_repository.dart';
 import '../repositories/task_repository.dart';
 import '../widgets/dashboard_card.dart';
 import '../widgets/life_section_header.dart';
@@ -11,10 +13,12 @@ import 'tasks/tasks_page.dart';
 class TodayPage
     extends StatelessWidget {
   final TaskRepository taskRepository;
+  final CategoryRepository categoryRepository;
 
   const TodayPage({
     super.key,
     required this.taskRepository,
+    required this.categoryRepository,
   });
 
   bool _sameDay(
@@ -178,26 +182,28 @@ class TodayPage
     return parts.join(' · ');
   }
 
-  Color _priorityColor(
+  Color _categoryColor(
     BuildContext context,
-    TaskPriority priority,
+    LifeTask task,
+    Map<String, TaskCategory> categoryMap,
   ) {
-    switch (priority) {
-      case TaskPriority.low:
-        return const Color(
-          0xFF5F8F73,
-        );
+    final category =
+        task.categoryId == null
+            ? null
+            : categoryMap[task.categoryId];
 
-      case TaskPriority.normal:
-        return Theme.of(context)
-            .colorScheme
-            .primary;
-
-      case TaskPriority.high:
-        return const Color(
-          0xFFC65B61,
-        );
+    if (category == null) {
+      return Theme.of(context)
+          .colorScheme
+          .onSurfaceVariant
+          .withValues(
+            alpha: 0.72,
+          );
     }
+
+    return Color(
+      category.colorValue,
+    );
   }
 
   LifeTask? _findNextTask(
@@ -265,6 +271,8 @@ class TodayPage
             TasksPage(
           taskRepository:
               taskRepository,
+          categoryRepository:
+              categoryRepository,
           openInbox:
               inbox,
         ),
@@ -284,6 +292,8 @@ class TodayPage
           task: task,
           taskRepository:
               taskRepository,
+          categoryRepository:
+              categoryRepository,
         ),
       ),
     );
@@ -372,17 +382,32 @@ class TodayPage
                   .take(5)
                   .toList();
 
-          return ListView(
-            padding:
-                const EdgeInsets
-                    .fromLTRB(
-              20,
-              24,
-              20,
-              40,
-            ),
+          return StreamBuilder<
+              Map<String, TaskCategory>>(
+            stream:
+                categoryRepository
+                    .watchCategoryMap(),
+            initialData:
+                const {},
+            builder:
+                (context, categorySnapshot) {
+              final categoryMap =
+                  categorySnapshot.data ??
+                      const <
+                          String,
+                          TaskCategory>{};
 
-            children: [
+              return ListView(
+                padding:
+                    const EdgeInsets
+                        .fromLTRB(
+                  20,
+                  24,
+                  20,
+                  40,
+                ),
+
+                children: [
               Row(
                 children: [
                   Expanded(
@@ -537,9 +562,10 @@ class TodayPage
                       _secondaryLabel,
                   accentColorBuilder:
                       (task) {
-                    return _priorityColor(
+                    return _categoryColor(
                       context,
-                      task.priority,
+                      task,
+                      categoryMap,
                     );
                   },
                   onCompletedChanged:
@@ -701,7 +727,9 @@ class TodayPage
                 value:
                     '€ 0,00',
               ),
-            ],
+                ],
+              );
+            },
           );
         },
       ),

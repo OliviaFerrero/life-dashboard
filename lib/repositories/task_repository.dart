@@ -85,6 +85,8 @@ class TaskRepository {
             ),
             durationMinutes: Value(task.durationMinutes),
 
+            categoryId: Value(task.categoryId),
+
             allDay: Value(task.allDay),
             priority: Value(task.priority.index),
             isCompleted: Value(task.isCompleted),
@@ -112,6 +114,8 @@ class TaskRepository {
         ),
         durationMinutes: Value(task.durationMinutes),
 
+        categoryId: Value(task.categoryId),
+
         allDay: Value(task.allDay),
         priority: Value(task.priority.index),
         isCompleted: Value(task.isCompleted),
@@ -138,6 +142,21 @@ class TaskRepository {
         .write(
       TaskItemsCompanion(
         isCompleted: Value(completed),
+      ),
+    );
+  }
+
+  Future<void> setCategory(
+    String id,
+    String? categoryId,
+  ) async {
+    await (_database.update(_database.taskItems)
+          ..where(
+            (row) => row.id.equals(id),
+          ))
+        .write(
+      TaskItemsCompanion(
+        categoryId: Value(categoryId),
       ),
     );
   }
@@ -242,6 +261,7 @@ class TaskRepository {
       scheduledDate: scheduledDate,
       startTimeMinutes: startTimeMinutes,
       durationMinutes: durationMinutes,
+      categoryId: row.categoryId,
       allDay: row.allDay,
       priority: _priorityFromInt(row.priority),
       isCompleted: row.isCompleted,

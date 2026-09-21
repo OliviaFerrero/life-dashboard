@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../repositories/category_repository.dart';
 import '../repositories/task_repository.dart';
 import 'calendar/calendar_page.dart';
 import 'placeholder_page.dart';
@@ -7,10 +8,12 @@ import 'today_page.dart';
 
 class MainScreen extends StatefulWidget {
   final TaskRepository taskRepository;
+  final CategoryRepository categoryRepository;
 
   const MainScreen({
     super.key,
     required this.taskRepository,
+    required this.categoryRepository,
   });
 
   @override
@@ -32,11 +35,15 @@ class _MainScreenState
       TodayPage(
         taskRepository:
             widget.taskRepository,
+        categoryRepository:
+            widget.categoryRepository,
       ),
 
       CalendarPage(
         taskRepository:
             widget.taskRepository,
+        categoryRepository:
+            widget.categoryRepository,
       ),
 
       const PlaceholderPage(

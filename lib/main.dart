@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'database/app_database.dart';
+import 'repositories/category_repository.dart';
 import 'repositories/task_repository.dart';
 import 'screens/main_screen.dart';
 import 'theme/app_theme.dart';
@@ -18,9 +19,14 @@ void main() {
   final taskRepository =
       TaskRepository(database);
 
+  final categoryRepository =
+      CategoryRepository(database);
+
   runApp(
     LifeDashboardApp(
       taskRepository: taskRepository,
+      categoryRepository:
+          categoryRepository,
     ),
   );
 }
@@ -28,10 +34,12 @@ void main() {
 class LifeDashboardApp
     extends StatelessWidget {
   final TaskRepository taskRepository;
+  final CategoryRepository categoryRepository;
 
   const LifeDashboardApp({
     super.key,
     required this.taskRepository,
+    required this.categoryRepository,
   });
 
   @override
@@ -91,6 +99,8 @@ class LifeDashboardApp
 
       home: MainScreen(
         taskRepository: taskRepository,
+        categoryRepository:
+            categoryRepository,
       ),
     );
   }

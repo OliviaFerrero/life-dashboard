@@ -20,6 +20,10 @@ class LifeTask {
   /// Può esistere anche senza data e senza orario.
   final int? durationMinutes;
 
+  /// Identificativo della categoria associata.
+  /// Null significa "Nessuna categoria".
+  final String? categoryId;
+
   final bool allDay;
   final TaskPriority priority;
 
@@ -32,6 +36,7 @@ class LifeTask {
     DateTime? scheduledDate,
     this.startTimeMinutes,
     this.durationMinutes,
+    this.categoryId,
     this.allDay = false,
     this.priority = TaskPriority.normal,
     this.isCompleted = false,
@@ -50,6 +55,8 @@ class LifeTask {
 
   bool get hasDuration =>
       durationMinutes != null && durationMinutes! > 0;
+
+  bool get hasCategory => categoryId != null;
 
   bool get isInInbox => scheduledDate == null;
 
