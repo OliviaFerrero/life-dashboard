@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
+import '../../models/task_recurrence.dart';
 import '../../repositories/category_repository.dart';
 import '../../utils/task_category_icons.dart';
 import 'category_management_page.dart';
@@ -57,6 +58,9 @@ class _TaskFormPageState
 
   String? _selectedCategoryId;
 
+  TaskRecurrence _recurrence =
+      const TaskRecurrence.none();
+
   bool _allDay = false;
 
   TaskPriority _priority =
@@ -87,6 +91,9 @@ class _TaskFormPageState
 
       _selectedCategoryId =
           task.categoryId;
+
+      _recurrence =
+          task.recurrence;
 
       _allDay =
           task.allDay;
@@ -269,6 +276,8 @@ class _TaskFormPageState
     setState(() {
       _selectedDate = null;
       _allDay = false;
+      _recurrence =
+          const TaskRecurrence.none();
     });
   }
 
@@ -442,6 +451,126 @@ class _TaskFormPageState
     }
   }
 
+  String _recurrenceLabel(
+    TaskRecurrence recurrence,
+  ) {
+    switch (recurrence.type) {
+      case TaskRecurrenceType.none:
+        return 'Non ripetere';
+
+      case TaskRecurrenceType.daily:
+        return 'Ogni giorno';
+
+      case TaskRecurrenceType.weekly:
+        final days =
+            recurrence.weekdays;
+
+        if (days.isEmpty) {
+          return 'Ogni settimana';
+        }
+
+        if (days.length == 1) {
+          return 'Ogni ${_weekdayName(days.first)}';
+        }
+
+        return days
+            .map(_weekdayShortLabel)
+            .join(' · ');
+    }
+  }
+
+  String _weekdayName(
+    int weekday,
+  ) {
+    const names = {
+      DateTime.monday:
+          'lunedì',
+      DateTime.tuesday:
+          'martedì',
+      DateTime.wednesday:
+          'mercoledì',
+      DateTime.thursday:
+          'giovedì',
+      DateTime.friday:
+          'venerdì',
+      DateTime.saturday:
+          'sabato',
+      DateTime.sunday:
+          'domenica',
+    };
+
+    return names[weekday] ??
+        'settimana';
+  }
+
+  String _weekdayShortLabel(
+    int weekday,
+  ) {
+    const labels = {
+      DateTime.monday:
+          'Lun',
+      DateTime.tuesday:
+          'Mar',
+      DateTime.wednesday:
+          'Mer',
+      DateTime.thursday:
+          'Gio',
+      DateTime.friday:
+          'Ven',
+      DateTime.saturday:
+          'Sab',
+      DateTime.sunday:
+          'Dom',
+    };
+
+    return labels[weekday] ?? '';
+  }
+
+  Future<void> _selectRecurrence() async {
+    _dismissKeyboard();
+
+    final selectedDate =
+        _selectedDate;
+
+    if (selectedDate == null) {
+      return;
+    }
+
+    final result =
+        await showModalBottomSheet<
+            TaskRecurrence>(
+      context: context,
+      backgroundColor:
+          Colors.transparent,
+      barrierColor:
+          Colors.black.withValues(
+        alpha: 0.28,
+      ),
+      isScrollControlled:
+          true,
+      useSafeArea:
+          true,
+      builder: (context) {
+        return _RecurrencePickerSheet(
+          initialRecurrence:
+              _recurrence,
+          anchorWeekday:
+              selectedDate.weekday,
+        );
+      },
+    );
+
+    if (!mounted ||
+        result == null) {
+      return;
+    }
+
+    setState(() {
+      _recurrence =
+          result;
+    });
+  }
+
   TaskCategory? _findCategory(
     List<TaskCategory> categories,
     String? id,
@@ -577,6 +706,15 @@ class _TaskFormPageState
       return;
     }
 
+    final recurrence =
+        widget.rescheduleOnly
+            ? _selectedDate == null
+                ? const TaskRecurrence.none()
+                : oldTask!.recurrence
+            : _selectedDate == null
+                ? const TaskRecurrence.none()
+                : _recurrence;
+
     final effectiveAllDay =
         _selectedDate != null &&
         _allDay;
@@ -618,6 +756,9 @@ class _TaskFormPageState
       priority:
           priority,
 
+      recurrence:
+          recurrence,
+
       isCompleted:
           oldTask?.isCompleted ??
               false,
@@ -639,14 +780,24 @@ class _TaskFormPageState
       context: context,
 
       builder: (context) {
+        final recurring =
+            widget.initialTask!
+                .recurrence
+                .isRecurring;
+
         return AlertDialog(
           title:
-              const Text(
-            'Eliminare attività?',
+              Text(
+            recurring
+                ? 'Eliminare serie?'
+                : 'Eliminare attività?',
           ),
           content: Text(
-            'Vuoi eliminare '
-            '"${widget.initialTask!.title}"?',
+            recurring
+                ? 'Vuoi eliminare tutta la serie '
+                    '"${widget.initialTask!.title}"?'
+                : 'Vuoi eliminare '
+                    '"${widget.initialTask!.title}"?',
           ),
           actions: [
             TextButton(
@@ -966,7 +1117,10 @@ class _TaskFormPageState
                     Icons
                         .calendar_today_outlined,
                 title:
-                    'Data',
+                    _recurrence
+                            .isRecurring
+                        ? 'Inizio serie'
+                        : 'Data',
                 value:
                     _selectedDate ==
                             null
@@ -982,6 +1136,26 @@ class _TaskFormPageState
                         ? null
                         : _clearDate,
               ),
+
+              if (_selectedDate !=
+                      null &&
+                  !widget
+                      .rescheduleOnly) ...[
+                const _FormDivider(),
+
+                _SettingRow(
+                  icon:
+                      Icons.repeat,
+                  title:
+                      'Ripeti',
+                  value:
+                      _recurrenceLabel(
+                    _recurrence,
+                  ),
+                  onTap:
+                      _selectRecurrence,
+                ),
+              ],
 
               if (_selectedDate !=
                   null) ...[
@@ -1481,6 +1655,485 @@ class _SwitchSettingRow
                 onChanged,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RecurrencePickerSheet
+    extends StatefulWidget {
+  final TaskRecurrence initialRecurrence;
+  final int anchorWeekday;
+
+  const _RecurrencePickerSheet({
+    required this.initialRecurrence,
+    required this.anchorWeekday,
+  });
+
+  @override
+  State<_RecurrencePickerSheet>
+      createState() =>
+          _RecurrencePickerSheetState();
+}
+
+class _RecurrencePickerSheetState
+    extends State<_RecurrencePickerSheet> {
+  late TaskRecurrenceType _type;
+  late Set<int> _weekdays;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _type =
+        widget.initialRecurrence.type;
+
+    _weekdays =
+        widget.initialRecurrence.weekdays
+            .toSet();
+
+    if (_type ==
+            TaskRecurrenceType.weekly &&
+        _weekdays.isEmpty) {
+      _weekdays.add(
+        widget.anchorWeekday,
+      );
+    }
+  }
+
+  void _selectType(
+    TaskRecurrenceType type,
+  ) {
+    setState(() {
+      _type = type;
+
+      if (_type ==
+              TaskRecurrenceType.weekly &&
+          _weekdays.isEmpty) {
+        _weekdays.add(
+          widget.anchorWeekday,
+        );
+      }
+    });
+  }
+
+  void _toggleWeekday(
+    int weekday,
+  ) {
+    setState(() {
+      if (_weekdays.contains(
+        weekday,
+      )) {
+        if (_weekdays.length > 1) {
+          _weekdays.remove(
+            weekday,
+          );
+        }
+      } else {
+        _weekdays.add(
+          weekday,
+        );
+      }
+    });
+  }
+
+  void _confirm() {
+    switch (_type) {
+      case TaskRecurrenceType.none:
+        Navigator.pop(
+          context,
+          const TaskRecurrence.none(),
+        );
+        return;
+
+      case TaskRecurrenceType.daily:
+        Navigator.pop(
+          context,
+          const TaskRecurrence.daily(),
+        );
+        return;
+
+      case TaskRecurrenceType.weekly:
+        Navigator.pop(
+          context,
+          TaskRecurrence.weekly(
+            _weekdays,
+          ),
+        );
+        return;
+    }
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin:
+            const EdgeInsets
+                .fromLTRB(
+          12,
+          0,
+          12,
+          12,
+        ),
+        padding:
+            const EdgeInsets
+                .fromLTRB(
+          20,
+          18,
+          20,
+          18,
+        ),
+        decoration:
+            BoxDecoration(
+          color:
+              colorScheme.surface,
+          borderRadius:
+              BorderRadius.circular(
+            24,
+          ),
+          border:
+              Border.all(
+            color:
+                colorScheme
+                    .outlineVariant
+                    .withValues(
+              alpha: 0.55,
+            ),
+          ),
+        ),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          crossAxisAlignment:
+              CrossAxisAlignment
+                  .start,
+          children: [
+            Text(
+              'RIPETIZIONE',
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .labelMedium
+                      ?.copyWith(
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+                        fontWeight:
+                            FontWeight
+                                .w800,
+                        letterSpacing:
+                            1,
+                      ),
+            ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            _RecurrenceChoiceRow(
+              label:
+                  'Non ripetere',
+              selected:
+                  _type ==
+                      TaskRecurrenceType
+                          .none,
+              onTap: () {
+                _selectType(
+                  TaskRecurrenceType
+                      .none,
+                );
+              },
+            ),
+
+            const _FormDivider(),
+
+            _RecurrenceChoiceRow(
+              label:
+                  'Ogni giorno',
+              selected:
+                  _type ==
+                      TaskRecurrenceType
+                          .daily,
+              onTap: () {
+                _selectType(
+                  TaskRecurrenceType
+                      .daily,
+                );
+              },
+            ),
+
+            const _FormDivider(),
+
+            _RecurrenceChoiceRow(
+              label:
+                  'Ogni settimana',
+              selected:
+                  _type ==
+                      TaskRecurrenceType
+                          .weekly,
+              onTap: () {
+                _selectType(
+                  TaskRecurrenceType
+                      .weekly,
+                );
+              },
+            ),
+
+            if (_type ==
+                TaskRecurrenceType
+                    .weekly) ...[
+              const SizedBox(
+                height: 16,
+              ),
+
+              Text(
+                'Giorni',
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(
+                          color:
+                              colorScheme
+                                  .onSurfaceVariant,
+                          fontWeight:
+                              FontWeight
+                                  .w600,
+                        ),
+              ),
+
+              const SizedBox(
+                height: 10,
+              ),
+
+              Row(
+                children: [
+                  for (final weekday
+                      in const [
+                    DateTime.monday,
+                    DateTime.tuesday,
+                    DateTime.wednesday,
+                    DateTime.thursday,
+                    DateTime.friday,
+                    DateTime.saturday,
+                    DateTime.sunday,
+                  ])
+                    Expanded(
+                      child: Padding(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal:
+                              2,
+                        ),
+                        child:
+                            _WeekdayChoice(
+                          label:
+                              const {
+                            DateTime.monday:
+                                'L',
+                            DateTime.tuesday:
+                                'M',
+                            DateTime.wednesday:
+                                'M',
+                            DateTime.thursday:
+                                'G',
+                            DateTime.friday:
+                                'V',
+                            DateTime.saturday:
+                                'S',
+                            DateTime.sunday:
+                                'D',
+                          }[weekday]!,
+                          selected:
+                              _weekdays
+                                  .contains(
+                            weekday,
+                          ),
+                          onTap: () {
+                            _toggleWeekday(
+                              weekday,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+
+            const SizedBox(
+              height: 22,
+            ),
+
+            SizedBox(
+              width:
+                  double.infinity,
+              child:
+                  FilledButton(
+                onPressed:
+                    _confirm,
+                child:
+                    const Text(
+                  'Conferma',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecurrenceChoiceRow
+    extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _RecurrenceChoiceRow({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          Colors.transparent,
+      child: InkWell(
+        onTap:
+            onTap,
+        borderRadius:
+            BorderRadius.circular(
+          12,
+        ),
+        child: Padding(
+          padding:
+              const EdgeInsets
+                  .symmetric(
+            vertical: 14,
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 32,
+                child: Icon(
+                  selected
+                      ? Icons
+                          .radio_button_checked
+                      : Icons
+                          .radio_button_unchecked,
+                  size: 20,
+                  color:
+                      selected
+                          ? colorScheme
+                              .primary
+                          : colorScheme
+                              .onSurfaceVariant,
+                ),
+              ),
+
+              const SizedBox(
+                width: 12,
+              ),
+
+              Expanded(
+                child: Text(
+                  label,
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(
+                            fontWeight:
+                                selected
+                                    ? FontWeight
+                                        .w700
+                                    : FontWeight
+                                        .w500,
+                          ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WeekdayChoice
+    extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _WeekdayChoice({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          selected
+              ? colorScheme.primary
+              : Colors.transparent,
+      shape:
+          const CircleBorder(),
+      child: InkWell(
+        onTap:
+            onTap,
+        customBorder:
+            const CircleBorder(),
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: Center(
+            child: Text(
+              label,
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                        color:
+                            selected
+                                ? colorScheme
+                                    .onPrimary
+                                : colorScheme
+                                    .onSurfaceVariant,
+                        fontWeight:
+                            FontWeight
+                                .w700,
+                      ),
+            ),
+          ),
+        ),
       ),
     );
   }

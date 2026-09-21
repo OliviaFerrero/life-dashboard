@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
+import '../../models/task_occurrence.dart';
+import '../../models/task_recurrence.dart';
 import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
@@ -9,12 +11,14 @@ import 'task_form_page.dart';
 
 class TaskDetailPage extends StatefulWidget {
   final LifeTask task;
+  final TaskOccurrence? occurrence;
   final TaskRepository taskRepository;
   final CategoryRepository categoryRepository;
 
   const TaskDetailPage({
     super.key,
     required this.task,
+    this.occurrence,
     required this.taskRepository,
     required this.categoryRepository,
   });
@@ -27,11 +31,20 @@ class TaskDetailPage extends StatefulWidget {
 class _TaskDetailPageState
     extends State<TaskDetailPage> {
   late LifeTask _task;
+  late bool _isCompleted;
+  DateTime? _occurrenceDate;
 
   @override
   void initState() {
     super.initState();
+
     _task = widget.task;
+    _occurrenceDate =
+        widget.occurrence?.date ??
+            widget.task.scheduledDate;
+    _isCompleted =
+        widget.occurrence?.isCompleted ??
+            widget.task.isCompleted;
   }
 
   String _twoDigits(
@@ -57,7 +70,6 @@ class _TaskDetailPageState
   ) {
     final start =
         task.startTimeMinutes;
-
     final duration =
         task.durationMinutes;
 
@@ -68,7 +80,6 @@ class _TaskDetailPageState
 
     final total =
         start + duration;
-
     final extraDays =
         total ~/ (24 * 60);
 
@@ -88,7 +99,6 @@ class _TaskDetailPageState
   ) {
     final hours =
         minutes ~/ 60;
-
     final remaining =
         minutes % 60;
 
@@ -102,8 +112,7 @@ class _TaskDetailPageState
           : '$hours ore';
     }
 
-    return '$hours h '
-        '$remaining min';
+    return '$hours h $remaining min';
   }
 
   String _dateLabel(
@@ -146,10 +155,8 @@ class _TaskDetailPageState
     switch (priority) {
       case TaskPriority.low:
         return 'Bassa';
-
       case TaskPriority.normal:
         return 'Normale';
-
       case TaskPriority.high:
         return 'Alta';
     }
@@ -177,11 +184,83 @@ class _TaskDetailPageState
     }
   }
 
-  bool _isPastUnfinished(
-    LifeTask task,
+  String _recurrenceLabel(
+    TaskRecurrence recurrence,
   ) {
-    if (task.isCompleted ||
-        task.scheduledDate == null) {
+    switch (recurrence.type) {
+      case TaskRecurrenceType.none:
+        return 'Non ricorrente';
+
+      case TaskRecurrenceType.daily:
+        return 'Ogni giorno';
+
+      case TaskRecurrenceType.weekly:
+        final days =
+            recurrence.weekdays;
+
+        if (days.isEmpty) {
+          return 'Ogni settimana';
+        }
+
+        if (days.length == 1) {
+          const names = {
+            DateTime.monday:
+                'lunedì',
+            DateTime.tuesday:
+                'martedì',
+            DateTime.wednesday:
+                'mercoledì',
+            DateTime.thursday:
+                'giovedì',
+            DateTime.friday:
+                'venerdì',
+            DateTime.saturday:
+                'sabato',
+            DateTime.sunday:
+                'domenica',
+          };
+
+          return 'Ogni '
+              '${names[days.first]}';
+        }
+
+        const short = {
+          DateTime.monday:
+              'Lun',
+          DateTime.tuesday:
+              'Mar',
+          DateTime.wednesday:
+              'Mer',
+          DateTime.thursday:
+              'Gio',
+          DateTime.friday:
+              'Ven',
+          DateTime.saturday:
+              'Sab',
+          DateTime.sunday:
+              'Dom',
+        };
+
+        return days
+            .map(
+              (day) =>
+                  short[day]!,
+            )
+            .join(' · ');
+    }
+  }
+
+  bool _isPastUnfinished() {
+    if (_isCompleted ||
+        _task.recurrence.isRecurring) {
+      return false;
+    }
+
+    final dateValue =
+        _occurrenceDate ??
+            _task.scheduledDate;
+
+    if (dateValue == null) {
       return false;
     }
 
@@ -197,9 +276,9 @@ class _TaskDetailPageState
 
     final date =
         DateTime(
-      task.scheduledDate!.year,
-      task.scheduledDate!.month,
-      task.scheduledDate!.day,
+      dateValue.year,
+      dateValue.month,
+      dateValue.day,
     );
 
     if (date.isBefore(today)) {
@@ -210,14 +289,15 @@ class _TaskDetailPageState
       return false;
     }
 
-    if (task.allDay ||
-        task.startTimeMinutes == null) {
+    if (_task.allDay ||
+        _task.startTimeMinutes ==
+            null) {
       return false;
     }
 
     final cutoffMinutes =
-        task.startTimeMinutes! +
-        (task.durationMinutes ?? 0);
+        _task.startTimeMinutes! +
+        (_task.durationMinutes ?? 0);
 
     final cutoff =
         date.add(
@@ -227,29 +307,60 @@ class _TaskDetailPageState
       ),
     );
 
-    return now.isAfter(cutoff);
+    return now.isAfter(
+      cutoff,
+    );
   }
 
   Future<void> _setCompleted(
     bool completed,
   ) async {
-    await widget.taskRepository
-        .setCompleted(
-      _task.id,
-      completed,
-    );
+    final date =
+        _occurrenceDate ??
+            _task.scheduledDate;
+
+    if (_task.recurrence.isRecurring &&
+        date != null) {
+      await widget.taskRepository
+          .setOccurrenceCompleted(
+        TaskOccurrence(
+          task:
+              _task,
+          date:
+              date,
+          isCompleted:
+              _isCompleted,
+        ),
+        completed,
+      );
+    } else {
+      await widget.taskRepository
+          .setCompleted(
+        _task.id,
+        completed,
+      );
+    }
 
     if (!mounted) {
       return;
     }
 
     setState(() {
-      _task.isCompleted =
+      _isCompleted =
           completed;
+
+      if (!_task.recurrence
+          .isRecurring) {
+        _task.isCompleted =
+            completed;
+      }
     });
   }
 
   Future<void> _editTask() async {
+    final wasRecurring =
+        _task.recurrence.isRecurring;
+
     final result =
         await Navigator.push<
             TaskFormResult>(
@@ -279,7 +390,9 @@ class _TaskDetailPageState
         return;
       }
 
-      Navigator.pop(context);
+      Navigator.pop(
+        context,
+      );
       return;
     }
 
@@ -302,10 +415,41 @@ class _TaskDetailPageState
     setState(() {
       _task =
           updatedTask;
+
+      if (!_task.recurrence
+          .isRecurring) {
+        _occurrenceDate =
+            _task.scheduledDate;
+        _isCompleted =
+            _task.isCompleted;
+      } else {
+        final currentDate =
+            _occurrenceDate;
+
+        if (!wasRecurring ||
+            currentDate == null ||
+            _task.scheduledDate ==
+                null ||
+            !_task.recurrence
+                .occursOn(
+              currentDate,
+              _task
+                  .scheduledDate!,
+            )) {
+          _occurrenceDate =
+              _task.scheduledDate;
+          _isCompleted =
+              false;
+        }
+      }
     });
   }
 
   Future<void> _rescheduleTask() async {
+    if (_task.recurrence.isRecurring) {
+      return;
+    }
+
     final result =
         await Navigator.push<
             TaskFormResult>(
@@ -342,23 +486,33 @@ class _TaskDetailPageState
     setState(() {
       _task =
           updatedTask;
+      _occurrenceDate =
+          updatedTask.scheduledDate;
+      _isCompleted =
+          updatedTask.isCompleted;
     });
   }
 
   Future<void> _deleteTask() async {
+    final recurring =
+        _task.recurrence.isRecurring;
+
     final confirmed =
         await showDialog<bool>(
       context: context,
-
       builder: (context) {
         return AlertDialog(
-          title:
-              const Text(
-            'Eliminare attività?',
+          title: Text(
+            recurring
+                ? 'Eliminare serie?'
+                : 'Eliminare attività?',
           ),
           content: Text(
-            'Vuoi eliminare '
-            '"${_task.title}"?',
+            recurring
+                ? 'Vuoi eliminare tutta la serie '
+                    '"${_task.title}"?'
+                : 'Vuoi eliminare '
+                    '"${_task.title}"?',
           ),
           actions: [
             TextButton(
@@ -403,10 +557,15 @@ class _TaskDetailPageState
       return;
     }
 
-    Navigator.pop(context);
+    Navigator.pop(
+      context,
+    );
   }
 
   Future<void> _showTaskActions() async {
+    final recurring =
+        _task.recurrence.isRecurring;
+
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor:
@@ -455,7 +614,8 @@ class _TaskDetailPageState
                     colorScheme
                         .outlineVariant
                         .withValues(
-                  alpha: 0.55,
+                  alpha:
+                      0.55,
                 ),
               ),
             ),
@@ -463,7 +623,8 @@ class _TaskDetailPageState
               mainAxisSize:
                   MainAxisSize.min,
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Text(
                   'AZIONI',
@@ -481,20 +642,20 @@ class _TaskDetailPageState
                                 FontWeight
                                     .w800,
                             letterSpacing:
-                                1.0,
+                                1,
                           ),
                 ),
-
                 const SizedBox(
                   height: 8,
                 ),
-
                 _ActionSheetRow(
                   icon:
                       Icons
                           .edit_outlined,
                   label:
-                      'Modifica',
+                      recurring
+                          ? 'Modifica serie'
+                          : 'Modifica',
                   onTap: () {
                     Navigator.pop(
                       sheetContext,
@@ -502,7 +663,6 @@ class _TaskDetailPageState
                     _editTask();
                   },
                 ),
-
                 Divider(
                   height: 1,
                   indent: 44,
@@ -510,16 +670,18 @@ class _TaskDetailPageState
                       colorScheme
                           .outlineVariant
                           .withValues(
-                    alpha: 0.5,
+                    alpha:
+                        0.5,
                   ),
                 ),
-
                 _ActionSheetRow(
                   icon:
                       Icons
                           .delete_outline,
                   label:
-                      'Elimina',
+                      recurring
+                          ? 'Elimina serie'
+                          : 'Elimina',
                   isDestructive:
                       true,
                   onTap: () {
@@ -552,9 +714,11 @@ class _TaskDetailPageState
     );
 
     final isPast =
-        _isPastUnfinished(
-      _task,
-    );
+        _isPastUnfinished();
+
+    final effectiveDate =
+        _occurrenceDate ??
+            _task.scheduledDate;
 
     return Scaffold(
       appBar: AppBar(
@@ -562,7 +726,6 @@ class _TaskDetailPageState
             const Text(
           'Dettaglio',
         ),
-
         actions: [
           IconButton(
             tooltip:
@@ -574,13 +737,11 @@ class _TaskDetailPageState
               Icons.more_horiz,
             ),
           ),
-
           const SizedBox(
             width: 8,
           ),
         ],
       ),
-
       body: StreamBuilder<
           Map<String, TaskCategory>>(
         stream:
@@ -589,7 +750,8 @@ class _TaskDetailPageState
         initialData:
             const {},
         builder:
-            (context, categorySnapshot) {
+            (context,
+                categorySnapshot) {
           final categoryMap =
               categorySnapshot.data ??
                   const <
@@ -597,20 +759,24 @@ class _TaskDetailPageState
                       TaskCategory>{};
 
           final category =
-              _task.categoryId == null
+              _task.categoryId ==
+                      null
                   ? null
                   : categoryMap[
-                      _task.categoryId];
+                      _task
+                          .categoryId];
 
           final categoryColor =
               category == null
                   ? colorScheme
                       .onSurfaceVariant
                       .withValues(
-                        alpha: 0.72,
+                        alpha:
+                            0.72,
                       )
                   : Color(
-                      category.colorValue,
+                      category
+                          .colorValue,
                     );
 
           return ListView(
@@ -622,358 +788,365 @@ class _TaskDetailPageState
               24,
               120,
             ),
-
             children: [
-          Text(
-            _task.title,
-
-            style:
-                Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(
-                      fontWeight:
-                          FontWeight
-                              .w700,
-                      letterSpacing:
-                          -0.7,
-                      height: 1.12,
-                      decoration:
-                          _task.isCompleted
-                              ? TextDecoration
-                                  .lineThrough
-                              : null,
-                    ),
-          ),
-
-          const SizedBox(
-            height: 18,
-          ),
-
-          _CompletionAction(
-            completed:
-                _task.isCompleted,
-            accentColor:
-                categoryColor,
-            onTap: () {
-              _setCompleted(
-                !_task.isCompleted,
-              );
-            },
-          ),
-
-          if (isPast) ...[
-            const SizedBox(
-              height: 26,
-            ),
-
-            _OverdueNotice(
-              onReschedule:
-                  _rescheduleTask,
-            ),
-          ],
-
-          const SizedBox(
-            height: 38,
-          ),
-
-          const _SectionLabel(
-            text:
-                'PIANIFICAZIONE',
-          ),
-
-          const SizedBox(
-            height: 14,
-          ),
-
-          if (_task.scheduledDate ==
-              null) ...[
-            _InfoLine(
-              icon:
-                  Icons
-                      .inbox_outlined,
-              title:
-                  'Inbox',
-              value:
-                  'Nessuna data assegnata',
-            ),
-          ] else ...[
-            Text(
-              _dateLabel(
-                _task
-                    .scheduledDate!,
+              Text(
+                _task.title,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(
+                          fontWeight:
+                              FontWeight
+                                  .w700,
+                          letterSpacing:
+                              -0.7,
+                          height:
+                              1.12,
+                          decoration:
+                              _isCompleted
+                                  ? TextDecoration
+                                      .lineThrough
+                                  : null,
+                        ),
               ),
 
-              style:
-                  Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(
-                        fontWeight:
-                            FontWeight
-                                .w700,
-                        letterSpacing:
-                            -0.25,
-                      ),
-            ),
-          ],
-
-          if (_task.allDay) ...[
-            const SizedBox(
-              height: 16,
-            ),
-
-            const _InfoLine(
-              icon:
-                  Icons
-                      .today_outlined,
-              title:
-                  'Orario',
-              value:
-                  'Tutto il giorno',
-            ),
-          ] else if (_task.startTimeMinutes !=
-              null) ...[
-            const SizedBox(
-              height: 18,
-            ),
-
-            if (_task.durationMinutes !=
-                null)
-              _TimeRange(
-                start:
-                    _formatClockMinutes(
-                  _task
-                      .startTimeMinutes!,
-                ),
-                end:
-                    _formatEndTime(
-                  _task,
-                ),
-              )
-            else
-              _InfoLine(
-                icon:
-                    Icons
-                        .schedule_outlined,
-                title:
-                    _task.scheduledDate ==
-                            null
-                        ? 'Orario preferito'
-                        : 'Ora inizio',
-                value:
-                    _formatClockMinutes(
-                  _task
-                      .startTimeMinutes!,
-                ),
+              const SizedBox(
+                height: 18,
               ),
-          ] else if (_task.scheduledDate !=
-              null) ...[
-            const SizedBox(
-              height: 16,
-            ),
 
-            const _InfoLine(
-              icon:
-                  Icons
-                      .schedule_outlined,
-              title:
-                  'Orario',
-              value:
-                  'Non impostato',
-            ),
-          ],
-
-          if (_task.durationMinutes !=
-              null) ...[
-            const SizedBox(
-              height: 16,
-            ),
-
-            _InfoLine(
-              icon:
-                  Icons
-                      .timer_outlined,
-              title:
-                  'Durata',
-              value:
-                  _durationLabel(
-                _task
-                    .durationMinutes!,
+              _CompletionAction(
+                completed:
+                    _isCompleted,
+                accentColor:
+                    categoryColor,
+                onTap:
+                    () {
+                  _setCompleted(
+                    !_isCompleted,
+                  );
+                },
               ),
-            ),
-          ],
 
-          const SizedBox(
-            height: 34,
-          ),
+              if (isPast) ...[
+                const SizedBox(
+                  height: 26,
+                ),
+                _OverdueNotice(
+                  onReschedule:
+                      _rescheduleTask,
+                ),
+              ],
 
-          const _SoftDivider(),
+              const SizedBox(
+                height: 38,
+              ),
 
-          const SizedBox(
-            height: 28,
-          ),
+              const _SectionLabel(
+                text:
+                    'PIANIFICAZIONE',
+              ),
 
-          const _SectionLabel(
-            text:
-                'CATEGORIA',
-          ),
+              const SizedBox(
+                height: 14,
+              ),
 
-          const SizedBox(
-            height: 13,
-          ),
-
-          Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      categoryColor
-                          .withValues(
-                    alpha: 0.11,
+              if (effectiveDate ==
+                  null)
+                const _InfoLine(
+                  icon:
+                      Icons
+                          .inbox_outlined,
+                  title:
+                      'Inbox',
+                  value:
+                      'Nessuna data assegnata',
+                )
+              else
+                Text(
+                  _dateLabel(
+                    effectiveDate,
                   ),
-                  shape:
-                      BoxShape.circle,
+                  style:
+                      Theme.of(
+                    context,
+                  )
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(
+                            fontWeight:
+                                FontWeight
+                                    .w700,
+                            letterSpacing:
+                                -0.25,
+                          ),
                 ),
-                child: Icon(
-                  category == null
-                      ? Icons
-                          .remove_circle_outline
-                      : taskCategoryIcon(
-                          category.iconKey,
-                        ),
-                  size: 17,
-                  color:
-                      categoryColor,
+
+              if (_task.recurrence
+                  .isRecurring) ...[
+                const SizedBox(
+                  height: 16,
                 ),
-              ),
-
-              const SizedBox(
-                width: 10,
-              ),
-
-              Text(
-                category?.name ??
-                    'Nessuna categoria',
-                style:
-                    Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(
-                          color:
-                              categoryColor,
-                          fontWeight:
-                              FontWeight
-                                  .w700,
-                        ),
-              ),
-            ],
-          ),
-
-          const SizedBox(
-            height: 34,
-          ),
-
-          const _SoftDivider(),
-
-          const SizedBox(
-            height: 28,
-          ),
-
-          const _SectionLabel(
-            text:
-                'PRIORITÀ',
-          ),
-
-          const SizedBox(
-            height: 13,
-          ),
-
-          Row(
-            children: [
-              Icon(
-                Icons.flag_outlined,
-                size: 19,
-                color:
-                    priorityColor,
-              ),
-
-              const SizedBox(
-                width: 9,
-              ),
-
-              Text(
-                _priorityLabel(
-                  _task.priority,
+                _InfoLine(
+                  icon:
+                      Icons.repeat,
+                  title:
+                      'Ripetizione',
+                  value:
+                      _recurrenceLabel(
+                    _task.recurrence,
+                  ),
                 ),
-                style:
-                    Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(
-                          color:
-                              priorityColor,
-                          fontWeight:
-                              FontWeight
-                                  .w700,
-                        ),
-              ),
-            ],
-          ),
+              ],
 
-          const SizedBox(
-            height: 34,
-          ),
-
-          const _SoftDivider(),
-
-          const SizedBox(
-            height: 28,
-          ),
-
-          const _SectionLabel(
-            text:
-                'NOTE',
-          ),
-
-          const SizedBox(
-            height: 13,
-          ),
-
-          Text(
-            _task.description
-                    .trim()
-                    .isEmpty
-                ? 'Nessuna nota.'
-                : _task.description,
-
-            style:
-                Theme.of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.copyWith(
-                      height: 1.55,
-                      color:
-                          _task.description
-                                  .trim()
-                                  .isEmpty
-                              ? colorScheme
-                                  .onSurfaceVariant
-                              : null,
+              if (_task.allDay) ...[
+                const SizedBox(
+                  height: 16,
+                ),
+                const _InfoLine(
+                  icon:
+                      Icons
+                          .today_outlined,
+                  title:
+                      'Orario',
+                  value:
+                      'Tutto il giorno',
+                ),
+              ] else if (_task
+                      .startTimeMinutes !=
+                  null) ...[
+                const SizedBox(
+                  height: 18,
+                ),
+                if (_task
+                        .durationMinutes !=
+                    null)
+                  _TimeRange(
+                    start:
+                        _formatClockMinutes(
+                      _task
+                          .startTimeMinutes!,
                     ),
-          ),
+                    end:
+                        _formatEndTime(
+                      _task,
+                    ),
+                  )
+                else
+                  _InfoLine(
+                    icon:
+                        Icons
+                            .schedule_outlined,
+                    title:
+                        effectiveDate ==
+                                null
+                            ? 'Orario preferito'
+                            : 'Ora inizio',
+                    value:
+                        _formatClockMinutes(
+                      _task
+                          .startTimeMinutes!,
+                    ),
+                  ),
+              ] else if (effectiveDate !=
+                  null) ...[
+                const SizedBox(
+                  height: 16,
+                ),
+                const _InfoLine(
+                  icon:
+                      Icons
+                          .schedule_outlined,
+                  title:
+                      'Orario',
+                  value:
+                      'Non impostato',
+                ),
+              ],
+
+              if (_task.durationMinutes !=
+                  null) ...[
+                const SizedBox(
+                  height: 16,
+                ),
+                _InfoLine(
+                  icon:
+                      Icons
+                          .timer_outlined,
+                  title:
+                      'Durata',
+                  value:
+                      _durationLabel(
+                    _task
+                        .durationMinutes!,
+                  ),
+                ),
+              ],
+
+              const SizedBox(
+                height: 34,
+              ),
+              const _SoftDivider(),
+              const SizedBox(
+                height: 28,
+              ),
+
+              const _SectionLabel(
+                text:
+                    'CATEGORIA',
+              ),
+              const SizedBox(
+                height: 13,
+              ),
+
+              Row(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          categoryColor
+                              .withValues(
+                        alpha:
+                            0.11,
+                      ),
+                      shape:
+                          BoxShape
+                              .circle,
+                    ),
+                    child: Icon(
+                      category == null
+                          ? Icons
+                              .remove_circle_outline
+                          : taskCategoryIcon(
+                              category
+                                  .iconKey,
+                            ),
+                      size: 17,
+                      color:
+                          categoryColor,
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 10,
+                  ),
+                  Text(
+                    category?.name ??
+                        'Nessuna categoria',
+                    style:
+                        Theme.of(
+                      context,
+                    )
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(
+                              color:
+                                  categoryColor,
+                              fontWeight:
+                                  FontWeight
+                                      .w700,
+                            ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(
+                height: 34,
+              ),
+              const _SoftDivider(),
+              const SizedBox(
+                height: 28,
+              ),
+
+              const _SectionLabel(
+                text:
+                    'PRIORITÀ',
+              ),
+              const SizedBox(
+                height: 13,
+              ),
+
+              Row(
+                children: [
+                  Icon(
+                    Icons
+                        .flag_outlined,
+                    size: 19,
+                    color:
+                        priorityColor,
+                  ),
+                  const SizedBox(
+                    width: 9,
+                  ),
+                  Text(
+                    _priorityLabel(
+                      _task
+                          .priority,
+                    ),
+                    style:
+                        Theme.of(
+                      context,
+                    )
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(
+                              color:
+                                  priorityColor,
+                              fontWeight:
+                                  FontWeight
+                                      .w700,
+                            ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(
+                height: 34,
+              ),
+              const _SoftDivider(),
+              const SizedBox(
+                height: 28,
+              ),
+
+              const _SectionLabel(
+                text:
+                    'NOTE',
+              ),
+              const SizedBox(
+                height: 13,
+              ),
+
+              Text(
+                _task.description
+                        .trim()
+                        .isEmpty
+                    ? 'Nessuna nota.'
+                    : _task.description,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(
+                          height:
+                              1.55,
+                          color:
+                              _task.description
+                                      .trim()
+                                      .isEmpty
+                                  ? colorScheme
+                                      .onSurfaceVariant
+                                  : null,
+                        ),
+              ),
             ],
           );
         },
       ),
-
     );
   }
 }
-
 
 class _ActionSheetRow
     extends StatelessWidget {
@@ -1036,7 +1209,9 @@ class _ActionSheetRow
                 child: Text(
                   label,
                   style:
-                      Theme.of(context)
+                      Theme.of(
+                    context,
+                  )
                           .textTheme
                           .bodyLarge
                           ?.copyWith(
@@ -1079,20 +1254,16 @@ class _CompletionAction
     return Align(
       alignment:
           Alignment.centerLeft,
-
       child: Material(
         color:
             Colors.transparent,
-
         child: InkWell(
           onTap:
               onTap,
-
           borderRadius:
               BorderRadius.circular(
             20,
           ),
-
           child: Padding(
             padding:
                 const EdgeInsets
@@ -1100,16 +1271,13 @@ class _CompletionAction
               vertical: 7,
               horizontal: 2,
             ),
-
             child: Row(
               mainAxisSize:
                   MainAxisSize.min,
-
               children: [
                 Container(
                   width: 22,
                   height: 22,
-
                   decoration:
                       BoxDecoration(
                     color:
@@ -1129,7 +1297,6 @@ class _CompletionAction
                       width: 2,
                     ),
                   ),
-
                   child:
                       completed
                           ? Icon(
@@ -1141,17 +1308,17 @@ class _CompletionAction
                             )
                           : null,
                 ),
-
                 const SizedBox(
                   width: 10,
                 ),
-
                 Text(
                   completed
                       ? 'Completata'
                       : 'Segna come completata',
                   style:
-                      Theme.of(context)
+                      Theme.of(
+                    context,
+                  )
                           .textTheme
                           .bodyLarge
                           ?.copyWith(
@@ -1199,45 +1366,43 @@ class _OverdueNotice
         12,
         14,
       ),
-
       decoration:
           BoxDecoration(
         color:
-            colorScheme.errorContainer
+            colorScheme
+                .errorContainer
                 .withValues(
           alpha: 0.35,
         ),
-
         borderRadius:
             BorderRadius.circular(
           14,
         ),
       ),
-
       child: Row(
         children: [
           Icon(
             Icons
                 .event_repeat_outlined,
             color:
-                colorScheme.error,
+                colorScheme
+                    .error,
           ),
-
           const SizedBox(
             width: 12,
           ),
-
           Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment
                       .start,
-
               children: [
                 Text(
                   'DA RIPROGRAMMARE',
                   style:
-                      Theme.of(context)
+                      Theme.of(
+                    context,
+                  )
                           .textTheme
                           .labelSmall
                           ?.copyWith(
@@ -1251,23 +1416,22 @@ class _OverdueNotice
                                 0.7,
                           ),
                 ),
-
                 const SizedBox(
                   height: 2,
                 ),
-
                 Text(
                   'Questa attività è passata '
                   'e non risulta completata.',
                   style:
-                      Theme.of(context)
+                      Theme.of(
+                    context,
+                  )
                           .textTheme
                           .bodyMedium,
                 ),
               ],
             ),
           ),
-
           TextButton(
             onPressed:
                 onReschedule,
@@ -1302,13 +1466,16 @@ class _SectionLabel
               .labelMedium
               ?.copyWith(
                 color:
-                    Theme.of(context)
+                    Theme.of(
+                  context,
+                )
                         .colorScheme
                         .onSurfaceVariant,
                 fontWeight:
-                    FontWeight.w800,
+                    FontWeight
+                        .w800,
                 letterSpacing:
-                    1.0,
+                    1,
               ),
     );
   }
@@ -1337,14 +1504,13 @@ class _InfoLine
     return Row(
       crossAxisAlignment:
           CrossAxisAlignment.start,
-
       children: [
         Padding(
           padding:
-              const EdgeInsets.only(
+              const EdgeInsets
+                  .only(
             top: 2,
           ),
-
           child: Icon(
             icon,
             size: 19,
@@ -1353,21 +1519,21 @@ class _InfoLine
                     .onSurfaceVariant,
           ),
         ),
-
         const SizedBox(
           width: 11,
         ),
-
         Expanded(
           child: Column(
             crossAxisAlignment:
-                CrossAxisAlignment.start,
-
+                CrossAxisAlignment
+                    .start,
             children: [
               Text(
                 title,
                 style:
-                    Theme.of(context)
+                    Theme.of(
+                  context,
+                )
                         .textTheme
                         .bodySmall
                         ?.copyWith(
@@ -1379,15 +1545,15 @@ class _InfoLine
                                   .w600,
                         ),
               ),
-
               const SizedBox(
                 height: 2,
               ),
-
               Text(
                 value,
                 style:
-                    Theme.of(context)
+                    Theme.of(
+                  context,
+                )
                         .textTheme
                         .bodyLarge
                         ?.copyWith(
@@ -1459,11 +1625,9 @@ class _TimeRange
                         -0.4,
                   ),
         ),
-
         const SizedBox(
           width: 14,
         ),
-
         Expanded(
           child: Container(
             height: 1,
@@ -1472,11 +1636,9 @@ class _TimeRange
                     .outlineVariant,
           ),
         ),
-
         const SizedBox(
           width: 14,
         ),
-
         Flexible(
           child: Text(
             end,

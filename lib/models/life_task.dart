@@ -1,3 +1,5 @@
+import 'task_recurrence.dart';
+
 enum TaskPriority {
   low,
   normal,
@@ -9,7 +11,9 @@ class LifeTask {
   final String title;
   final String description;
 
-  /// Giorno assegnato all'attività, senza significato di orario.
+  /// Giorno assegnato all'attività.
+  ///
+  /// Per un'attività ricorrente è la data di inizio della serie.
   final DateTime? scheduledDate;
 
   /// Minuti trascorsi da mezzanotte (0..1439).
@@ -27,6 +31,15 @@ class LifeTask {
   final bool allDay;
   final TaskPriority priority;
 
+  /// Regola di ricorrenza della task.
+  ///
+  /// Una ricorrenza richiede [scheduledDate], che funge da inizio serie.
+  final TaskRecurrence recurrence;
+
+  /// Stato della task singola.
+  ///
+  /// Per le task ricorrenti lo stato effettivo viene salvato per singola
+  /// occorrenza e questo valore non viene usato come stato della serie.
   bool isCompleted;
 
   LifeTask({
@@ -39,6 +52,7 @@ class LifeTask {
     this.categoryId,
     this.allDay = false,
     this.priority = TaskPriority.normal,
+    this.recurrence = const TaskRecurrence.none(),
     this.isCompleted = false,
   }) : scheduledDate = scheduledDate == null
             ? null
@@ -48,8 +62,6 @@ class LifeTask {
                 scheduledDate.day,
               );
 
-  /// Getter di compatibilità utile per le viste calendario.
-  /// Se c'è solo la data, restituisce la mezzanotte di quel giorno.
   DateTime? get startAt {
     final date = scheduledDate;
 
@@ -72,7 +84,6 @@ class LifeTask {
     );
   }
 
-  /// Calcolato da data + ora inizio + durata.
   DateTime? get endAt {
     if (scheduledDate == null ||
         allDay ||
@@ -89,7 +100,8 @@ class LifeTask {
 
     return date.add(
       Duration(
-        minutes: startTimeMinutes! + durationMinutes!,
+        minutes:
+            startTimeMinutes! + durationMinutes!,
       ),
     );
   }

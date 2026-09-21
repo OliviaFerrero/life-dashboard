@@ -18,6 +18,10 @@ class TaskTimeline
     LifeTask task,
   ) accentColorBuilder;
 
+  final Color Function(
+    LifeTask task,
+  ) priorityColorBuilder;
+
   final String? nextTaskId;
 
   final Future<void> Function(
@@ -35,6 +39,7 @@ class TaskTimeline
     required this.timeLabelBuilder,
     required this.secondaryLabelBuilder,
     required this.accentColorBuilder,
+    required this.priorityColorBuilder,
     required this.onCompletedChanged,
     required this.onTaskTap,
     this.nextTaskId,
@@ -64,6 +69,11 @@ class TaskTimeline
 
             accentColor:
                 accentColorBuilder(
+              tasks[i],
+            ),
+
+            priorityColor:
+                priorityColorBuilder(
               tasks[i],
             ),
 
@@ -101,6 +111,7 @@ class _TaskTimelineItem
   final String timeLabel;
   final String secondaryLabel;
   final Color accentColor;
+  final Color priorityColor;
 
   final bool isFirst;
   final bool isLast;
@@ -117,6 +128,7 @@ class _TaskTimelineItem
     required this.timeLabel,
     required this.secondaryLabel,
     required this.accentColor,
+    required this.priorityColor,
     required this.isFirst,
     required this.isLast,
     required this.isNext,
@@ -290,42 +302,59 @@ class _TaskTimelineItem
                             .start,
 
                     children: [
-                      Text(
-                        task.title,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              task.title,
 
-                        maxLines: 1,
+                              maxLines: 1,
 
-                        overflow:
-                            TextOverflow
-                                .ellipsis,
+                              overflow:
+                                  TextOverflow
+                                      .ellipsis,
 
-                        style:
-                            Theme.of(
-                          context,
-                        )
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight:
-                                      isNext
-                                          ? FontWeight
-                                              .w700
-                                          : FontWeight
-                                              .w600,
+                              style:
+                                  Theme.of(
+                                context,
+                              )
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight:
+                                            isNext
+                                                ? FontWeight
+                                                    .w700
+                                                : FontWeight
+                                                    .w600,
 
-                                  color:
-                                      isNext &&
-                                              !task
-                                                  .isCompleted
-                                          ? accentColor
-                                          : null,
+                                        color:
+                                            isNext &&
+                                                    !task
+                                                        .isCompleted
+                                                ? accentColor
+                                                : null,
 
-                                  decoration:
-                                      task.isCompleted
-                                          ? TextDecoration
-                                              .lineThrough
-                                          : null,
-                                ),
+                                        decoration:
+                                            task.isCompleted
+                                                ? TextDecoration
+                                                    .lineThrough
+                                                : null,
+                                      ),
+                            ),
+                          ),
+
+                          const SizedBox(
+                            width: 6,
+                          ),
+
+                          Icon(
+                            Icons.flag_outlined,
+                            size: 15,
+                            color:
+                                priorityColor,
+                          ),
+                        ],
                       ),
 
                       if (secondaryLabel

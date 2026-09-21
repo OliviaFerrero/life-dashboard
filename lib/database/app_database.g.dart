@@ -507,6 +507,29 @@ class $TaskItemsTable extends TaskItems
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _recurrenceTypeMeta = const VerificationMeta(
+    'recurrenceType',
+  );
+  @override
+  late final GeneratedColumn<String> recurrenceType = GeneratedColumn<String>(
+    'recurrence_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('none'),
+  );
+  static const VerificationMeta _recurrenceWeekdaysMeta =
+      const VerificationMeta('recurrenceWeekdays');
+  @override
+  late final GeneratedColumn<int> recurrenceWeekdays = GeneratedColumn<int>(
+    'recurrence_weekdays',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -533,6 +556,8 @@ class $TaskItemsTable extends TaskItems
     allDay,
     priority,
     isCompleted,
+    recurrenceType,
+    recurrenceWeekdays,
     createdAt,
   ];
   @override
@@ -635,6 +660,24 @@ class $TaskItemsTable extends TaskItems
         ),
       );
     }
+    if (data.containsKey('recurrence_type')) {
+      context.handle(
+        _recurrenceTypeMeta,
+        recurrenceType.isAcceptableOrUnknown(
+          data['recurrence_type']!,
+          _recurrenceTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_weekdays')) {
+      context.handle(
+        _recurrenceWeekdaysMeta,
+        recurrenceWeekdays.isAcceptableOrUnknown(
+          data['recurrence_weekdays']!,
+          _recurrenceWeekdaysMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -698,6 +741,14 @@ class $TaskItemsTable extends TaskItems
         DriftSqlType.bool,
         data['${effectivePrefix}is_completed'],
       )!,
+      recurrenceType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_type'],
+      )!,
+      recurrenceWeekdays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}recurrence_weekdays'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -732,7 +783,18 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
   final String? categoryId;
   final bool allDay;
   final int priority;
+
+  /// Stato usato dalle task NON ricorrenti.
+  ///
+  /// Per le task ricorrenti lo stato viene salvato in
+  /// TaskOccurrenceStates, una riga per singola occorrenza completata.
   final bool isCompleted;
+
+  /// Valori stabili: none / daily / weekly.
+  final String recurrenceType;
+
+  /// Bit mask: bit 0 = lunedì ... bit 6 = domenica.
+  final int recurrenceWeekdays;
   final DateTime createdAt;
   const TaskItem({
     required this.id,
@@ -747,6 +809,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     required this.allDay,
     required this.priority,
     required this.isCompleted,
+    required this.recurrenceType,
+    required this.recurrenceWeekdays,
     required this.createdAt,
   });
   @override
@@ -776,6 +840,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     map['all_day'] = Variable<bool>(allDay);
     map['priority'] = Variable<int>(priority);
     map['is_completed'] = Variable<bool>(isCompleted);
+    map['recurrence_type'] = Variable<String>(recurrenceType);
+    map['recurrence_weekdays'] = Variable<int>(recurrenceWeekdays);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -806,6 +872,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       allDay: Value(allDay),
       priority: Value(priority),
       isCompleted: Value(isCompleted),
+      recurrenceType: Value(recurrenceType),
+      recurrenceWeekdays: Value(recurrenceWeekdays),
       createdAt: Value(createdAt),
     );
   }
@@ -828,6 +896,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       allDay: serializer.fromJson<bool>(json['allDay']),
       priority: serializer.fromJson<int>(json['priority']),
       isCompleted: serializer.fromJson<bool>(json['isCompleted']),
+      recurrenceType: serializer.fromJson<String>(json['recurrenceType']),
+      recurrenceWeekdays: serializer.fromJson<int>(json['recurrenceWeekdays']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -847,6 +917,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       'allDay': serializer.toJson<bool>(allDay),
       'priority': serializer.toJson<int>(priority),
       'isCompleted': serializer.toJson<bool>(isCompleted),
+      'recurrenceType': serializer.toJson<String>(recurrenceType),
+      'recurrenceWeekdays': serializer.toJson<int>(recurrenceWeekdays),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -864,6 +936,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     bool? allDay,
     int? priority,
     bool? isCompleted,
+    String? recurrenceType,
+    int? recurrenceWeekdays,
     DateTime? createdAt,
   }) => TaskItem(
     id: id ?? this.id,
@@ -884,6 +958,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     allDay: allDay ?? this.allDay,
     priority: priority ?? this.priority,
     isCompleted: isCompleted ?? this.isCompleted,
+    recurrenceType: recurrenceType ?? this.recurrenceType,
+    recurrenceWeekdays: recurrenceWeekdays ?? this.recurrenceWeekdays,
     createdAt: createdAt ?? this.createdAt,
   );
   TaskItem copyWithCompanion(TaskItemsCompanion data) {
@@ -912,6 +988,12 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
       isCompleted: data.isCompleted.present
           ? data.isCompleted.value
           : this.isCompleted,
+      recurrenceType: data.recurrenceType.present
+          ? data.recurrenceType.value
+          : this.recurrenceType,
+      recurrenceWeekdays: data.recurrenceWeekdays.present
+          ? data.recurrenceWeekdays.value
+          : this.recurrenceWeekdays,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -931,6 +1013,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
           ..write('allDay: $allDay, ')
           ..write('priority: $priority, ')
           ..write('isCompleted: $isCompleted, ')
+          ..write('recurrenceType: $recurrenceType, ')
+          ..write('recurrenceWeekdays: $recurrenceWeekdays, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -950,6 +1034,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
     allDay,
     priority,
     isCompleted,
+    recurrenceType,
+    recurrenceWeekdays,
     createdAt,
   );
   @override
@@ -968,6 +1054,8 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
           other.allDay == this.allDay &&
           other.priority == this.priority &&
           other.isCompleted == this.isCompleted &&
+          other.recurrenceType == this.recurrenceType &&
+          other.recurrenceWeekdays == this.recurrenceWeekdays &&
           other.createdAt == this.createdAt);
 }
 
@@ -984,6 +1072,8 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
   final Value<bool> allDay;
   final Value<int> priority;
   final Value<bool> isCompleted;
+  final Value<String> recurrenceType;
+  final Value<int> recurrenceWeekdays;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const TaskItemsCompanion({
@@ -999,6 +1089,8 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     this.allDay = const Value.absent(),
     this.priority = const Value.absent(),
     this.isCompleted = const Value.absent(),
+    this.recurrenceType = const Value.absent(),
+    this.recurrenceWeekdays = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1015,6 +1107,8 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     this.allDay = const Value.absent(),
     this.priority = const Value.absent(),
     this.isCompleted = const Value.absent(),
+    this.recurrenceType = const Value.absent(),
+    this.recurrenceWeekdays = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -1032,6 +1126,8 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     Expression<bool>? allDay,
     Expression<int>? priority,
     Expression<bool>? isCompleted,
+    Expression<String>? recurrenceType,
+    Expression<int>? recurrenceWeekdays,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -1048,6 +1144,8 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
       if (allDay != null) 'all_day': allDay,
       if (priority != null) 'priority': priority,
       if (isCompleted != null) 'is_completed': isCompleted,
+      if (recurrenceType != null) 'recurrence_type': recurrenceType,
+      if (recurrenceWeekdays != null) 'recurrence_weekdays': recurrenceWeekdays,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1066,6 +1164,8 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     Value<bool>? allDay,
     Value<int>? priority,
     Value<bool>? isCompleted,
+    Value<String>? recurrenceType,
+    Value<int>? recurrenceWeekdays,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -1082,6 +1182,8 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
       allDay: allDay ?? this.allDay,
       priority: priority ?? this.priority,
       isCompleted: isCompleted ?? this.isCompleted,
+      recurrenceType: recurrenceType ?? this.recurrenceType,
+      recurrenceWeekdays: recurrenceWeekdays ?? this.recurrenceWeekdays,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -1126,6 +1228,12 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
     if (isCompleted.present) {
       map['is_completed'] = Variable<bool>(isCompleted.value);
     }
+    if (recurrenceType.present) {
+      map['recurrence_type'] = Variable<String>(recurrenceType.value);
+    }
+    if (recurrenceWeekdays.present) {
+      map['recurrence_weekdays'] = Variable<int>(recurrenceWeekdays.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1150,7 +1258,295 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
           ..write('allDay: $allDay, ')
           ..write('priority: $priority, ')
           ..write('isCompleted: $isCompleted, ')
+          ..write('recurrenceType: $recurrenceType, ')
+          ..write('recurrenceWeekdays: $recurrenceWeekdays, ')
           ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TaskOccurrenceStatesTable extends TaskOccurrenceStates
+    with TableInfo<$TaskOccurrenceStatesTable, TaskOccurrenceStateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskOccurrenceStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+    'task_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES task_items (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _occurrenceDateMeta = const VerificationMeta(
+    'occurrenceDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> occurrenceDate =
+      GeneratedColumn<DateTime>(
+        'occurrence_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _isCompletedMeta = const VerificationMeta(
+    'isCompleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isCompleted = GeneratedColumn<bool>(
+    'is_completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_completed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [taskId, occurrenceDate, isCompleted];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_occurrence_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskOccurrenceStateRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('occurrence_date')) {
+      context.handle(
+        _occurrenceDateMeta,
+        occurrenceDate.isAcceptableOrUnknown(
+          data['occurrence_date']!,
+          _occurrenceDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_occurrenceDateMeta);
+    }
+    if (data.containsKey('is_completed')) {
+      context.handle(
+        _isCompletedMeta,
+        isCompleted.isAcceptableOrUnknown(
+          data['is_completed']!,
+          _isCompletedMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {taskId, occurrenceDate};
+  @override
+  TaskOccurrenceStateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskOccurrenceStateRow(
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_id'],
+      )!,
+      occurrenceDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}occurrence_date'],
+      )!,
+      isCompleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_completed'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskOccurrenceStatesTable createAlias(String alias) {
+    return $TaskOccurrenceStatesTable(attachedDatabase, alias);
+  }
+}
+
+class TaskOccurrenceStateRow extends DataClass
+    implements Insertable<TaskOccurrenceStateRow> {
+  final String taskId;
+
+  /// Giorno specifico dell'occorrenza, normalizzato a mezzanotte locale.
+  final DateTime occurrenceDate;
+  final bool isCompleted;
+  const TaskOccurrenceStateRow({
+    required this.taskId,
+    required this.occurrenceDate,
+    required this.isCompleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['task_id'] = Variable<String>(taskId);
+    map['occurrence_date'] = Variable<DateTime>(occurrenceDate);
+    map['is_completed'] = Variable<bool>(isCompleted);
+    return map;
+  }
+
+  TaskOccurrenceStatesCompanion toCompanion(bool nullToAbsent) {
+    return TaskOccurrenceStatesCompanion(
+      taskId: Value(taskId),
+      occurrenceDate: Value(occurrenceDate),
+      isCompleted: Value(isCompleted),
+    );
+  }
+
+  factory TaskOccurrenceStateRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskOccurrenceStateRow(
+      taskId: serializer.fromJson<String>(json['taskId']),
+      occurrenceDate: serializer.fromJson<DateTime>(json['occurrenceDate']),
+      isCompleted: serializer.fromJson<bool>(json['isCompleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'taskId': serializer.toJson<String>(taskId),
+      'occurrenceDate': serializer.toJson<DateTime>(occurrenceDate),
+      'isCompleted': serializer.toJson<bool>(isCompleted),
+    };
+  }
+
+  TaskOccurrenceStateRow copyWith({
+    String? taskId,
+    DateTime? occurrenceDate,
+    bool? isCompleted,
+  }) => TaskOccurrenceStateRow(
+    taskId: taskId ?? this.taskId,
+    occurrenceDate: occurrenceDate ?? this.occurrenceDate,
+    isCompleted: isCompleted ?? this.isCompleted,
+  );
+  TaskOccurrenceStateRow copyWithCompanion(TaskOccurrenceStatesCompanion data) {
+    return TaskOccurrenceStateRow(
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      occurrenceDate: data.occurrenceDate.present
+          ? data.occurrenceDate.value
+          : this.occurrenceDate,
+      isCompleted: data.isCompleted.present
+          ? data.isCompleted.value
+          : this.isCompleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskOccurrenceStateRow(')
+          ..write('taskId: $taskId, ')
+          ..write('occurrenceDate: $occurrenceDate, ')
+          ..write('isCompleted: $isCompleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(taskId, occurrenceDate, isCompleted);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskOccurrenceStateRow &&
+          other.taskId == this.taskId &&
+          other.occurrenceDate == this.occurrenceDate &&
+          other.isCompleted == this.isCompleted);
+}
+
+class TaskOccurrenceStatesCompanion
+    extends UpdateCompanion<TaskOccurrenceStateRow> {
+  final Value<String> taskId;
+  final Value<DateTime> occurrenceDate;
+  final Value<bool> isCompleted;
+  final Value<int> rowid;
+  const TaskOccurrenceStatesCompanion({
+    this.taskId = const Value.absent(),
+    this.occurrenceDate = const Value.absent(),
+    this.isCompleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskOccurrenceStatesCompanion.insert({
+    required String taskId,
+    required DateTime occurrenceDate,
+    this.isCompleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : taskId = Value(taskId),
+       occurrenceDate = Value(occurrenceDate);
+  static Insertable<TaskOccurrenceStateRow> custom({
+    Expression<String>? taskId,
+    Expression<DateTime>? occurrenceDate,
+    Expression<bool>? isCompleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (taskId != null) 'task_id': taskId,
+      if (occurrenceDate != null) 'occurrence_date': occurrenceDate,
+      if (isCompleted != null) 'is_completed': isCompleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskOccurrenceStatesCompanion copyWith({
+    Value<String>? taskId,
+    Value<DateTime>? occurrenceDate,
+    Value<bool>? isCompleted,
+    Value<int>? rowid,
+  }) {
+    return TaskOccurrenceStatesCompanion(
+      taskId: taskId ?? this.taskId,
+      occurrenceDate: occurrenceDate ?? this.occurrenceDate,
+      isCompleted: isCompleted ?? this.isCompleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (occurrenceDate.present) {
+      map['occurrence_date'] = Variable<DateTime>(occurrenceDate.value);
+    }
+    if (isCompleted.present) {
+      map['is_completed'] = Variable<bool>(isCompleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskOccurrenceStatesCompanion(')
+          ..write('taskId: $taskId, ')
+          ..write('occurrenceDate: $occurrenceDate, ')
+          ..write('isCompleted: $isCompleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1162,6 +1558,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $TaskCategoriesTable taskCategories = $TaskCategoriesTable(this);
   late final $TaskItemsTable taskItems = $TaskItemsTable(this);
+  late final $TaskOccurrenceStatesTable taskOccurrenceStates =
+      $TaskOccurrenceStatesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1169,6 +1567,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     taskCategories,
     taskItems,
+    taskOccurrenceStates,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -1178,6 +1577,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('task_items', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'task_items',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('task_occurrence_states', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -1505,6 +1911,8 @@ typedef $$TaskItemsTableCreateCompanionBuilder = TaskItemsCompanion Function({
   Value<bool> allDay,
   Value<int> priority,
   Value<bool> isCompleted,
+  Value<String> recurrenceType,
+  Value<int> recurrenceWeekdays,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
@@ -1521,6 +1929,8 @@ typedef $$TaskItemsTableUpdateCompanionBuilder = TaskItemsCompanion Function({
   Value<bool> allDay,
   Value<int> priority,
   Value<bool> isCompleted,
+  Value<String> recurrenceType,
+  Value<int> recurrenceWeekdays,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
@@ -1544,6 +1954,31 @@ final class $$TaskItemsTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $TaskOccurrenceStatesTable,
+    List<TaskOccurrenceStateRow>
+  >
+  _taskOccurrenceStatesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.taskOccurrenceStates,
+        aliasName: 'task_items__id__task_occurrence_states__task_id',
+      );
+
+  $$TaskOccurrenceStatesTableProcessedTableManager
+  get taskOccurrenceStatesRefs {
+    final manager = $$TaskOccurrenceStatesTableTableManager(
+      $_db,
+      $_db.taskOccurrenceStates,
+    ).filter((f) => f.taskId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _taskOccurrenceStatesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
@@ -1612,6 +2047,16 @@ class $$TaskItemsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get recurrenceType => $composableBuilder(
+    column: $table.recurrenceType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get recurrenceWeekdays => $composableBuilder(
+    column: $table.recurrenceWeekdays,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
@@ -1638,6 +2083,31 @@ class $$TaskItemsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> taskOccurrenceStatesRefs(
+    Expression<bool> Function($$TaskOccurrenceStatesTableFilterComposer f) f,
+  ) {
+    final $$TaskOccurrenceStatesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.taskOccurrenceStates,
+      getReferencedColumn: (t) => t.taskId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskOccurrenceStatesTableFilterComposer(
+            $db: $db,
+            $table: $db.taskOccurrenceStates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -1702,6 +2172,16 @@ class $$TaskItemsTableOrderingComposer
 
   ColumnOrderings<bool> get isCompleted => $composableBuilder(
     column: $table.isCompleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrenceType => $composableBuilder(
+    column: $table.recurrenceType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get recurrenceWeekdays => $composableBuilder(
+    column: $table.recurrenceWeekdays,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -1786,6 +2266,16 @@ class $$TaskItemsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get recurrenceType => $composableBuilder(
+    column: $table.recurrenceType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get recurrenceWeekdays => $composableBuilder(
+    column: $table.recurrenceWeekdays,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -1811,6 +2301,32 @@ class $$TaskItemsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> taskOccurrenceStatesRefs<T extends Object>(
+    Expression<T> Function($$TaskOccurrenceStatesTableAnnotationComposer a) f,
+  ) {
+    final $$TaskOccurrenceStatesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.taskOccurrenceStates,
+          getReferencedColumn: (t) => t.taskId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TaskOccurrenceStatesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.taskOccurrenceStates,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$TaskItemsTableTableManager
@@ -1826,7 +2342,10 @@ class $$TaskItemsTableTableManager
           $$TaskItemsTableUpdateCompanionBuilder,
           (TaskItem, $$TaskItemsTableReferences),
           TaskItem,
-          PrefetchHooks Function({bool categoryId})
+          PrefetchHooks Function({
+            bool categoryId,
+            bool taskOccurrenceStatesRefs,
+          })
         > {
   $$TaskItemsTableTableManager(_$AppDatabase db, $TaskItemsTable table)
     : super(
@@ -1853,6 +2372,8 @@ class $$TaskItemsTableTableManager
                 Value<bool> allDay = const Value.absent(),
                 Value<int> priority = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
+                Value<String> recurrenceType = const Value.absent(),
+                Value<int> recurrenceWeekdays = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TaskItemsCompanion(
@@ -1868,6 +2389,8 @@ class $$TaskItemsTableTableManager
                 allDay: allDay,
                 priority: priority,
                 isCompleted: isCompleted,
+                recurrenceType: recurrenceType,
+                recurrenceWeekdays: recurrenceWeekdays,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -1885,6 +2408,8 @@ class $$TaskItemsTableTableManager
                 Value<bool> allDay = const Value.absent(),
                 Value<int> priority = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
+                Value<String> recurrenceType = const Value.absent(),
+                Value<int> recurrenceWeekdays = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TaskItemsCompanion.insert(
@@ -1900,6 +2425,8 @@ class $$TaskItemsTableTableManager
                 allDay: allDay,
                 priority: priority,
                 isCompleted: isCompleted,
+                recurrenceType: recurrenceType,
+                recurrenceWeekdays: recurrenceWeekdays,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -1911,7 +2438,333 @@ class $$TaskItemsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({categoryId = false}) {
+          prefetchHooksCallback:
+              ({categoryId = false, taskOccurrenceStatesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (taskOccurrenceStatesRefs) db.taskOccurrenceStates,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (categoryId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.categoryId,
+                            referencedTable: $$TaskItemsTableReferences
+                                ._categoryIdTable(db),
+                            referencedColumn: $$TaskItemsTableReferences
+                                ._categoryIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (taskOccurrenceStatesRefs)
+                        await $_getPrefetchedData<
+                          TaskItem,
+                          $TaskItemsTable,
+                          TaskOccurrenceStateRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TaskItemsTableReferences
+                              ._taskOccurrenceStatesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TaskItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).taskOccurrenceStatesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.taskId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$TaskItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskItemsTable,
+      TaskItem,
+      $$TaskItemsTableFilterComposer,
+      $$TaskItemsTableOrderingComposer,
+      $$TaskItemsTableAnnotationComposer,
+      $$TaskItemsTableCreateCompanionBuilder,
+      $$TaskItemsTableUpdateCompanionBuilder,
+      (TaskItem, $$TaskItemsTableReferences),
+      TaskItem,
+      PrefetchHooks Function({bool categoryId, bool taskOccurrenceStatesRefs})
+    >;
+typedef $$TaskOccurrenceStatesTableCreateCompanionBuilder =
+    TaskOccurrenceStatesCompanion Function({
+      required String taskId,
+      required DateTime occurrenceDate,
+      Value<bool> isCompleted,
+      Value<int> rowid,
+    });
+typedef $$TaskOccurrenceStatesTableUpdateCompanionBuilder =
+    TaskOccurrenceStatesCompanion Function({
+      Value<String> taskId,
+      Value<DateTime> occurrenceDate,
+      Value<bool> isCompleted,
+      Value<int> rowid,
+    });
+
+final class $$TaskOccurrenceStatesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $TaskOccurrenceStatesTable,
+          TaskOccurrenceStateRow
+        > {
+  $$TaskOccurrenceStatesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TaskItemsTable _taskIdTable(_$AppDatabase db) => db.taskItems
+      .createAlias('task_occurrence_states__task_id__task_items__id');
+
+  $$TaskItemsTableProcessedTableManager get taskId {
+    final $_column = $_itemColumn<String>('task_id')!;
+
+    final manager = $$TaskItemsTableTableManager(
+      $_db,
+      $_db.taskItems,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_taskIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TaskOccurrenceStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskOccurrenceStatesTable> {
+  $$TaskOccurrenceStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isCompleted => $composableBuilder(
+    column: $table.isCompleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TaskItemsTableFilterComposer get taskId {
+    final $$TaskItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.taskId,
+      referencedTable: $db.taskItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.taskItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskOccurrenceStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskOccurrenceStatesTable> {
+  $$TaskOccurrenceStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isCompleted => $composableBuilder(
+    column: $table.isCompleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TaskItemsTableOrderingComposer get taskId {
+    final $$TaskItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.taskId,
+      referencedTable: $db.taskItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.taskItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskOccurrenceStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskOccurrenceStatesTable> {
+  $$TaskOccurrenceStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isCompleted => $composableBuilder(
+    column: $table.isCompleted,
+    builder: (column) => column,
+  );
+
+  $$TaskItemsTableAnnotationComposer get taskId {
+    final $$TaskItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.taskId,
+      referencedTable: $db.taskItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.taskItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskOccurrenceStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskOccurrenceStatesTable,
+          TaskOccurrenceStateRow,
+          $$TaskOccurrenceStatesTableFilterComposer,
+          $$TaskOccurrenceStatesTableOrderingComposer,
+          $$TaskOccurrenceStatesTableAnnotationComposer,
+          $$TaskOccurrenceStatesTableCreateCompanionBuilder,
+          $$TaskOccurrenceStatesTableUpdateCompanionBuilder,
+          (TaskOccurrenceStateRow, $$TaskOccurrenceStatesTableReferences),
+          TaskOccurrenceStateRow,
+          PrefetchHooks Function({bool taskId})
+        > {
+  $$TaskOccurrenceStatesTableTableManager(
+    _$AppDatabase db,
+    $TaskOccurrenceStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskOccurrenceStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskOccurrenceStatesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$TaskOccurrenceStatesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> taskId = const Value.absent(),
+                Value<DateTime> occurrenceDate = const Value.absent(),
+                Value<bool> isCompleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskOccurrenceStatesCompanion(
+                taskId: taskId,
+                occurrenceDate: occurrenceDate,
+                isCompleted: isCompleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String taskId,
+                required DateTime occurrenceDate,
+                Value<bool> isCompleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskOccurrenceStatesCompanion.insert(
+                taskId: taskId,
+                occurrenceDate: occurrenceDate,
+                isCompleted: isCompleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $TaskOccurrenceStatesTable,
+                    TaskOccurrenceStateRow
+                  >(table),
+                  $$TaskOccurrenceStatesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({taskId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -1931,14 +2784,14 @@ class $$TaskItemsTableTableManager
                       dynamic
                     >
                   >(state) {
-                    if (categoryId) {
+                    if (taskId) {
                       state = state.withJoin(
                         currentTable: table,
-                        currentColumn: table.categoryId,
-                        referencedTable: $$TaskItemsTableReferences
-                            ._categoryIdTable(db),
-                        referencedColumn: $$TaskItemsTableReferences
-                            ._categoryIdTable(db)
+                        currentColumn: table.taskId,
+                        referencedTable: $$TaskOccurrenceStatesTableReferences
+                            ._taskIdTable(db),
+                        referencedColumn: $$TaskOccurrenceStatesTableReferences
+                            ._taskIdTable(db)
                             .id,
                       ) as T;
                     }
@@ -1954,19 +2807,19 @@ class $$TaskItemsTableTableManager
       );
 }
 
-typedef $$TaskItemsTableProcessedTableManager =
+typedef $$TaskOccurrenceStatesTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $TaskItemsTable,
-      TaskItem,
-      $$TaskItemsTableFilterComposer,
-      $$TaskItemsTableOrderingComposer,
-      $$TaskItemsTableAnnotationComposer,
-      $$TaskItemsTableCreateCompanionBuilder,
-      $$TaskItemsTableUpdateCompanionBuilder,
-      (TaskItem, $$TaskItemsTableReferences),
-      TaskItem,
-      PrefetchHooks Function({bool categoryId})
+      $TaskOccurrenceStatesTable,
+      TaskOccurrenceStateRow,
+      $$TaskOccurrenceStatesTableFilterComposer,
+      $$TaskOccurrenceStatesTableOrderingComposer,
+      $$TaskOccurrenceStatesTableAnnotationComposer,
+      $$TaskOccurrenceStatesTableCreateCompanionBuilder,
+      $$TaskOccurrenceStatesTableUpdateCompanionBuilder,
+      (TaskOccurrenceStateRow, $$TaskOccurrenceStatesTableReferences),
+      TaskOccurrenceStateRow,
+      PrefetchHooks Function({bool taskId})
     >;
 
 class $AppDatabaseManager {
@@ -1976,4 +2829,6 @@ class $AppDatabaseManager {
       $$TaskCategoriesTableTableManager(_db, _db.taskCategories);
   $$TaskItemsTableTableManager get taskItems =>
       $$TaskItemsTableTableManager(_db, _db.taskItems);
+  $$TaskOccurrenceStatesTableTableManager get taskOccurrenceStates =>
+      $$TaskOccurrenceStatesTableTableManager(_db, _db.taskOccurrenceStates);
 }

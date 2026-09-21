@@ -63,8 +63,20 @@ class TaskItems extends Table {
   IntColumn get priority =>
       integer().withDefault(const Constant(1))();
 
+  /// Stato usato dalle task NON ricorrenti.
+  ///
+  /// Per le task ricorrenti lo stato viene salvato in
+  /// TaskOccurrenceStates, una riga per singola occorrenza completata.
   BoolColumn get isCompleted =>
       boolean().withDefault(const Constant(false))();
+
+  /// Valori stabili: none / daily / weekly.
+  TextColumn get recurrenceType =>
+      text().withDefault(const Constant('none'))();
+
+  /// Bit mask: bit 0 = lunedì ... bit 6 = domenica.
+  IntColumn get recurrenceWeekdays =>
+      integer().withDefault(const Constant(0))();
 
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
@@ -73,17 +85,39 @@ class TaskItems extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('TaskOccurrenceStateRow')
+class TaskOccurrenceStates extends Table {
+  TextColumn get taskId => text().references(
+        TaskItems,
+        #id,
+        onDelete: KeyAction.cascade,
+      )();
+
+  /// Giorno specifico dell'occorrenza, normalizzato a mezzanotte locale.
+  DateTimeColumn get occurrenceDate => dateTime()();
+
+  BoolColumn get isCompleted =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {
+        taskId,
+        occurrenceDate,
+      };
+}
+
 @DriftDatabase(
   tables: [
     TaskCategories,
     TaskItems,
+    TaskOccurrenceStates,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -92,10 +126,8 @@ class AppDatabase extends _$AppDatabase {
           await _seedDefaultCategories();
         },
         onUpgrade: (m, from, to) async {
-          // Prima portiamo fisicamente la tabella TaskItems allo schema
-          // corrente. Questo è importante anche per un eventuale salto
-          // diretto v1 -> v3, perché le query Drift usano lo schema
-          // generato più recente.
+          // Portiamo sempre TaskItems allo schema corrente prima di
+          // eseguire query con il codice Drift generato più recente.
           if (from < 2) {
             await m.addColumn(
               taskItems,
@@ -124,11 +156,23 @@ class AppDatabase extends _$AppDatabase {
             await _seedDefaultCategories();
           }
 
-          // Migrazione dati legacy v1 -> nuovo modello scheduling.
-          //
-          // Viene eseguita solo dopo aver aggiunto anche le eventuali
-          // colonne v3, così select(taskItems) può leggere in sicurezza
-          // lo schema corrente generato da Drift.
+          if (from < 4) {
+            await m.addColumn(
+              taskItems,
+              taskItems.recurrenceType,
+            );
+
+            await m.addColumn(
+              taskItems,
+              taskItems.recurrenceWeekdays,
+            );
+
+            await m.createTable(
+              taskOccurrenceStates,
+            );
+          }
+
+          // Migrazione dati legacy v1 -> scheduling flessibile.
           if (from < 2) {
             final oldRows = await select(taskItems).get();
 
@@ -160,7 +204,8 @@ class AppDatabase extends _$AppDatabase {
                   }
 
                   if (oldEnd != null) {
-                    final difference = oldEnd.difference(oldStart);
+                    final difference =
+                        oldEnd.difference(oldStart);
 
                     if (difference.inMinutes > 0) {
                       migratedDurationMinutes =
@@ -172,23 +217,26 @@ class AppDatabase extends _$AppDatabase {
 
               await (update(taskItems)
                     ..where(
-                      (item) => item.id.equals(row.id),
+                      (item) =>
+                          item.id.equals(row.id),
                     ))
                   .write(
                 TaskItemsCompanion(
-                  scheduledDate: Value(migratedDate),
-                  startTimeMinutes: Value(migratedStartMinutes),
-                  durationMinutes: Value(migratedDurationMinutes),
+                  scheduledDate:
+                      Value(migratedDate),
+                  startTimeMinutes:
+                      Value(migratedStartMinutes),
+                  durationMinutes:
+                      Value(migratedDurationMinutes),
                 ),
               );
             }
           }
         },
         beforeOpen: (details) async {
-          // SQLite non abilita le foreign key di default.
-          // Servono, tra le altre cose, per ON DELETE SET NULL
-          // su TaskItems.categoryId.
-          await customStatement('PRAGMA foreign_keys = ON');
+          await customStatement(
+            'PRAGMA foreign_keys = ON',
+          );
         },
       );
 
@@ -250,6 +298,8 @@ LazyDatabase _openConnection() {
       ),
     );
 
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(
+      file,
+    );
   });
 }
