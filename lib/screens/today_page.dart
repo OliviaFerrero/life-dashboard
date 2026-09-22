@@ -499,11 +499,6 @@ class TodayPage extends StatelessWidget {
                 now,
               );
 
-              final visibleOccurrences =
-                  occurrences
-                      .take(5)
-                      .toList();
-
               return StreamBuilder<int>(
                 stream:
                     taskRepository
@@ -695,7 +690,7 @@ class TodayPage extends StatelessWidget {
                           else
                             TaskTimeline(
                               occurrences:
-                                  visibleOccurrences,
+                                  occurrences,
                               windowStart:
                                   dayWindowStart,
                               windowEnd:
@@ -783,28 +778,6 @@ class TodayPage extends StatelessWidget {
                                   occurrence,
                                 );
                               },
-                            ),
-
-                          if (tasks.length >
-                              5)
-                            Align(
-                              alignment:
-                                  Alignment
-                                      .centerLeft,
-                              child:
-                                  TextButton(
-                                onPressed:
-                                    () {
-                                  _openTasks(
-                                    context,
-                                  );
-                                },
-                                child: Text(
-                                  'Altre '
-                                  '${tasks.length - 5} '
-                                  'attività',
-                                ),
-                              ),
                             ),
 
                           if (tasks.isNotEmpty)

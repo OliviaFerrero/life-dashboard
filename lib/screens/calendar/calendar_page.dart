@@ -28,6 +28,11 @@ enum _WeekOccurrenceAction {
   delete,
 }
 
+enum _WeekPinchAxis {
+  horizontal,
+  vertical,
+}
+
 class CalendarPage extends StatefulWidget {
   final TaskRepository taskRepository;
   final CategoryRepository categoryRepository;
@@ -42,12 +47,42 @@ class CalendarPage extends StatefulWidget {
   State<CalendarPage> createState() => _CalendarPageState();
 }
 
-class _CalendarPageState extends State<CalendarPage>
-    with SingleTickerProviderStateMixin {
-  static const double _weekHourHeight = 68;
+class _CalendarPageState extends State<CalendarPage> {
+  static const double _weekDefaultHourHeight = 68;
+  static const double _weekMinHourHeight = 40;
+  static const double _weekMaxHourHeight = 110;
+
+  static const double _weekDefaultDayWidth = 96;
+  static const double _weekMinDayWidth = 48;
+  static const double _weekMaxDayWidth = 180;
+
+  static const double _weekGridTopPadding = 12;
+  static const double _weekGridBottomPadding = 36;
   static const double _weekGutterWidth = 54;
-  static const double _weekMinDayWidth = 96;
-  static const double _weekHeaderDragDistance = 120;
+
+  double _weekHourHeight = _weekDefaultHourHeight;
+  double _weekDayWidth = _weekDefaultDayWidth;
+
+  final Map<int, Offset> _weekPointers =
+      <int, Offset>{};
+
+  _WeekPinchAxis? _weekPinchAxis;
+
+  double _weekPinchStartHorizontalSpan = 0;
+  double _weekPinchStartVerticalSpan = 0;
+
+  double _weekPinchStartHourHeight =
+      _weekDefaultHourHeight;
+  double _weekPinchStartDayWidth =
+      _weekDefaultDayWidth;
+  double _weekPinchFittedDayWidth =
+      _weekMinDayWidth;
+
+  double? _weekPinchAnchorMinutes;
+  double? _weekPinchAnchorDayPosition;
+  double? _weekPinchViewportFocalX;
+
+  bool _weekPinching = false;
 
   late DateTime _selectedDay;
   late DateTime _focusedDay;
@@ -57,20 +92,12 @@ class _CalendarPageState extends State<CalendarPage>
   bool _weekHeaderCollapsed = false;
   bool _weekUntimedExpanded = false;
 
-  late final AnimationController _weekHeaderController;
   final ScrollController _weekVerticalController = ScrollController();
+  final ScrollController _weekHorizontalController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-
-    _weekHeaderController = AnimationController(
-      vsync: this,
-      duration: const Duration(
-        milliseconds: 300,
-      ),
-      value: 0,
-    );
 
     final now = DateTime.now();
 
@@ -85,8 +112,8 @@ class _CalendarPageState extends State<CalendarPage>
 
   @override
   void dispose() {
-    _weekHeaderController.dispose();
     _weekVerticalController.dispose();
+    _weekHorizontalController.dispose();
     super.dispose();
   }
 
@@ -275,13 +302,13 @@ class _CalendarPageState extends State<CalendarPage>
     dynamic locale,
   ) {
     const weekdays = [
-      'L',
-      'M',
-      'M',
-      'G',
-      'V',
-      'S',
-      'D',
+      'LUN',
+      'MAR',
+      'MER',
+      'GIO',
+      'VEN',
+      'SAB',
+      'DOM',
     ];
 
     return weekdays[date.weekday - 1];
@@ -319,6 +346,39 @@ class _CalendarPageState extends State<CalendarPage>
         '${date.day} '
         '${months[date.month - 1]} '
         '${date.year}';
+  }
+
+  String _selectedAgendaDateLabel(
+    DateTime date,
+  ) {
+    const weekdays = [
+      'Lunedì',
+      'Martedì',
+      'Mercoledì',
+      'Giovedì',
+      'Venerdì',
+      'Sabato',
+      'Domenica',
+    ];
+
+    const months = [
+      'gennaio',
+      'febbraio',
+      'marzo',
+      'aprile',
+      'maggio',
+      'giugno',
+      'luglio',
+      'agosto',
+      'settembre',
+      'ottobre',
+      'novembre',
+      'dicembre',
+    ];
+
+    return '${weekdays[date.weekday - 1]} '
+        '${date.day} '
+        '${months[date.month - 1]}';
   }
 
   String _weekRangeLabel() {
@@ -584,8 +644,6 @@ class _CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    _weekHeaderController.value = 0;
-
     setState(() {
       _calendarFormat = format;
       _focusedDay = _selectedDay;
@@ -701,8 +759,7 @@ class _CalendarPageState extends State<CalendarPage>
           'Chiudi selettore vista',
       barrierColor:
           Colors.black.withValues(
-        alpha:
-            0.24,
+        alpha: 0.24,
       ),
       transitionDuration:
           const Duration(
@@ -718,24 +775,28 @@ class _CalendarPageState extends State<CalendarPage>
         return Align(
           alignment:
               Alignment.centerLeft,
-          child:
-              SafeArea(
-            child:
-                SizedBox(
-              width:
-                  math.min(
-                280.0,
-                MediaQuery.sizeOf(
-                      dialogContext,
-                    ).width *
-                    0.76,
-              ).toDouble(),
-              height:
-                  double.infinity,
-              child:
-                  _CalendarViewMenu(
-                selected:
-                    _calendarFormat,
+          child: SafeArea(
+            child: Material(
+              color:
+                  Theme.of(
+                dialogContext,
+              ).colorScheme.surface,
+              child: SizedBox(
+                width:
+                    math.min(
+                  280.0,
+                  MediaQuery.sizeOf(
+                        dialogContext,
+                      ).width *
+                      0.76,
+                ).toDouble(),
+                height:
+                    double.infinity,
+                child:
+                    _CalendarViewMenu(
+                  selected:
+                      _calendarFormat,
+                ),
               ),
             ),
           ),
@@ -748,7 +809,32 @@ class _CalendarPageState extends State<CalendarPage>
         secondaryAnimation,
         child,
       ) {
-        return child;
+        final curved =
+            CurvedAnimation(
+          parent:
+              animation,
+          curve:
+              Curves.easeOutCubic,
+          reverseCurve:
+              Curves.easeInCubic,
+        );
+
+        return SlideTransition(
+          position:
+              Tween<Offset>(
+            begin:
+                const Offset(
+              -1,
+              0,
+            ),
+            end:
+                Offset.zero,
+          ).animate(
+            curved,
+          ),
+          child:
+              child,
+        );
       },
     );
 
@@ -762,63 +848,16 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
-  void _updateWeekHeaderDrag(
-    DragUpdateDetails details,
+  void _setWeekHeaderCollapsed(
+    bool collapsed,
   ) {
-    if (_calendarFormat !=
-        CalendarFormat.week) {
+    if (_weekHeaderCollapsed == collapsed) {
       return;
     }
-
-    final delta =
-        details.primaryDelta ??
-            0;
-
-    final next =
-        (_weekHeaderController.value -
-                delta /
-                    _weekHeaderDragDistance)
-            .clamp(
-              0.0,
-              1.0,
-            );
-
-    _weekHeaderController.value =
-        next;
-  }
-
-  void _endWeekHeaderDrag(
-    DragEndDetails details,
-  ) {
-    if (_calendarFormat !=
-        CalendarFormat.week) {
-      return;
-    }
-
-    final velocity =
-        details.primaryVelocity ??
-            0;
-
-    final collapse =
-        velocity < -220
-            ? true
-            : velocity > 220
-                ? false
-                : _weekHeaderController.value >=
-                    0.5;
 
     setState(() {
-      _weekHeaderCollapsed =
-          collapse;
+      _weekHeaderCollapsed = collapsed;
     });
-
-    _weekHeaderController.animateTo(
-      collapse
-          ? 1
-          : 0,
-      curve:
-          Curves.easeInOutCubic,
-    );
   }
 
   void _toggleWeekUntimed(
@@ -1937,6 +1976,338 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  void _startWeekPinchIfPossible({
+    required double renderedDayWidth,
+    required double fittedDayWidth,
+  }) {
+    if (_weekPointers.length != 2) {
+      return;
+    }
+
+    final positions =
+        _weekPointers.values.toList();
+
+    final first =
+        positions[0];
+    final second =
+        positions[1];
+
+    _weekPinchStartHorizontalSpan =
+        (first.dx - second.dx).abs();
+    _weekPinchStartVerticalSpan =
+        (first.dy - second.dy).abs();
+
+    _weekPinchStartHourHeight =
+        _weekHourHeight;
+    _weekPinchStartDayWidth =
+        renderedDayWidth;
+    _weekPinchFittedDayWidth =
+        fittedDayWidth;
+
+    _weekPinchAxis = null;
+
+    final focalX =
+        (first.dx + second.dx) / 2;
+    final focalY =
+        (first.dy + second.dy) / 2;
+
+    final verticalScrollOffset =
+        _weekVerticalController.hasClients
+            ? _weekVerticalController.offset
+            : 0.0;
+
+    final gridY =
+        math.max(
+      0.0,
+      verticalScrollOffset +
+          focalY -
+          _weekGridTopPadding,
+    ).toDouble();
+
+    _weekPinchAnchorMinutes =
+        gridY /
+            _weekHourHeight *
+            60;
+
+    final horizontalScrollOffset =
+        _weekHorizontalController.hasClients
+            ? _weekHorizontalController.offset
+            : 0.0;
+
+    _weekPinchViewportFocalX =
+        focalX -
+            horizontalScrollOffset;
+
+    _weekPinchAnchorDayPosition =
+        ((focalX -
+                    _weekGutterWidth) /
+                renderedDayWidth)
+            .clamp(
+              0.0,
+              7.0,
+            )
+            .toDouble();
+
+    if (!_weekPinching) {
+      setState(() {
+        _weekPinching = true;
+      });
+    }
+  }
+
+  void _handleWeekPointerDown(
+    PointerDownEvent event, {
+    required double renderedDayWidth,
+    required double fittedDayWidth,
+  }) {
+    _weekPointers[event.pointer] =
+        event.localPosition;
+
+    if (_weekPointers.length == 2) {
+      _startWeekPinchIfPossible(
+        renderedDayWidth:
+            renderedDayWidth,
+        fittedDayWidth:
+            fittedDayWidth,
+      );
+    }
+  }
+
+  void _handleWeekPointerMove(
+    PointerMoveEvent event,
+  ) {
+    if (!_weekPointers.containsKey(
+      event.pointer,
+    )) {
+      return;
+    }
+
+    _weekPointers[event.pointer] =
+        event.localPosition;
+
+    if (_weekPointers.length != 2 ||
+        !_weekPinching) {
+      return;
+    }
+
+    final positions =
+        _weekPointers.values.toList();
+
+    final first =
+        positions[0];
+    final second =
+        positions[1];
+
+    final currentHorizontalSpan =
+        (first.dx - second.dx).abs();
+    final currentVerticalSpan =
+        (first.dy - second.dy).abs();
+
+    final horizontalDelta =
+        currentHorizontalSpan -
+            _weekPinchStartHorizontalSpan;
+
+    final verticalDelta =
+        currentVerticalSpan -
+            _weekPinchStartVerticalSpan;
+
+    if (_weekPinchAxis == null) {
+      final horizontalIntent =
+          horizontalDelta.abs();
+      final verticalIntent =
+          verticalDelta.abs();
+
+      // Piccola dead-zone: evita che il normale tremolio delle dita
+      // scelga subito un asse.
+      if (math.max(
+            horizontalIntent,
+            verticalIntent,
+          ) <
+          8) {
+        return;
+      }
+
+      _weekPinchAxis =
+          horizontalIntent >
+                  verticalIntent
+              ? _WeekPinchAxis.horizontal
+              : _WeekPinchAxis.vertical;
+    }
+
+    switch (_weekPinchAxis!) {
+      case _WeekPinchAxis.vertical:
+        final nextHourHeight =
+            (_weekPinchStartHourHeight *
+                    (1 +
+                        verticalDelta /
+                            140))
+                .clamp(
+                  _weekMinHourHeight,
+                  _weekMaxHourHeight,
+                )
+                .toDouble();
+
+        if ((nextHourHeight -
+                    _weekHourHeight)
+                .abs() <
+            0.05) {
+          return;
+        }
+
+        final focalY =
+            (first.dy + second.dy) / 2;
+
+        final anchorMinutes =
+            _weekPinchAnchorMinutes;
+
+        if (anchorMinutes == null) {
+          return;
+        }
+
+        setState(() {
+          _weekHourHeight =
+              nextHourHeight;
+        });
+
+        WidgetsBinding.instance
+            .addPostFrameCallback(
+          (_) {
+            if (!mounted ||
+                !_weekVerticalController
+                    .hasClients) {
+              return;
+            }
+
+            final targetOffset =
+                _weekGridTopPadding +
+                    anchorMinutes /
+                        60 *
+                        nextHourHeight -
+                    focalY;
+
+            final clampedOffset =
+                targetOffset
+                    .clamp(
+                      0.0,
+                      _weekVerticalController
+                          .position
+                          .maxScrollExtent,
+                    )
+                    .toDouble();
+
+            _weekVerticalController
+                .jumpTo(
+              clampedOffset,
+            );
+          },
+        );
+        break;
+
+      case _WeekPinchAxis.horizontal:
+        final nextStoredDayWidth =
+            (_weekPinchStartDayWidth *
+                    (1 +
+                        horizontalDelta /
+                            140))
+                .clamp(
+                  _weekMinDayWidth,
+                  _weekMaxDayWidth,
+                )
+                .toDouble();
+
+        final nextRenderedDayWidth =
+            math.max(
+          _weekPinchFittedDayWidth,
+          nextStoredDayWidth,
+        ).toDouble();
+
+        if ((nextStoredDayWidth -
+                    _weekDayWidth)
+                .abs() <
+            0.05) {
+          return;
+        }
+
+        final anchorDayPosition =
+            _weekPinchAnchorDayPosition;
+        final viewportFocalX =
+            _weekPinchViewportFocalX;
+
+        if (anchorDayPosition == null ||
+            viewportFocalX == null) {
+          return;
+        }
+
+        setState(() {
+          _weekDayWidth =
+              nextStoredDayWidth;
+        });
+
+        WidgetsBinding.instance
+            .addPostFrameCallback(
+          (_) {
+            if (!mounted ||
+                !_weekHorizontalController
+                    .hasClients) {
+              return;
+            }
+
+            final targetOffset =
+                _weekGutterWidth +
+                    anchorDayPosition *
+                        nextRenderedDayWidth -
+                    viewportFocalX;
+
+            final clampedOffset =
+                targetOffset
+                    .clamp(
+                      0.0,
+                      _weekHorizontalController
+                          .position
+                          .maxScrollExtent,
+                    )
+                    .toDouble();
+
+            _weekHorizontalController
+                .jumpTo(
+              clampedOffset,
+            );
+          },
+        );
+        break;
+    }
+  }
+
+  void _handleWeekPointerEnd(
+    PointerEvent event, {
+    required double renderedDayWidth,
+    required double fittedDayWidth,
+  }) {
+    _weekPointers.remove(
+      event.pointer,
+    );
+
+    _weekPinchAxis = null;
+    _weekPinchAnchorMinutes = null;
+    _weekPinchAnchorDayPosition = null;
+    _weekPinchViewportFocalX = null;
+
+    if (_weekPinching) {
+      setState(() {
+        _weekPinching = false;
+      });
+    }
+
+    if (_weekPointers.length == 2) {
+      _startWeekPinchIfPossible(
+        renderedDayWidth:
+            renderedDayWidth,
+        fittedDayWidth:
+            fittedDayWidth,
+      );
+    }
+  }
+
   void _scrollWeekNearMorning() {
     if (!_weekVerticalController.hasClients) {
       return;
@@ -2039,66 +2410,44 @@ class _CalendarPageState extends State<CalendarPage>
 
               return Column(
                 children: [
-                  AnimatedBuilder(
-                    animation:
-                        _weekHeaderController,
-                    child:
-                        _PeriodNavigationHeader(
-                      label:
-                          _periodLabel(),
-                      selectedDateLabel:
-                          _selectedDateLabel(
-                        _selectedDay,
-                      ),
-                      onPrevious: () {
-                        _changePeriod(
-                          -1,
-                        );
-                      },
-                      onNext: () {
-                        _changePeriod(
-                          1,
-                        );
-                      },
-                      onToday:
-                          _goToToday,
+                  AnimatedSize(
+                    duration:
+                        const Duration(
+                      milliseconds:
+                          180,
                     ),
-                    builder:
-                        (
-                      context,
-                      child,
-                    ) {
-                      if (_calendarFormat !=
-                          CalendarFormat.week) {
-                        return child!;
-                      }
-
-                      final visibleFraction =
-                          (1 -
-                                  _weekHeaderController
-                                      .value)
-                              .clamp(
-                                0.0,
-                                1.0,
-                              );
-
-                      return ClipRect(
-                        child:
-                            Align(
-                          alignment:
-                              Alignment.topCenter,
-                          heightFactor:
-                              visibleFraction,
-                          child:
-                              Opacity(
-                            opacity:
-                                visibleFraction,
-                            child:
-                                child,
-                          ),
-                        ),
-                      );
-                    },
+                    curve:
+                        Curves.easeOutCubic,
+                    alignment:
+                        Alignment.topCenter,
+                    child:
+                        _calendarFormat ==
+                                    CalendarFormat.week &&
+                                _weekHeaderCollapsed
+                            ? const SizedBox.shrink()
+                            : _PeriodNavigationHeader(
+                                label:
+                                    _periodLabel(),
+                                compact:
+                                    _calendarFormat ==
+                                        CalendarFormat.month,
+                                selectedDateLabel:
+                                    _selectedDateLabel(
+                                  _selectedDay,
+                                ),
+                                onPrevious: () {
+                                  _changePeriod(
+                                    -1,
+                                  );
+                                },
+                                onNext: () {
+                                  _changePeriod(
+                                    1,
+                                  );
+                                },
+                                onToday:
+                                    _goToToday,
+                              ),
                   ),
                   Expanded(
                     child:
@@ -2143,263 +2492,530 @@ class _CalendarPageState extends State<CalendarPage>
     List<TaskOccurrence> occurrences,
     Map<String, TaskCategory> categoryMap,
   ) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final now = DateTime.now();
+    final colorScheme =
+        Theme.of(context).colorScheme;
+    final now =
+        DateTime.now();
 
-    final selectedOccurrences = _occurrencesForDay(
+    final selectedOccurrences =
+        _occurrencesForDay(
       occurrences,
       _selectedDay,
     );
 
+    Widget buildMonthDay(
+      DateTime day, {
+      required bool selected,
+      required bool today,
+      required bool outside,
+    }) {
+      return _MonthDayCell(
+        day:
+            day,
+        selected:
+            selected,
+        today:
+            today,
+        outside:
+            outside,
+      );
+    }
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         20,
-        4,
+        0,
         20,
         100,
       ),
       children: [
-        Card(
-          margin: EdgeInsets.zero,
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.only(
-              bottom: 8,
-            ),
-            child: TableCalendar<TaskOccurrence>(
-              firstDay: DateTime(
-                now.year - 5,
-                1,
-                1,
-              ),
-              lastDay: DateTime(
-                now.year + 10,
-                12,
-                31,
-              ),
-              focusedDay: _focusedDay,
-              calendarFormat: CalendarFormat.month,
-              startingDayOfWeek: StartingDayOfWeek.monday,
-              availableGestures: AvailableGestures.horizontalSwipe,
-              selectedDayPredicate: (day) {
-                return isSameDay(
-                  _selectedDay,
-                  day,
-                );
-              },
-              eventLoader: (day) {
-                return _occurrencesForDay(
-                  occurrences,
-                  day,
-                );
-              },
-              calendarBuilders: CalendarBuilders<TaskOccurrence>(
-                markerBuilder: (
-                  context,
-                  day,
-                  events,
-                ) {
-                  if (events.isEmpty) {
-                    return null;
-                  }
-
-                  final visible = events.take(3).toList();
-
-                  return Positioned(
-                    bottom: 5,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (int i = 0;
-                            i < visible.length;
-                            i++) ...[
-                          Container(
-                            width: 5,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              color: _categoryColor(
-                                context,
-                                visible[i].displayTask,
-                                categoryMap,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          if (i != visible.length - 1)
-                            const SizedBox(
-                              width: 3,
-                            ),
-                        ],
-                      ],
-                    ),
-                  );
-                },
-              ),
-              onDaySelected: (
-                selectedDay,
-                focusedDay,
-              ) {
-                setState(() {
-                  _selectedDay = DateTime(
-                    selectedDay.year,
-                    selectedDay.month,
-                    selectedDay.day,
-                  );
-                  _focusedDay = focusedDay;
-                });
-              },
-              onPageChanged: (focusedDay) {
-                final targetDay =
-                    math.min(
-                  _selectedDay.day,
-                  _daysInMonth(
-                    focusedDay.year,
-                    focusedDay.month,
-                  ),
-                ).toInt();
-
-                setState(() {
-                  _focusedDay =
-                      focusedDay;
-                  _selectedDay =
-                      DateTime(
-                    focusedDay.year,
-                    focusedDay.month,
-                    targetDay,
-                  );
-                });
-              },
-              availableCalendarFormats: const {
-                CalendarFormat.month: 'Mese',
-              },
-              headerVisible: false,
-              headerStyle: HeaderStyle(
-                titleCentered: true,
-                formatButtonVisible: false,
-                titleTextFormatter: _monthYearLabel,
-                titleTextStyle: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ) ??
-                    const TextStyle(),
-                leftChevronIcon: Icon(
-                  Icons.chevron_left,
-                  color: colorScheme.onSurface,
-                ),
-                rightChevronIcon: Icon(
-                  Icons.chevron_right,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              daysOfWeekStyle: DaysOfWeekStyle(
-                dowTextFormatter: _weekdayLetter,
-                weekdayStyle: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-                weekendStyle: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              calendarStyle: CalendarStyle(
-                outsideDaysVisible: true,
-                markersMaxCount: 3,
-                markerSize: 5,
-                markerMargin: const EdgeInsets.symmetric(
-                  horizontal: 1.5,
-                ),
-                markerDecoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                selectedDecoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                selectedTextStyle: TextStyle(
-                  color: colorScheme.onPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
-                todayDecoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                todayTextStyle: TextStyle(
-                  color: colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w700,
-                ),
-                outsideTextStyle: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
+        Container(
+          padding:
+              const EdgeInsets.only(
+            top:
+                2,
+            bottom:
+                10,
+          ),
+          decoration:
+              BoxDecoration(
+            border:
+                Border(
+              bottom:
+                  BorderSide(
+                color:
+                    colorScheme
+                        .outlineVariant
+                        .withValues(
+                  alpha:
+                      0.55,
                 ),
               ),
             ),
           ),
-        ),
-        const SizedBox(
-          height: 30,
-        ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Text(
-                _selectedDateLabel(
-                  _selectedDay,
-                ),
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
+          child:
+              TableCalendar<
+                  TaskOccurrence>(
+            firstDay:
+                DateTime(
+              now.year - 5,
+              1,
+              1,
+            ),
+            lastDay:
+                DateTime(
+              now.year + 10,
+              12,
+              31,
+            ),
+            focusedDay:
+                _focusedDay,
+            calendarFormat:
+                CalendarFormat.month,
+            startingDayOfWeek:
+                StartingDayOfWeek
+                    .monday,
+            availableGestures:
+                AvailableGestures
+                    .horizontalSwipe,
+            rowHeight:
+                50,
+            daysOfWeekHeight:
+                28,
+            selectedDayPredicate:
+                (day) {
+              return isSameDay(
+                _selectedDay,
+                day,
+              );
+            },
+            eventLoader:
+                (day) {
+              return _occurrencesForDay(
+                occurrences,
+                day,
+              );
+            },
+            calendarBuilders:
+                CalendarBuilders<
+                    TaskOccurrence>(
+              defaultBuilder:
+                  (
+                context,
+                day,
+                focusedDay,
+              ) {
+                return buildMonthDay(
+                  day,
+                  selected:
+                      false,
+                  today:
+                      false,
+                  outside:
+                      false,
+                );
+              },
+              outsideBuilder:
+                  (
+                context,
+                day,
+                focusedDay,
+              ) {
+                return buildMonthDay(
+                  day,
+                  selected:
+                      false,
+                  today:
+                      false,
+                  outside:
+                      true,
+                );
+              },
+              todayBuilder:
+                  (
+                context,
+                day,
+                focusedDay,
+              ) {
+                return buildMonthDay(
+                  day,
+                  selected:
+                      false,
+                  today:
+                      true,
+                  outside:
+                      day.month !=
+                          focusedDay.month,
+                );
+              },
+              selectedBuilder:
+                  (
+                context,
+                day,
+                focusedDay,
+              ) {
+                return buildMonthDay(
+                  day,
+                  selected:
+                      true,
+                  today:
+                      isSameDay(
+                    day,
+                    now,
+                  ),
+                  outside:
+                      day.month !=
+                          focusedDay.month,
+                );
+              },
+              markerBuilder:
+                  (
+                context,
+                day,
+                events,
+              ) {
+                if (events.isEmpty) {
+                  return null;
+                }
+
+                final visible =
+                    events
+                        .take(
+                          3,
+                        )
+                        .toList();
+
+                final hiddenCount =
+                    events.length -
+                        visible.length;
+
+                return Positioned(
+                  bottom:
+                      6,
+                  left:
+                      0,
+                  right:
+                      0,
+                  child:
+                      Center(
+                    child:
+                        Row(
+                      mainAxisSize:
+                          MainAxisSize.min,
+                      children: [
+                        for (var i = 0;
+                            i <
+                                visible.length;
+                            i++) ...[
+                          Container(
+                            width:
+                                7,
+                            height:
+                                4,
+                            decoration:
+                                BoxDecoration(
+                              color:
+                                  _categoryColor(
+                                context,
+                                visible[i]
+                                    .displayTask,
+                                categoryMap,
+                              ),
+                              borderRadius:
+                                  BorderRadius.circular(
+                                99,
+                              ),
+                            ),
+                          ),
+                          if (i !=
+                                  visible.length -
+                                      1 ||
+                              hiddenCount >
+                                  0)
+                            const SizedBox(
+                              width:
+                                  3,
+                            ),
+                        ],
+                        if (hiddenCount >
+                            0)
+                          Text(
+                            '+$hiddenCount',
+                            style:
+                                Theme.of(
+                              context,
+                            )
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color:
+                                          colorScheme
+                                              .onSurfaceVariant,
+                                      fontSize:
+                                          8,
+                                      fontWeight:
+                                          FontWeight.w700,
+                                    ),
+                          ),
+                      ],
                     ),
+                  ),
+                );
+              },
+            ),
+            onDaySelected:
+                (
+              selectedDay,
+              focusedDay,
+            ) {
+              setState(() {
+                _selectedDay =
+                    DateTime(
+                  selectedDay.year,
+                  selectedDay.month,
+                  selectedDay.day,
+                );
+                _focusedDay =
+                    focusedDay;
+              });
+            },
+            onPageChanged:
+                (focusedDay) {
+              final targetDay =
+                  math.min(
+                _selectedDay.day,
+                _daysInMonth(
+                  focusedDay.year,
+                  focusedDay.month,
+                ),
+              ).toInt();
+
+              setState(() {
+                _focusedDay =
+                    focusedDay;
+                _selectedDay =
+                    DateTime(
+                  focusedDay.year,
+                  focusedDay.month,
+                  targetDay,
+                );
+              });
+            },
+            availableCalendarFormats:
+                const {
+              CalendarFormat.month:
+                  'Mese',
+            },
+            headerVisible:
+                false,
+            daysOfWeekStyle:
+                DaysOfWeekStyle(
+              dowTextFormatter:
+                  _weekdayLetter,
+              weekdayStyle:
+                  Theme.of(
+                context,
+              )
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+                        fontWeight:
+                            FontWeight.w800,
+                        letterSpacing:
+                            0.75,
+                      ) ??
+                  TextStyle(
+                    color:
+                        colorScheme
+                            .onSurfaceVariant,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+              weekendStyle:
+                  Theme.of(
+                context,
+              )
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+                        fontWeight:
+                            FontWeight.w800,
+                        letterSpacing:
+                            0.75,
+                      ) ??
+                  TextStyle(
+                    color:
+                        colorScheme
+                            .onSurfaceVariant,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+            ),
+            calendarStyle:
+                CalendarStyle(
+              outsideDaysVisible:
+                  true,
+              cellMargin:
+                  EdgeInsets.zero,
+              markersMaxCount:
+                  3,
+              canMarkersOverflow:
+                  false,
+              selectedDecoration:
+                  const BoxDecoration(
+                color:
+                    Colors.transparent,
+              ),
+              todayDecoration:
+                  const BoxDecoration(
+                color:
+                    Colors.transparent,
+              ),
+              defaultDecoration:
+                  const BoxDecoration(
+                color:
+                    Colors.transparent,
+              ),
+              weekendDecoration:
+                  const BoxDecoration(
+                color:
+                    Colors.transparent,
+              ),
+              outsideDecoration:
+                  const BoxDecoration(
+                color:
+                    Colors.transparent,
               ),
             ),
-            if (selectedOccurrences.isNotEmpty)
+          ),
+        ),
+
+        const SizedBox(
+          height:
+              18,
+        ),
+
+        Text(
+          'AGENDA DEL GIORNO',
+          style:
+              Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(
+                    color:
+                        colorScheme
+                            .onSurfaceVariant,
+                    fontWeight:
+                        FontWeight.w800,
+                    letterSpacing:
+                        1,
+                  ),
+        ),
+
+        const SizedBox(
+          height:
+              8,
+        ),
+
+        Row(
+          crossAxisAlignment:
+              CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child:
+                  Text(
+                _selectedAgendaDateLabel(
+                  _selectedDay,
+                ),
+                maxLines:
+                    1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(
+                          fontWeight:
+                              FontWeight.w700,
+                          letterSpacing:
+                              -0.3,
+                        ),
+              ),
+            ),
+            if (selectedOccurrences
+                .isNotEmpty)
               Text(
-                selectedOccurrences.length == 1
+                selectedOccurrences.length ==
+                        1
                     ? '1 attività'
                     : '${selectedOccurrences.length} attività',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(
+                          color:
+                              colorScheme
+                                  .onSurfaceVariant,
+                          fontWeight:
+                              FontWeight.w600,
+                        ),
               ),
           ],
         ),
+
         const SizedBox(
-          height: 12,
+          height:
+              14,
         ),
-        if (selectedOccurrences.isEmpty)
+
+        if (selectedOccurrences
+            .isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: 22,
+            padding:
+                const EdgeInsets.symmetric(
+              vertical:
+                  22,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child:
+                Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Icon(
-                  Icons.event_available_outlined,
-                  color: colorScheme.primary,
+                  Icons
+                      .event_available_outlined,
+                  size:
+                      21,
+                  color:
+                      colorScheme.primary,
                 ),
                 const SizedBox(
-                  width: 14,
+                  width:
+                      14,
                 ),
                 Expanded(
-                  child: Text(
-                    'Nessuna attività programmata per questo giorno.',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                  child:
+                      Text(
+                    'Nessuna attività '
+                    'programmata per questo giorno.',
+                    style:
+                        Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(
+                              color:
+                                  colorScheme
+                                      .onSurfaceVariant,
+                            ),
                   ),
                 ),
               ],
@@ -2408,46 +3024,68 @@ class _CalendarPageState extends State<CalendarPage>
         else
           Column(
             children: [
-              for (int i = 0;
-                  i < selectedOccurrences.length;
+              for (var i = 0;
+                  i <
+                      selectedOccurrences
+                          .length;
                   i++) ...[
                 _CalendarTaskRow(
-                  task: selectedOccurrences[i].displayTask,
-                  timeLabel: _timeLabelForOccurrenceOnDay(
+                  task:
+                      selectedOccurrences[i]
+                          .displayTask,
+                  timeLabel:
+                      _timeLabelForOccurrenceOnDay(
                     selectedOccurrences[i],
                     _selectedDay,
                   ),
-                  secondaryLabel: _secondaryLabelForOccurrenceOnDay(
+                  secondaryLabel:
+                      _secondaryLabelForOccurrenceOnDay(
                     selectedOccurrences[i],
                     _selectedDay,
                   ),
-                  category: selectedOccurrences[i]
-                              .displayTask
-                              .categoryId ==
-                          null
-                      ? null
-                      : categoryMap[
-                          selectedOccurrences[i].displayTask.categoryId
-                        ],
-                  priorityColor: _priorityColor(
+                  category:
+                      selectedOccurrences[i]
+                                  .displayTask
+                                  .categoryId ==
+                              null
+                          ? null
+                          : categoryMap[
+                              selectedOccurrences[i]
+                                  .displayTask
+                                  .categoryId
+                            ],
+                  priorityColor:
+                      _priorityColor(
                     context,
-                    selectedOccurrences[i].displayTask.priority,
+                    selectedOccurrences[i]
+                        .displayTask
+                        .priority,
                   ),
-                  priorityLabel: _priorityLabel(
-                    selectedOccurrences[i].displayTask.priority,
+                  priorityLabel:
+                      _priorityLabel(
+                    selectedOccurrences[i]
+                        .displayTask
+                        .priority,
                   ),
-                  onCompletedChanged: (completed) async {
-                    final occurrence = selectedOccurrences[i];
+                  onCompletedChanged:
+                      (completed) async {
+                    final occurrence =
+                        selectedOccurrences[i];
 
                     if (completed) {
-                      final remaining = occurrence.subtasks
-                          .where(
-                            (subtask) => !subtask.isCompleted,
-                          )
-                          .length;
+                      final remaining =
+                          occurrence
+                              .subtasks
+                              .where(
+                                (subtask) =>
+                                    !subtask
+                                        .isCompleted,
+                              )
+                              .length;
 
                       if (remaining > 0) {
-                        final confirmed = await _confirmCompleteAll(
+                        final confirmed =
+                            await _confirmCompleteAll(
                           remaining,
                         );
 
@@ -2457,22 +3095,33 @@ class _CalendarPageState extends State<CalendarPage>
                       }
                     }
 
-                    await widget.taskRepository.setOccurrenceCompleted(
+                    await widget
+                        .taskRepository
+                        .setOccurrenceCompleted(
                       occurrence,
                       completed,
                     );
                   },
-                  onTap: () {
+                  onTap:
+                      () {
                     _openTaskDetail(
                       selectedOccurrences[i],
                     );
                   },
                 ),
-                if (i != selectedOccurrences.length - 1)
+                if (i !=
+                    selectedOccurrences
+                            .length -
+                        1)
                   Divider(
-                    indent: 96,
-                    color: colorScheme.outlineVariant.withValues(
-                      alpha: 0.55,
+                    indent:
+                        96,
+                    color:
+                        colorScheme
+                            .outlineVariant
+                            .withValues(
+                      alpha:
+                          0.48,
                     ),
                   ),
               ],
@@ -2661,14 +3310,57 @@ class _CalendarPageState extends State<CalendarPage>
         maxUntimed >
         0;
 
+    final untimedScale =
+        (_weekHourHeight /
+                _weekDefaultHourHeight)
+            .clamp(
+              0.65,
+              1.35,
+            )
+            .toDouble();
+
+    final untimedChipHeight =
+        (28.0 *
+                untimedScale)
+            .clamp(
+              22.0,
+              34.0,
+            )
+            .toDouble();
+
+    final untimedGap =
+        (5.0 *
+                untimedScale)
+            .clamp(
+              3.0,
+              6.0,
+            )
+            .toDouble();
+
+    final untimedVerticalPadding =
+        (6.0 *
+                untimedScale)
+            .clamp(
+              4.0,
+              8.0,
+            )
+            .toDouble();
+
     final untimedOverlayHeight =
         math.min(
-      176.0,
+      176.0 *
+          untimedScale,
       math.max(
-        52.0,
-        14 +
+        46.0,
+        untimedVerticalPadding *
+                2 +
             maxUntimed *
-                34.0,
+                untimedChipHeight +
+            math.max(
+                  0,
+                  maxUntimed - 1,
+                ) *
+                untimedGap,
       ),
     ).toDouble();
 
@@ -2681,12 +3373,18 @@ class _CalendarPageState extends State<CalendarPage>
         final viewportWidth =
             constraints.maxWidth;
 
-        final dayWidth =
+        final fittedDayWidth =
             math.max(
           _weekMinDayWidth,
           (viewportWidth -
                   _weekGutterWidth) /
               7,
+        ).toDouble();
+
+        final dayWidth =
+            math.max(
+          fittedDayWidth,
+          _weekDayWidth,
         ).toDouble();
 
         final totalWidth =
@@ -2695,16 +3393,29 @@ class _CalendarPageState extends State<CalendarPage>
                 7;
 
         return SingleChildScrollView(
+          controller:
+              _weekHorizontalController,
+          physics:
+              _weekPinching
+                  ? const NeverScrollableScrollPhysics()
+                  : null,
           scrollDirection:
               Axis.horizontal,
           child:
-              SizedBox(
-            width:
-                totalWidth,
-            height:
-                constraints.maxHeight,
+              Padding(
+            padding:
+                const EdgeInsets.only(
+              right:
+                  16,
+            ),
             child:
-                Column(
+                SizedBox(
+              width:
+                  totalWidth,
+              height:
+                  constraints.maxHeight,
+              child:
+                  Column(
               children: [
                 _WeekDayHeader(
                   days:
@@ -2723,10 +3434,8 @@ class _CalendarPageState extends State<CalendarPage>
                       untimedByDay,
                   categoryMap:
                       categoryMap,
-                  onVerticalDragUpdate:
-                      _updateWeekHeaderDrag,
-                  onVerticalDragEnd:
-                      _endWeekHeaderDrag,
+                  onCollapsedChanged:
+                      _setWeekHeaderCollapsed,
                   onUntimedToggle:
                       _toggleWeekUntimed,
                   onDaySelected:
@@ -2745,31 +3454,82 @@ class _CalendarPageState extends State<CalendarPage>
                     children: [
                       Positioned.fill(
                         child:
-                            SingleChildScrollView(
-                          controller:
-                              _weekVerticalController,
+                            Listener(
+                          behavior:
+                              HitTestBehavior.translucent,
+                          onPointerDown:
+                              (event) {
+                            _handleWeekPointerDown(
+                              event,
+                              renderedDayWidth:
+                                  dayWidth,
+                              fittedDayWidth:
+                                  fittedDayWidth,
+                            );
+                          },
+                          onPointerMove:
+                              _handleWeekPointerMove,
+                          onPointerUp:
+                              (event) {
+                            _handleWeekPointerEnd(
+                              event,
+                              renderedDayWidth:
+                                  dayWidth,
+                              fittedDayWidth:
+                                  fittedDayWidth,
+                            );
+                          },
+                          onPointerCancel:
+                              (event) {
+                            _handleWeekPointerEnd(
+                              event,
+                              renderedDayWidth:
+                                  dayWidth,
+                              fittedDayWidth:
+                                  fittedDayWidth,
+                            );
+                          },
                           child:
-                              _WeekHourlyGrid(
-                            days:
-                                days,
-                            selectedDay:
-                                _selectedDay,
-                            timedByDay:
-                                timedSegmentsByDay,
-                            categoryMap:
-                                categoryMap,
-                            hourHeight:
-                                _weekHourHeight,
-                            gutterWidth:
-                                _weekGutterWidth,
-                            dayWidth:
-                                dayWidth,
-                            onOpen:
-                                _openTaskDetail,
-                            onMove:
-                                _moveOccurrenceInWeek,
-                            onActions:
-                                _showOccurrenceActions,
+                              SingleChildScrollView(
+                            controller:
+                                _weekVerticalController,
+                            physics:
+                                _weekPinching
+                                    ? const NeverScrollableScrollPhysics()
+                                    : null,
+                            child:
+                                Padding(
+                              padding:
+                                  const EdgeInsets.only(
+                                top:
+                                    _weekGridTopPadding,
+                                bottom:
+                                    _weekGridBottomPadding,
+                              ),
+                              child:
+                                  _WeekHourlyGrid(
+                                days:
+                                    days,
+                                selectedDay:
+                                    _selectedDay,
+                                timedByDay:
+                                    timedSegmentsByDay,
+                                categoryMap:
+                                    categoryMap,
+                                hourHeight:
+                                    _weekHourHeight,
+                                gutterWidth:
+                                    _weekGutterWidth,
+                                dayWidth:
+                                    dayWidth,
+                                onOpen:
+                                    _openTaskDetail,
+                                onMove:
+                                    _moveOccurrenceInWeek,
+                                onActions:
+                                    _showOccurrenceActions,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -2790,6 +3550,12 @@ class _CalendarPageState extends State<CalendarPage>
                                 _weekGutterWidth,
                             dayWidth:
                                 dayWidth,
+                            chipHeight:
+                                untimedChipHeight,
+                            itemGap:
+                                untimedGap,
+                            verticalPadding:
+                                untimedVerticalPadding,
                             untimedByDay:
                                 untimedByDay,
                             categoryMap:
@@ -2814,9 +3580,146 @@ class _CalendarPageState extends State<CalendarPage>
                 ),
               ],
             ),
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+
+
+class _MonthDayCell extends StatelessWidget {
+  final DateTime day;
+  final bool selected;
+  final bool today;
+  final bool outside;
+
+  const _MonthDayCell({
+    required this.day,
+    required this.selected,
+    required this.today,
+    required this.outside,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    final textColor =
+        outside
+            ? colorScheme
+                .onSurfaceVariant
+                .withValues(
+                  alpha:
+                      0.34,
+                )
+            : selected || today
+                ? colorScheme.primary
+                : colorScheme.onSurface;
+
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal:
+            4,
+        vertical:
+            5,
+      ),
+      child:
+          AnimatedContainer(
+        duration:
+            const Duration(
+          milliseconds:
+              150,
+        ),
+        curve:
+            Curves.easeOutCubic,
+        decoration:
+            BoxDecoration(
+          color:
+              selected
+                  ? colorScheme
+                      .primary
+                      .withValues(
+                        alpha:
+                            0.10,
+                      )
+                  : Colors
+                      .transparent,
+          borderRadius:
+              BorderRadius.circular(
+            10,
+          ),
+          border:
+              selected
+                  ? Border.all(
+                      color:
+                          colorScheme
+                              .primary
+                              .withValues(
+                        alpha:
+                            0.20,
+                      ),
+                    )
+                  : null,
+        ),
+        child:
+            Stack(
+          alignment:
+              Alignment.topCenter,
+          children: [
+            Positioned(
+              top:
+                  8,
+              child:
+                  Text(
+                '${day.day}',
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(
+                          color:
+                              textColor,
+                          fontWeight:
+                              selected || today
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                        ),
+              ),
+            ),
+            if (today &&
+                !selected &&
+                !outside)
+              Positioned(
+                top:
+                    30,
+                child:
+                    Container(
+                  width:
+                      12,
+                  height:
+                      2,
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        colorScheme
+                            .primary,
+                    borderRadius:
+                        BorderRadius.circular(
+                      99,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -3024,6 +3927,7 @@ class _PeriodNavigationHeader
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onToday;
+  final bool compact;
 
   const _PeriodNavigationHeader({
     required this.label,
@@ -3031,6 +3935,7 @@ class _PeriodNavigationHeader
     required this.onPrevious,
     required this.onNext,
     required this.onToday,
+    this.compact = false,
   });
 
   @override
@@ -3042,11 +3947,13 @@ class _PeriodNavigationHeader
 
     return Padding(
       padding:
-          const EdgeInsets.fromLTRB(
+          EdgeInsets.fromLTRB(
         12,
         4,
         12,
-        12,
+        compact
+            ? 4
+            : 12,
       ),
       child: Column(
         children: [
@@ -3141,78 +4048,12 @@ class _PeriodNavigationHeader
 }
 
 class _CalendarViewMenu
-    extends StatefulWidget {
+    extends StatelessWidget {
   final CalendarFormat selected;
 
   const _CalendarViewMenu({
     required this.selected,
   });
-
-  @override
-  State<_CalendarViewMenu>
-      createState() =>
-          _CalendarViewMenuState();
-}
-
-class _CalendarViewMenuState
-    extends State<_CalendarViewMenu> {
-  static const _animationDuration =
-      Duration(
-    milliseconds:
-        240,
-  );
-
-  bool _visible =
-      false;
-  bool _closing =
-      false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    WidgetsBinding.instance
-        .addPostFrameCallback(
-      (_) {
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          _visible =
-              true;
-        });
-      },
-    );
-  }
-
-  Future<void> _select(
-    CalendarFormat format,
-  ) async {
-    if (_closing) {
-      return;
-    }
-
-    setState(() {
-      _closing =
-          true;
-      _visible =
-          false;
-    });
-
-    await Future<void>.delayed(
-      _animationDuration,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.pop(
-      context,
-      format,
-    );
-  }
 
   @override
   Widget build(
@@ -3221,145 +4062,108 @@ class _CalendarViewMenuState
     final colorScheme =
         Theme.of(context).colorScheme;
 
-    return AnimatedSlide(
-      duration:
-          _animationDuration,
-      curve:
-          _visible
-              ? Curves.easeOutCubic
-              : Curves.easeInCubic,
-      offset:
-          _visible
-              ? Offset.zero
-              : const Offset(
-                  -1,
-                  0,
-                ),
-      child:
-          AnimatedOpacity(
-        duration:
-            const Duration(
-          milliseconds:
-              170,
-        ),
-        opacity:
-            _visible
-                ? 1
-                : 0.92,
-        child:
-            Material(
-          color:
-              colorScheme.surface,
-          child:
-              DecoratedBox(
-            decoration:
-                BoxDecoration(
-              border:
-                  Border(
-                right:
-                    BorderSide(
-                  color:
-                      colorScheme
-                          .outlineVariant
-                          .withValues(
-                    alpha:
-                        0.55,
-                  ),
-                ),
-              ),
-            ),
-            child:
-                Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(
-                22,
-                28,
-                18,
-                20,
-              ),
-              child:
-                  Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Calendario',
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(
-                              fontWeight:
-                                  FontWeight.w700,
-                              letterSpacing:
-                                  -0.5,
-                            ),
-                  ),
-                  const SizedBox(
-                    height:
-                        28,
-                  ),
-                  Text(
-                    'VISTA',
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .labelMedium
-                            ?.copyWith(
-                              color:
-                                  colorScheme
-                                      .onSurfaceVariant,
-                              fontWeight:
-                                  FontWeight.w800,
-                              letterSpacing:
-                                  1,
-                            ),
-                  ),
-                  const SizedBox(
-                    height:
-                        8,
-                  ),
-                  _CalendarViewMenuRow(
-                    icon:
-                        Icons
-                            .calendar_month_outlined,
-                    label:
-                        'Mese',
-                    selected:
-                        widget.selected ==
-                        CalendarFormat.month,
-                    onTap:
-                        () {
-                      _select(
-                        CalendarFormat.month,
-                      );
-                    },
-                  ),
-                  _CalendarViewMenuRow(
-                    icon:
-                        Icons
-                            .view_week_outlined,
-                    label:
-                        'Settimana',
-                    selected:
-                        widget.selected ==
-                        CalendarFormat.week,
-                    onTap:
-                        () {
-                      _select(
-                        CalendarFormat.week,
-                      );
-                    },
-                  ),
-                  const Spacer(),
-                ],
-              ),
+    return DecoratedBox(
+      decoration:
+          BoxDecoration(
+        border:
+            Border(
+          right:
+              BorderSide(
+            color:
+                colorScheme
+                    .outlineVariant
+                    .withValues(
+              alpha:
+                  0.55,
             ),
           ),
+        ),
+      ),
+      child: Padding(
+        padding:
+            const EdgeInsets.fromLTRB(
+          22,
+          28,
+          18,
+          20,
+        ),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Calendario',
+              style:
+                  Theme.of(
+                context,
+              )
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(
+                        fontWeight:
+                            FontWeight.w700,
+                        letterSpacing:
+                            -0.5,
+                      ),
+            ),
+            const SizedBox(
+              height:
+                  28,
+            ),
+            Text(
+              'VISTA',
+              style:
+                  Theme.of(
+                context,
+              )
+                      .textTheme
+                      .labelMedium
+                      ?.copyWith(
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+                        fontWeight:
+                            FontWeight.w800,
+                        letterSpacing:
+                            1,
+                      ),
+            ),
+            const SizedBox(
+              height:
+                  8,
+            ),
+            _CalendarViewMenuRow(
+              icon:
+                  Icons.calendar_month_outlined,
+              label:
+                  'Mese',
+              selected:
+                  selected ==
+                  CalendarFormat.month,
+              onTap: () {
+                Navigator.pop(
+                  context,
+                  CalendarFormat.month,
+                );
+              },
+            ),
+            _CalendarViewMenuRow(
+              icon:
+                  Icons.view_week_outlined,
+              label:
+                  'Settimana',
+              selected:
+                  selected ==
+                  CalendarFormat.week,
+              onTap: () {
+                Navigator.pop(
+                  context,
+                  CalendarFormat.week,
+                );
+              },
+            ),
+            const Spacer(),
+          ],
         ),
       ),
     );
@@ -3482,8 +4286,7 @@ class _WeekDayHeader extends StatelessWidget {
   final bool untimedExpanded;
   final Map<int, List<TaskOccurrence>> untimedByDay;
   final Map<String, TaskCategory> categoryMap;
-  final GestureDragUpdateCallback onVerticalDragUpdate;
-  final GestureDragEndCallback onVerticalDragEnd;
+  final ValueChanged<bool> onCollapsedChanged;
   final ValueChanged<DateTime> onUntimedToggle;
   final ValueChanged<DateTime> onDaySelected;
 
@@ -3496,8 +4299,7 @@ class _WeekDayHeader extends StatelessWidget {
     required this.untimedExpanded,
     required this.untimedByDay,
     required this.categoryMap,
-    required this.onVerticalDragUpdate,
-    required this.onVerticalDragEnd,
+    required this.onCollapsedChanged,
     required this.onUntimedToggle,
     required this.onDaySelected,
   });
@@ -3569,10 +4371,24 @@ class _WeekDayHeader extends StatelessWidget {
     return GestureDetector(
       behavior:
           HitTestBehavior.translucent,
-      onVerticalDragUpdate:
-          onVerticalDragUpdate,
       onVerticalDragEnd:
-          onVerticalDragEnd,
+          (details) {
+        final velocity =
+            details.primaryVelocity ??
+                0;
+
+        if (velocity <
+            -120) {
+          onCollapsedChanged(
+            true,
+          );
+        } else if (velocity >
+            120) {
+          onCollapsedChanged(
+            false,
+          );
+        }
+      },
       child:
           SizedBox(
         height:
@@ -3857,6 +4673,9 @@ class _WeekDayHeader extends StatelessWidget {
 class _WeekUntimedOverlay extends StatelessWidget {
   final double gutterWidth;
   final double dayWidth;
+  final double chipHeight;
+  final double itemGap;
+  final double verticalPadding;
   final Map<int, List<TaskOccurrence>> untimedByDay;
   final Map<String, TaskCategory> categoryMap;
   final ValueChanged<TaskOccurrence> onOpen;
@@ -3867,6 +4686,9 @@ class _WeekUntimedOverlay extends StatelessWidget {
   const _WeekUntimedOverlay({
     required this.gutterWidth,
     required this.dayWidth,
+    required this.chipHeight,
+    required this.itemGap,
+    required this.verticalPadding,
     required this.untimedByDay,
     required this.categoryMap,
     required this.onOpen,
@@ -3933,35 +4755,23 @@ class _WeekUntimedOverlay extends StatelessWidget {
               width:
                   gutterWidth,
               child:
-                  Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-                children: [
-                  Icon(
+                  Center(
+                child:
+                    IconButton(
+                  tooltip:
+                      'Chiudi attività senza orario',
+                  visualDensity:
+                      VisualDensity.compact,
+                  onPressed:
+                      onClose,
+                  icon:
+                      const Icon(
                     Icons
-                        .wb_sunny_outlined,
+                        .keyboard_arrow_up_rounded,
                     size:
-                        16,
-                    color:
-                        colorScheme
-                            .onSurfaceVariant,
+                        19,
                   ),
-                  IconButton(
-                    tooltip:
-                        'Chiudi attività senza orario',
-                    visualDensity:
-                        VisualDensity.compact,
-                    onPressed:
-                        onClose,
-                    icon:
-                        const Icon(
-                      Icons
-                          .keyboard_arrow_up_rounded,
-                      size:
-                          19,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
             for (var dayIndex =
@@ -3985,6 +4795,12 @@ class _WeekUntimedOverlay extends StatelessWidget {
                   occurrences:
                       untimedByDay[
                           dayIndex]!,
+                  chipHeight:
+                      chipHeight,
+                  itemGap:
+                      itemGap,
+                  verticalPadding:
+                      verticalPadding,
                   categoryMap:
                       categoryMap,
                   onOpen:
@@ -4002,12 +4818,18 @@ class _WeekUntimedOverlay extends StatelessWidget {
 
 class _UntimedDayLane extends StatelessWidget {
   final List<TaskOccurrence> occurrences;
+  final double chipHeight;
+  final double itemGap;
+  final double verticalPadding;
   final Map<String, TaskCategory> categoryMap;
   final ValueChanged<TaskOccurrence> onOpen;
   final ValueChanged<TaskOccurrence> onActions;
 
   const _UntimedDayLane({
     required this.occurrences,
+    required this.chipHeight,
+    required this.itemGap,
+    required this.verticalPadding,
     required this.categoryMap,
     required this.onOpen,
     required this.onActions,
@@ -4042,19 +4864,19 @@ class _UntimedDayLane extends StatelessWidget {
         primary:
             false,
         padding:
-            const EdgeInsets.symmetric(
+            EdgeInsets.symmetric(
           horizontal:
               4,
           vertical:
-              6,
+              verticalPadding,
         ),
         itemCount:
             occurrences.length,
         separatorBuilder:
             (_, _) =>
-                const SizedBox(
+                SizedBox(
           height:
-              5,
+              itemGap,
         ),
         itemBuilder:
             (
@@ -4067,11 +4889,13 @@ class _UntimedDayLane extends StatelessWidget {
 
           return SizedBox(
             height:
-                28,
+                chipHeight,
             child:
                 _UntimedOccurrenceChip(
               occurrence:
                   occurrence,
+              height:
+                  chipHeight,
               categoryMap:
                   categoryMap,
               onTap:
@@ -4096,12 +4920,14 @@ class _UntimedDayLane extends StatelessWidget {
 
 class _UntimedOccurrenceChip extends StatelessWidget {
   final TaskOccurrence occurrence;
+  final double height;
   final Map<String, TaskCategory> categoryMap;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
   const _UntimedOccurrenceChip({
     required this.occurrence,
+    required this.height,
     required this.categoryMap,
     required this.onTap,
     required this.onLongPress,
@@ -4153,9 +4979,11 @@ class _UntimedOccurrenceChip extends StatelessWidget {
         child:
             Padding(
           padding:
-              const EdgeInsets.symmetric(
+              EdgeInsets.symmetric(
             horizontal:
-                6,
+                height < 25
+                    ? 4
+                    : 6,
           ),
           child:
               Row(
@@ -4171,13 +4999,17 @@ class _UntimedOccurrenceChip extends StatelessWidget {
                         category.iconKey,
                       ),
                 size:
-                    12,
+                    height < 25
+                        ? 10
+                        : 12,
                 color:
                     color,
               ),
-              const SizedBox(
+              SizedBox(
                 width:
-                    4,
+                    height < 25
+                        ? 3
+                        : 4,
               ),
               Expanded(
                 child:
@@ -4196,6 +5028,10 @@ class _UntimedOccurrenceChip extends StatelessWidget {
                           ?.copyWith(
                             color:
                                 color,
+                            fontSize:
+                                height < 25
+                                    ? 9
+                                    : null,
                             fontWeight:
                                 FontWeight.w700,
                           ),
@@ -4208,6 +5044,314 @@ class _UntimedOccurrenceChip extends StatelessWidget {
     );
   }
 }
+
+
+class _WeekOccurrenceBlock extends StatelessWidget {
+  final LifeTask task;
+  final TaskCategory? category;
+  final Color accentColor;
+  final Color priorityColor;
+  final String timeText;
+  final String? subtaskText;
+  final double height;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  const _WeekOccurrenceBlock({
+    required this.task,
+    required this.category,
+    required this.accentColor,
+    required this.priorityColor,
+    required this.timeText,
+    required this.subtaskText,
+    required this.height,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    final identityIcon =
+        category == null
+            ? Icons.circle_outlined
+            : taskCategoryIcon(
+                category!.iconKey,
+              );
+
+    return Material(
+      color:
+          accentColor.withValues(
+        alpha:
+            task.isCompleted
+                ? 0.08
+                : 0.15,
+      ),
+      borderRadius:
+          BorderRadius.circular(
+        9,
+      ),
+      child:
+          InkWell(
+        onTap:
+            onTap,
+        onLongPress:
+            onLongPress,
+        borderRadius:
+            BorderRadius.circular(
+          9,
+        ),
+        child:
+            Container(
+          decoration:
+              BoxDecoration(
+            borderRadius:
+                BorderRadius.circular(
+              9,
+            ),
+            border:
+                Border.all(
+              color:
+                  accentColor.withValues(
+                alpha:
+                    0.48,
+              ),
+            ),
+          ),
+          child:
+              LayoutBuilder(
+            builder:
+                (
+              context,
+              constraints,
+            ) {
+              final width =
+                  constraints.maxWidth;
+
+              final ultraNarrow =
+                  width < 34;
+
+              if (ultraNarrow) {
+                return Center(
+                  child:
+                      Icon(
+                    identityIcon,
+                    size:
+                        10,
+                    color:
+                        accentColor,
+                  ),
+                );
+              }
+
+              final compact =
+                  width < 60;
+
+              final showTime =
+                  width >= 68 &&
+                  height >= 46;
+
+              final showFooter =
+                  width >= 78 &&
+                  height >= 68 &&
+                  (subtaskText !=
+                          null ||
+                      task.priority !=
+                          TaskPriority
+                              .normal);
+
+              final titleStyle =
+                  Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(
+                        color:
+                            accentColor,
+                        fontSize:
+                            compact
+                                ? 8.5
+                                : null,
+                        fontWeight:
+                            FontWeight.w800,
+                        height:
+                            1.05,
+                        decoration:
+                            task.isCompleted
+                                ? TextDecoration
+                                    .lineThrough
+                                : null,
+                      );
+
+              return Padding(
+                padding:
+                    EdgeInsets.fromLTRB(
+                  compact
+                      ? 3
+                      : 5,
+                  4,
+                  compact
+                      ? 3
+                      : 4,
+                  4,
+                ),
+                child:
+                    ClipRect(
+                  child:
+                      Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      if (compact)
+                        Text(
+                          task.title,
+                          maxLines:
+                              height >= 46
+                                  ? 2
+                                  : 1,
+                          overflow:
+                              TextOverflow.ellipsis,
+                          style:
+                              titleStyle,
+                        )
+                      else
+                        Row(
+                          children: [
+                            Icon(
+                              identityIcon,
+                              size:
+                                  11,
+                              color:
+                                  accentColor,
+                            ),
+                            const SizedBox(
+                              width:
+                                  3,
+                            ),
+                            Expanded(
+                              child:
+                                  Text(
+                                task.title,
+                                maxLines:
+                                    height >= 52
+                                        ? 2
+                                        : 1,
+                                overflow:
+                                    TextOverflow.ellipsis,
+                                style:
+                                    titleStyle,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (showTime) ...[
+                        const SizedBox(
+                          height:
+                              3,
+                        ),
+                        SizedBox(
+                          width:
+                              double.infinity,
+                          child:
+                              FittedBox(
+                            fit:
+                                BoxFit.scaleDown,
+                            alignment:
+                                Alignment.centerLeft,
+                            child:
+                                Text(
+                              timeText,
+                              maxLines:
+                                  1,
+                              style:
+                                  Theme.of(
+                                context,
+                              )
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color:
+                                            colorScheme
+                                                .onSurfaceVariant,
+                                        fontSize:
+                                            9,
+                                        fontWeight:
+                                            FontWeight.w600,
+                                      ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (showFooter) ...[
+                        const Spacer(),
+                        Row(
+                          children: [
+                            if (subtaskText !=
+                                null) ...[
+                              Icon(
+                                Icons
+                                    .checklist_rounded,
+                                size:
+                                    10,
+                                color:
+                                    accentColor,
+                              ),
+                              const SizedBox(
+                                width:
+                                    2,
+                              ),
+                              Flexible(
+                                child:
+                                    Text(
+                                  subtaskText!,
+                                  maxLines:
+                                      1,
+                                  overflow:
+                                      TextOverflow.ellipsis,
+                                  style:
+                                      Theme.of(
+                                    context,
+                                  )
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color:
+                                                accentColor,
+                                            fontSize:
+                                                9,
+                                            fontWeight:
+                                                FontWeight.w700,
+                                          ),
+                                ),
+                              ),
+                            ],
+                            const Spacer(),
+                            Icon(
+                              Icons
+                                  .flag_outlined,
+                              size:
+                                  10,
+                              color:
+                                  priorityColor,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class _WeekTimedSegment {
   final TaskOccurrence occurrence;
@@ -4578,216 +5722,45 @@ class _WeekHourlyGrid
             ? ' →'
             : '';
 
+    final timeText =
+        '$continuityPrefix'
+        '${_clock(segment.startMinute)}–'
+        '${_clock(segment.endMinute)}'
+        '$continuitySuffix';
+
     final block =
-        Material(
-      color:
-          color.withValues(
-        alpha:
-            task.isCompleted
-                ? 0.08
-                : 0.15,
+        _WeekOccurrenceBlock(
+      task:
+          task,
+      category:
+          category,
+      accentColor:
+          color,
+      priorityColor:
+          _priorityColor(
+        task.priority,
+        colorScheme,
       ),
-      borderRadius:
-          BorderRadius.circular(
-        9,
-      ),
-      child:
-          InkWell(
-        onTap:
-            () {
-          onOpen(
-            segment.occurrence,
-          );
-        },
-        onLongPress:
-            segment.continuesFromPrevious
-                ? () {
-                    onActions(
-                      segment.occurrence,
-                    );
-                  }
-                : null,
-        borderRadius:
-            BorderRadius.circular(
-          9,
-        ),
-        child:
-            Container(
-          padding:
-              const EdgeInsets.fromLTRB(
-            5,
-            4,
-            4,
-            4,
-          ),
-          decoration:
-              BoxDecoration(
-            borderRadius:
-                BorderRadius.circular(
-              9,
-            ),
-            border:
-                Border.all(
-              color:
-                  color.withValues(
-                alpha:
-                    0.48,
-              ),
-            ),
-          ),
-          child:
-              ClipRect(
-            child:
-                Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      category ==
-                              null
-                          ? Icons
-                              .circle_outlined
-                          : taskCategoryIcon(
-                              category.iconKey,
-                            ),
-                      size:
-                          11,
-                      color:
-                          color,
-                    ),
-                    const SizedBox(
-                      width:
-                          3,
-                    ),
-                    Expanded(
-                      child:
-                          Text(
-                        task.title,
-                        maxLines:
-                            height >=
-                                    52
-                                ? 2
-                                : 1,
-                        overflow:
-                            TextOverflow.ellipsis,
-                        style:
-                            Theme.of(
-                          context,
-                        )
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color:
-                                      color,
-                                  fontWeight:
-                                      FontWeight.w800,
-                                  height:
-                                      1.05,
-                                  decoration:
-                                      task.isCompleted
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (height >=
-                    46) ...[
-                  const SizedBox(
-                    height:
-                        3,
-                  ),
-                  Text(
-                    '$continuityPrefix'
-                    '${_clock(segment.startMinute)}–'
-                    '${_clock(segment.endMinute)}'
-                    '$continuitySuffix',
-                    maxLines:
-                        1,
-                    overflow:
-                        TextOverflow.clip,
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(
-                              color:
-                                  colorScheme
-                                      .onSurfaceVariant,
-                              fontSize:
-                                  9,
-                              fontWeight:
-                                  FontWeight.w600,
-                            ),
-                  ),
-                ],
-                if (height >=
-                        68 &&
-                    (subtaskText !=
-                            null ||
-                        task.priority !=
-                            TaskPriority
-                                .normal)) ...[
-                  const Spacer(),
-                  Row(
-                    children: [
-                      if (subtaskText !=
-                          null) ...[
-                        Icon(
-                          Icons
-                              .checklist_rounded,
-                          size:
-                              10,
-                          color:
-                              color,
-                        ),
-                        const SizedBox(
-                          width:
-                              2,
-                        ),
-                        Text(
-                          subtaskText,
-                          style:
-                              Theme.of(
-                            context,
-                          )
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                    color:
-                                        color,
-                                    fontSize:
-                                        9,
-                                    fontWeight:
-                                        FontWeight.w700,
-                                  ),
-                        ),
-                      ],
-                      const Spacer(),
-                      Icon(
-                        Icons
-                            .flag_outlined,
-                        size:
-                            10,
-                        color:
-                            _priorityColor(
-                          task.priority,
-                          colorScheme,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
+      timeText:
+          timeText,
+      subtaskText:
+          subtaskText,
+      height:
+          height,
+      onTap:
+          () {
+        onOpen(
+          segment.occurrence,
+        );
+      },
+      onLongPress:
+          segment.continuesFromPrevious
+              ? () {
+                  onActions(
+                    segment.occurrence,
+                  );
+                }
+              : null,
     );
 
     Widget draggableBlock =
