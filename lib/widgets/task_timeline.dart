@@ -14,6 +14,10 @@ class TaskTimeline
     LifeTask task,
   ) secondaryLabelBuilder;
 
+  final String? Function(
+    LifeTask task,
+  ) subtaskProgressBuilder;
+
   final Color Function(
     LifeTask task,
   ) accentColorBuilder;
@@ -38,6 +42,7 @@ class TaskTimeline
     required this.tasks,
     required this.timeLabelBuilder,
     required this.secondaryLabelBuilder,
+    required this.subtaskProgressBuilder,
     required this.accentColorBuilder,
     required this.priorityColorBuilder,
     required this.onCompletedChanged,
@@ -64,6 +69,11 @@ class TaskTimeline
 
             secondaryLabel:
                 secondaryLabelBuilder(
+              tasks[i],
+            ),
+
+            subtaskProgress:
+                subtaskProgressBuilder(
               tasks[i],
             ),
 
@@ -110,6 +120,7 @@ class _TaskTimelineItem
   final LifeTask task;
   final String timeLabel;
   final String secondaryLabel;
+  final String? subtaskProgress;
   final Color accentColor;
   final Color priorityColor;
 
@@ -127,6 +138,7 @@ class _TaskTimelineItem
     required this.task,
     required this.timeLabel,
     required this.secondaryLabel,
+    required this.subtaskProgress,
     required this.accentColor,
     required this.priorityColor,
     required this.isFirst,
@@ -383,6 +395,48 @@ class _TaskTimelineItem
                                         colorScheme
                                             .onSurfaceVariant,
                                   ),
+                        ),
+                      ],
+
+                      if (subtaskProgress !=
+                          null) ...[
+                        const SizedBox(
+                          height: 6,
+                        ),
+
+                        Row(
+                          mainAxisSize:
+                              MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons
+                                  .checklist_rounded,
+                              size: 14,
+                              color:
+                                  accentColor,
+                            ),
+
+                            const SizedBox(
+                              width: 5,
+                            ),
+
+                            Text(
+                              subtaskProgress!,
+                              style:
+                                  Theme.of(
+                                context,
+                              )
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color:
+                                            accentColor,
+                                        fontWeight:
+                                            FontWeight
+                                                .w700,
+                                      ),
+                            ),
+                          ],
                         ),
                       ],
                     ],

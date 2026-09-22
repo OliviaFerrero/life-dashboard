@@ -501,6 +501,57 @@ class _TasksPageState
     return groups;
   }
 
+  Future<bool> _confirmCompleteAll(
+    int remainingSubtasks,
+  ) async {
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title:
+              const Text(
+            'Completare attività?',
+          ),
+          content:
+              Text(
+            remainingSubtasks == 1
+                ? 'C’è ancora 1 sottoattività da completare. Vuoi completare tutto?'
+                : 'Ci sono ancora $remainingSubtasks sottoattività da completare. Vuoi completare tutto?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  false,
+                );
+              },
+              child:
+                  const Text(
+                'Annulla',
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  true,
+                );
+              },
+              child:
+                  const Text(
+                'Completa tutto',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
   @override
   Widget build(
     BuildContext context,
@@ -720,6 +771,28 @@ class _TasksPageState
                               task,
                               completed,
                             ) async {
+                              if (completed) {
+                                final remaining =
+                                    task.subtasks
+                                        .where(
+                                          (subtask) =>
+                                              !subtask
+                                                  .isCompleted,
+                                        )
+                                        .length;
+
+                                if (remaining > 0) {
+                                  final confirmed =
+                                      await _confirmCompleteAll(
+                                    remaining,
+                                  );
+
+                                  if (!confirmed) {
+                                    return;
+                                  }
+                                }
+                              }
+
                               await widget
                                   .taskRepository
                                   .setCompleted(
@@ -790,6 +863,29 @@ class _TasksPageState
                                 occurrence,
                                 completed,
                               ) async {
+                                if (completed) {
+                                  final remaining =
+                                      occurrence
+                                          .subtasks
+                                          .where(
+                                            (subtask) =>
+                                                !subtask
+                                                    .isCompleted,
+                                          )
+                                          .length;
+
+                                  if (remaining > 0) {
+                                    final confirmed =
+                                        await _confirmCompleteAll(
+                                      remaining,
+                                    );
+
+                                    if (!confirmed) {
+                                      return;
+                                    }
+                                  }
+                                }
+
                                 await widget
                                     .taskRepository
                                     .setOccurrenceCompleted(
@@ -867,6 +963,29 @@ class _TasksPageState
                               occurrence,
                               completed,
                             ) async {
+                              if (completed) {
+                                final remaining =
+                                    occurrence
+                                        .subtasks
+                                        .where(
+                                          (subtask) =>
+                                              !subtask
+                                                  .isCompleted,
+                                        )
+                                        .length;
+
+                                if (remaining > 0) {
+                                  final confirmed =
+                                      await _confirmCompleteAll(
+                                    remaining,
+                                  );
+
+                                  if (!confirmed) {
+                                    return;
+                                  }
+                                }
+                              }
+
                               await widget
                                   .taskRepository
                                   .setOccurrenceCompleted(
@@ -2104,6 +2223,8 @@ class _TaskRow
                       if (category != null ||
                           recurrenceLabel !=
                               null ||
+                          task.subtasks
+                              .isNotEmpty ||
                           (isPast &&
                               !task
                                   .isCompleted &&
@@ -2155,6 +2276,43 @@ class _TaskRow
                                               fontWeight:
                                                   FontWeight
                                                       .w600,
+                                            ),
+                                  ),
+                                ],
+                              ),
+
+                            if (task.subtasks
+                                .isNotEmpty)
+                              Row(
+                                mainAxisSize:
+                                    MainAxisSize
+                                        .min,
+                                children: [
+                                  Icon(
+                                    Icons
+                                        .checklist_rounded,
+                                    size: 14,
+                                    color:
+                                        categoryColor,
+                                  ),
+                                  const SizedBox(
+                                    width:
+                                        4,
+                                  ),
+                                  Text(
+                                    '${task.subtasks.where((subtask) => subtask.isCompleted).length}/${task.subtasks.length}',
+                                    style:
+                                        Theme.of(
+                                      context,
+                                    )
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color:
+                                                  categoryColor,
+                                              fontWeight:
+                                                  FontWeight
+                                                      .w700,
                                             ),
                                   ),
                                 ],

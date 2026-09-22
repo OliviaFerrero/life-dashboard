@@ -397,6 +397,57 @@ class _CalendarPageState
     );
   }
 
+  Future<bool> _confirmCompleteAll(
+    int remainingSubtasks,
+  ) async {
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title:
+              const Text(
+            'Completare attività?',
+          ),
+          content:
+              Text(
+            remainingSubtasks == 1
+                ? 'C’è ancora 1 sottoattività da completare. Vuoi completare tutto?'
+                : 'Ci sono ancora $remainingSubtasks sottoattività da completare. Vuoi completare tutto?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  false,
+                );
+              },
+              child:
+                  const Text(
+                'Annulla',
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  true,
+                );
+              },
+              child:
+                  const Text(
+                'Completa tutto',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
   @override
   Widget build(
     BuildContext context,
@@ -986,11 +1037,37 @@ class _CalendarPageState
                             ),
                             onCompletedChanged:
                                 (completed) async {
+                              final occurrence =
+                                  selectedOccurrences[
+                                      i];
+
+                              if (completed) {
+                                final remaining =
+                                    occurrence
+                                        .subtasks
+                                        .where(
+                                          (subtask) =>
+                                              !subtask
+                                                  .isCompleted,
+                                        )
+                                        .length;
+
+                                if (remaining > 0) {
+                                  final confirmed =
+                                      await _confirmCompleteAll(
+                                    remaining,
+                                  );
+
+                                  if (!confirmed) {
+                                    return;
+                                  }
+                                }
+                              }
+
                               await widget
                                   .taskRepository
                                   .setOccurrenceCompleted(
-                                selectedOccurrences[
-                                    i],
+                                occurrence,
                                 completed,
                               );
                             },
@@ -1275,43 +1352,94 @@ class _CalendarTaskRow
                       ),
                     ],
                     if (category !=
-                        null) ...[
+                            null ||
+                        task.subtasks
+                            .isNotEmpty) ...[
                       const SizedBox(
                         height: 6,
                       ),
-                      Row(
-                        mainAxisSize:
-                            MainAxisSize
-                                .min,
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        crossAxisAlignment:
+                            WrapCrossAlignment
+                                .center,
                         children: [
-                          Icon(
-                            taskCategoryIcon(
-                              category!
-                                  .iconKey,
+                          if (category !=
+                              null)
+                            Row(
+                              mainAxisSize:
+                                  MainAxisSize
+                                      .min,
+                              children: [
+                                Icon(
+                                  taskCategoryIcon(
+                                    category!
+                                        .iconKey,
+                                  ),
+                                  size: 14,
+                                  color:
+                                      categoryColor,
+                                ),
+                                const SizedBox(
+                                  width:
+                                      4,
+                                ),
+                                Text(
+                                  category!.name,
+                                  style:
+                                      Theme.of(
+                                    context,
+                                  )
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color:
+                                                categoryColor,
+                                            fontWeight:
+                                                FontWeight
+                                                    .w600,
+                                          ),
+                                ),
+                              ],
                             ),
-                            size: 14,
-                            color:
-                                categoryColor,
-                          ),
-                          const SizedBox(
-                            width: 4,
-                          ),
-                          Text(
-                            category!.name,
-                            style:
-                                Theme.of(
-                              context,
-                            )
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color:
-                                          categoryColor,
-                                      fontWeight:
-                                          FontWeight
-                                              .w600,
-                                    ),
-                          ),
+
+                          if (task.subtasks
+                              .isNotEmpty)
+                            Row(
+                              mainAxisSize:
+                                  MainAxisSize
+                                      .min,
+                              children: [
+                                Icon(
+                                  Icons
+                                      .checklist_rounded,
+                                  size: 14,
+                                  color:
+                                      categoryColor,
+                                ),
+                                const SizedBox(
+                                  width:
+                                      4,
+                                ),
+                                Text(
+                                  '${task.subtasks.where((subtask) => subtask.isCompleted).length}/${task.subtasks.length}',
+                                  style:
+                                      Theme.of(
+                                    context,
+                                  )
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color:
+                                                categoryColor,
+                                            fontWeight:
+                                                FontWeight
+                                                    .w700,
+                                          ),
+                                ),
+                              ],
+                            ),
                         ],
                       ),
                     ],

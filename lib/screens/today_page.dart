@@ -301,6 +301,58 @@ class TodayPage extends StatelessWidget {
     );
   }
 
+  Future<bool> _confirmCompleteAll(
+    BuildContext context,
+    int remainingSubtasks,
+  ) async {
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title:
+              const Text(
+            'Completare attività?',
+          ),
+          content:
+              Text(
+            remainingSubtasks == 1
+                ? 'C’è ancora 1 sottoattività da completare. Vuoi completare tutto?'
+                : 'Ci sono ancora $remainingSubtasks sottoattività da completare. Vuoi completare tutto?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  false,
+                );
+              },
+              child:
+                  const Text(
+                'Annulla',
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  true,
+                );
+              },
+              child:
+                  const Text(
+                'Completa tutto',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
   @override
   Widget build(
     BuildContext context,
@@ -594,6 +646,25 @@ class TodayPage extends StatelessWidget {
                                   _timeLabel,
                               secondaryLabelBuilder:
                                   _secondaryLabel,
+                              subtaskProgressBuilder:
+                                  (task) {
+                                if (task.subtasks
+                                    .isEmpty) {
+                                  return null;
+                                }
+
+                                final completed =
+                                    task.subtasks
+                                        .where(
+                                          (subtask) =>
+                                              subtask
+                                                  .isCompleted,
+                                        )
+                                        .length;
+
+                                return '$completed/'
+                                    '${task.subtasks.length}';
+                              },
                               accentColorBuilder:
                                   (task) {
                                 return _categoryColor(
@@ -621,6 +692,30 @@ class TodayPage extends StatelessWidget {
                                 if (occurrence ==
                                     null) {
                                   return;
+                                }
+
+                                if (completed) {
+                                  final remaining =
+                                      occurrence
+                                          .subtasks
+                                          .where(
+                                            (subtask) =>
+                                                !subtask
+                                                    .isCompleted,
+                                          )
+                                          .length;
+
+                                  if (remaining > 0) {
+                                    final confirmed =
+                                        await _confirmCompleteAll(
+                                      context,
+                                      remaining,
+                                    );
+
+                                    if (!confirmed) {
+                                      return;
+                                    }
+                                  }
                                 }
 
                                 await taskRepository
