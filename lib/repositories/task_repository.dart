@@ -307,6 +307,119 @@ class TaskRepository {
     });
   }
 
+  /// Salva una modifica che vale solo per una singola occorrenza.
+  ///
+  /// [occurrence.seriesDate] resta l'identità stabile della serie,
+  /// mentre [editedTask.scheduledDate] diventa la data effettiva mostrata.
+  Future<void> saveOccurrenceOverride({
+    required TaskOccurrence occurrence,
+    required LifeTask editedTask,
+  }) async {
+    if (!occurrence.isRecurring) {
+      throw ArgumentError(
+        'Gli override sono disponibili solo per task ricorrenti.',
+      );
+    }
+
+    final effectiveDate =
+        editedTask.scheduledDate;
+
+    if (effectiveDate == null) {
+      throw ArgumentError(
+        'Una singola occorrenza deve avere una data.',
+      );
+    }
+
+    await _database
+        .into(
+          _database.taskOccurrenceOverrides,
+        )
+        .insertOnConflictUpdate(
+      TaskOccurrenceOverridesCompanion.insert(
+        taskId:
+            occurrence.task.id,
+        occurrenceDate:
+            _dateOnly(occurrence.seriesDate),
+        effectiveDate:
+            _dateOnly(effectiveDate),
+        title:
+            editedTask.title,
+        description:
+            Value(editedTask.description),
+        startTimeMinutes:
+            Value(
+          editedTask.allDay
+              ? null
+              : editedTask.startTimeMinutes,
+        ),
+        durationMinutes:
+            Value(editedTask.durationMinutes),
+        categoryId:
+            Value(editedTask.categoryId),
+        allDay:
+            Value(editedTask.allDay),
+        priority:
+            Value(editedTask.priority.index),
+        isDeleted:
+            const Value(false),
+      ),
+    );
+  }
+
+  /// Esclude una sola occorrenza dalla serie senza toccare le altre.
+  ///
+  /// Gli stati completato/subtasks restano collegati alla data originaria,
+  /// così un eventuale futuro ripristino dell'eccezione non li ricollega
+  /// a un'altra occorrenza.
+  Future<void> deleteOccurrence(
+    TaskOccurrence occurrence,
+  ) async {
+    if (!occurrence.isRecurring) {
+      await deleteTask(
+        occurrence.task.id,
+      );
+      return;
+    }
+
+    final effective =
+        occurrence.displayTask;
+
+    await _database
+        .into(
+          _database.taskOccurrenceOverrides,
+        )
+        .insertOnConflictUpdate(
+      TaskOccurrenceOverridesCompanion.insert(
+        taskId:
+            occurrence.task.id,
+        occurrenceDate:
+            _dateOnly(occurrence.seriesDate),
+        effectiveDate:
+            _dateOnly(occurrence.date),
+        title:
+            effective.title,
+        description:
+            Value(effective.description),
+        startTimeMinutes:
+            Value(
+          effective.allDay
+              ? null
+              : effective.startTimeMinutes,
+        ),
+        durationMinutes:
+            Value(effective.durationMinutes),
+        categoryId:
+            Value(effective.categoryId),
+        allDay:
+            Value(effective.allDay),
+        priority:
+            Value(effective.priority.index),
+        isDeleted:
+            const Value(true),
+      ),
+    );
+  }
+
   /// Completion della singola occorrenza di una task ricorrente.
   ///
   /// Completando il parent vengono completate anche tutte le
@@ -324,7 +437,7 @@ class TaskRepository {
     }
 
     final date =
-        _dateOnly(occurrence.date);
+        _dateOnly(occurrence.seriesDate);
 
     await _database.transaction(() async {
       if (completed) {
@@ -499,6 +612,15 @@ class TaskRepository {
               _database.taskSubtasks.id,
             ),
       ),
+      leftOuterJoin(
+        _database.taskOccurrenceOverrides,
+        _database
+            .taskOccurrenceOverrides
+            .taskId
+            .equalsExp(
+              _database.taskItems.id,
+            ),
+      ),
     ]);
 
     return query.watch().map((rows) {
@@ -513,6 +635,10 @@ class TaskRepository {
 
       final completedSubtaskOccurrenceKeys =
           <String>{};
+
+      final overridesByTaskId =
+          <String,
+              Map<String, TaskOccurrenceOverrideRow>>{};
 
       for (final result in rows) {
         final taskRow =
@@ -582,6 +708,25 @@ class TaskRepository {
             ),
           );
         }
+
+        final override =
+            result.readTableOrNull(
+          _database.taskOccurrenceOverrides,
+        );
+
+        if (override != null) {
+          overridesByTaskId
+              .putIfAbsent(
+                taskRow.id,
+                () => <
+                    String,
+                    TaskOccurrenceOverrideRow>{},
+              )[_stateKey(
+                taskRow.id,
+                override.occurrenceDate,
+              )] =
+              override;
+        }
       }
 
       final tasks =
@@ -633,6 +778,8 @@ class TaskRepository {
             completedOccurrenceKeys,
         completedSubtaskOccurrenceKeys:
             completedSubtaskOccurrenceKeys,
+        overridesByTaskId:
+            overridesByTaskId,
       );
     });
   }
@@ -668,6 +815,7 @@ class TaskRepository {
             TaskOccurrence(
               task: task,
               date: date,
+              seriesDate: date,
               isCompleted:
                   task.isCompleted,
               subtasks:
@@ -678,6 +826,13 @@ class TaskRepository {
 
         continue;
       }
+
+      final taskOverrides =
+          snapshot.overridesByTaskId[
+                task.id] ??
+              const <
+                  String,
+                  TaskOccurrenceOverrideRow>{};
 
       var cursor =
           _dateOnly(startDate);
@@ -691,31 +846,69 @@ class TaskRepository {
           cursor,
           startDate,
         )) {
-          result.add(
-            TaskOccurrence(
-              task: task,
-              date: cursor,
-              isCompleted:
-                  snapshot
-                      .completedOccurrenceKeys
-                      .contains(
-                _stateKey(
-                  task.id,
-                  cursor,
-                ),
-              ),
-              subtasks:
-                  _effectiveSubtasksForOccurrence(
+          final key =
+              _stateKey(
+            task.id,
+            cursor,
+          );
+
+          // Le eccezioni vengono aggiunte separatamente usando la
+          // loro data effettiva. Qui evitiamo il doppione base.
+          if (!taskOverrides.containsKey(
+            key,
+          )) {
+            result.add(
+              _buildBaseOccurrence(
                 task,
                 cursor,
                 snapshot,
               ),
-            ),
-          );
+            );
+          }
         }
 
         cursor = cursor.add(
           const Duration(days: 1),
+        );
+      }
+
+      for (final override
+          in taskOverrides.values) {
+        final seriesDate =
+            _dateOnly(
+          override.occurrenceDate,
+        );
+
+        // Se la definizione della serie è stata cambiata e la vecchia
+        // data non appartiene più alla regola, l'eccezione resta
+        // persistita ma non viene applicata.
+        if (!task.recurrence.occursOn(
+          seriesDate,
+          startDate,
+        )) {
+          continue;
+        }
+
+        if (override.isDeleted) {
+          continue;
+        }
+
+        final effectiveDate =
+            _dateOnly(
+          override.effectiveDate,
+        );
+
+        if (effectiveDate.isBefore(start) ||
+            effectiveDate.isAfter(end)) {
+          continue;
+        }
+
+        result.add(
+          _buildOverrideOccurrence(
+            task,
+            override,
+            snapshot,
+          ),
         );
       }
     }
@@ -748,6 +941,7 @@ class TaskRepository {
           TaskOccurrence(
             task: task,
             date: startDate,
+            seriesDate: startDate,
             isCompleted:
                 task.isCompleted,
             subtasks:
@@ -758,37 +952,18 @@ class TaskRepository {
         continue;
       }
 
-      final nextDate =
-          _nextRelevantOccurrenceDate(
+      final next =
+          _nextRelevantOccurrence(
         task,
+        snapshot,
         now,
       );
 
-      if (nextDate == null) {
-        continue;
+      if (next != null) {
+        result.add(
+          next,
+        );
       }
-
-      result.add(
-        TaskOccurrence(
-          task: task,
-          date: nextDate,
-          isCompleted:
-              snapshot
-                  .completedOccurrenceKeys
-                  .contains(
-            _stateKey(
-              task.id,
-              nextDate,
-            ),
-          ),
-          subtasks:
-              _effectiveSubtasksForOccurrence(
-            task,
-            nextDate,
-            snapshot,
-          ),
-        ),
-      );
     }
 
     result.sort(
@@ -796,6 +971,237 @@ class TaskRepository {
     );
 
     return result;
+  }
+
+  TaskOccurrence _buildBaseOccurrence(
+    LifeTask task,
+    DateTime seriesDate,
+    _TaskDataSnapshot snapshot,
+  ) {
+    final normalized =
+        _dateOnly(seriesDate);
+
+    return TaskOccurrence(
+      task: task,
+      date: normalized,
+      seriesDate: normalized,
+      isCompleted:
+          snapshot
+              .completedOccurrenceKeys
+              .contains(
+        _stateKey(
+          task.id,
+          normalized,
+        ),
+      ),
+      subtasks:
+          _effectiveSubtasksForOccurrence(
+        task,
+        normalized,
+        snapshot,
+      ),
+    );
+  }
+
+  TaskOccurrence _buildOverrideOccurrence(
+    LifeTask task,
+    TaskOccurrenceOverrideRow override,
+    _TaskDataSnapshot snapshot,
+  ) {
+    final seriesDate =
+        _dateOnly(
+      override.occurrenceDate,
+    );
+
+    final effectiveDate =
+        _dateOnly(
+      override.effectiveDate,
+    );
+
+    final subtasks =
+        _effectiveSubtasksForOccurrence(
+      task,
+      seriesDate,
+      snapshot,
+    );
+
+    final effectiveTask =
+        LifeTask(
+      id:
+          task.id,
+      title:
+          override.title,
+      description:
+          override.description,
+      scheduledDate:
+          effectiveDate,
+      startTimeMinutes:
+          override.allDay
+              ? null
+              : override.startTimeMinutes,
+      durationMinutes:
+          override.durationMinutes,
+      categoryId:
+          override.categoryId,
+      allDay:
+          override.allDay,
+      priority:
+          _priorityFromInt(
+        override.priority,
+      ),
+      recurrence:
+          task.recurrence,
+      subtasks:
+          subtasks,
+      isCompleted:
+          false,
+    );
+
+    return TaskOccurrence(
+      task: task,
+      date: effectiveDate,
+      seriesDate: seriesDate,
+      isCompleted:
+          snapshot
+              .completedOccurrenceKeys
+              .contains(
+        _stateKey(
+          task.id,
+          seriesDate,
+        ),
+      ),
+      subtasks:
+          subtasks,
+      effectiveTask:
+          effectiveTask,
+    );
+  }
+
+  TaskOccurrence? _nextRelevantOccurrence(
+    LifeTask task,
+    _TaskDataSnapshot snapshot,
+    DateTime now,
+  ) {
+    final startDate =
+        task.scheduledDate;
+
+    if (startDate == null ||
+        !task.recurrence.isRecurring) {
+      return null;
+    }
+
+    final candidates =
+        <TaskOccurrence>[];
+
+    final taskOverrides =
+        snapshot.overridesByTaskId[
+              task.id] ??
+            const <
+                String,
+                TaskOccurrenceOverrideRow>{};
+
+    // Le eccezioni possono provenire anche da una data originaria
+    // precedente e essere state spostate nel futuro.
+    for (final override
+        in taskOverrides.values) {
+      final seriesDate =
+          _dateOnly(
+        override.occurrenceDate,
+      );
+
+      if (override.isDeleted ||
+          !task.recurrence.occursOn(
+            seriesDate,
+            startDate,
+          )) {
+        continue;
+      }
+
+      final occurrence =
+          _buildOverrideOccurrence(
+        task,
+        override,
+        snapshot,
+      );
+
+      if (!_isOccurrencePast(
+        occurrence.displayTask,
+        occurrence.date,
+        now,
+      )) {
+        candidates.add(
+          occurrence,
+        );
+      }
+    }
+
+    final today =
+        _dateOnly(now);
+
+    var cursor =
+        _dateOnly(startDate);
+
+    if (cursor.isBefore(today)) {
+      cursor = today;
+    }
+
+    // Ogni eccezione può "occupare" una data base. Allunghiamo il
+    // margine in base al numero di eccezioni per trovare comunque
+    // una prossima occorrenza non esclusa.
+    final maxSteps =
+        370 +
+        taskOverrides.length * 7;
+
+    for (var i = 0;
+        i < maxSteps;
+        i++) {
+      if (task.recurrence.occursOn(
+        cursor,
+        startDate,
+      )) {
+        final key =
+            _stateKey(
+          task.id,
+          cursor,
+        );
+
+        if (!taskOverrides.containsKey(
+          key,
+        )) {
+          final occurrence =
+              _buildBaseOccurrence(
+            task,
+            cursor,
+            snapshot,
+          );
+
+          if (!_isOccurrencePast(
+            occurrence.displayTask,
+            occurrence.date,
+            now,
+          )) {
+            candidates.add(
+              occurrence,
+            );
+            break;
+          }
+        }
+      }
+
+      cursor = cursor.add(
+        const Duration(days: 1),
+      );
+    }
+
+    if (candidates.isEmpty) {
+      return null;
+    }
+
+    candidates.sort(
+      _compareOccurrences,
+    );
+
+    return candidates.first;
   }
 
   List<TaskSubtask>
@@ -823,54 +1229,6 @@ class TaskRepository {
           ),
         ),
     ];
-  }
-
-  DateTime? _nextRelevantOccurrenceDate(
-    LifeTask task,
-    DateTime now,
-  ) {
-    final startDate =
-        task.scheduledDate;
-
-    if (startDate == null ||
-        !task.recurrence.isRecurring) {
-      return startDate;
-    }
-
-    final today =
-        _dateOnly(now);
-
-    var cursor =
-        _dateOnly(startDate);
-
-    if (cursor.isBefore(today)) {
-      cursor = today;
-    }
-
-    // Weekly ha sempre un match entro 7 giorni.
-    // 370 lascia ampio margine anche per dati non validi/futuri.
-    for (var i = 0;
-        i < 370;
-        i++) {
-      if (task.recurrence.occursOn(
-        cursor,
-        startDate,
-      )) {
-        if (!_isOccurrencePast(
-          task,
-          cursor,
-          now,
-        )) {
-          return cursor;
-        }
-      }
-
-      cursor = cursor.add(
-        const Duration(days: 1),
-      );
-    }
-
-    return null;
   }
 
   bool _isOccurrencePast(
@@ -922,17 +1280,22 @@ class TaskRepository {
       return dateComparison;
     }
 
-    if (a.task.allDay !=
-        b.task.allDay) {
-      return a.task.allDay
+    final aTask =
+        a.displayTask;
+    final bTask =
+        b.displayTask;
+
+    if (aTask.allDay !=
+        bTask.allDay) {
+      return aTask.allDay
           ? -1
           : 1;
     }
 
     final aTime =
-        a.task.startTimeMinutes;
+        aTask.startTimeMinutes;
     final bTime =
-        b.task.startTimeMinutes;
+        bTask.startTimeMinutes;
 
     if (aTime == null &&
         bTime != null) {
@@ -954,10 +1317,10 @@ class TaskRepository {
       }
     }
 
-    return a.task.title
+    return aTask.title
         .toLowerCase()
         .compareTo(
-          b.task.title.toLowerCase(),
+          bTask.title.toLowerCase(),
         );
   }
 
@@ -1174,10 +1537,15 @@ class _TaskDataSnapshot {
       completedOccurrenceKeys;
   final Set<String>
       completedSubtaskOccurrenceKeys;
+  final Map<
+      String,
+      Map<String, TaskOccurrenceOverrideRow>>
+      overridesByTaskId;
 
   const _TaskDataSnapshot({
     required this.tasks,
     required this.completedOccurrenceKeys,
     required this.completedSubtaskOccurrenceKeys,
+    required this.overridesByTaskId,
   });
 }

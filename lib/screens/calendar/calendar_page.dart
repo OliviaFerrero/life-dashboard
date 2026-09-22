@@ -686,7 +686,7 @@ class _CalendarPageState
                                             _categoryColor(
                                           context,
                                           visible[i]
-                                              .task,
+                                              .displayTask,
                                           categoryMap,
                                         ),
                                         shape:
@@ -1011,28 +1011,28 @@ class _CalendarPageState
                             category:
                                 selectedOccurrences[
                                                 i]
-                                            .task
+                                            .displayTask
                                             .categoryId ==
                                         null
                                     ? null
                                     : categoryMap[
                                         selectedOccurrences[
                                                 i]
-                                            .task
+                                            .displayTask
                                             .categoryId],
                             priorityColor:
                                 _priorityColor(
                               context,
                               selectedOccurrences[
                                       i]
-                                  .task
+                                  .displayTask
                                   .priority,
                             ),
                             priorityLabel:
                                 _priorityLabel(
                               selectedOccurrences[
                                       i]
-                                  .task
+                                  .displayTask
                                   .priority,
                             ),
                             onCompletedChanged:

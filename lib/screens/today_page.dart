@@ -209,15 +209,15 @@ class TodayPage extends StatelessWidget {
     );
   }
 
-  LifeTask? _findNextTask(
-    List<LifeTask> tasks,
+  TaskOccurrence? _findNextOccurrence(
+    List<TaskOccurrence> occurrences,
     DateTime now,
   ) {
     final incomplete =
-        tasks
+        occurrences
             .where(
-              (task) =>
-                  !task.isCompleted,
+              (occurrence) =>
+                  !occurrence.isCompleted,
             )
             .toList();
 
@@ -225,14 +225,18 @@ class TodayPage extends StatelessWidget {
       return null;
     }
 
-    for (final task in incomplete) {
+    for (final occurrence
+        in incomplete) {
+      final task =
+          occurrence.displayTask;
+
       if (task.allDay ||
           task.startTimeMinutes == null) {
         continue;
       }
 
       final date =
-          task.scheduledDate!;
+          occurrence.date;
 
       final start = DateTime(
         date.year,
@@ -246,14 +250,18 @@ class TodayPage extends StatelessWidget {
       );
 
       if (!start.isBefore(now)) {
-        return task;
+        return occurrence;
       }
     }
 
-    for (final task in incomplete) {
+    for (final occurrence
+        in incomplete) {
+      final task =
+          occurrence.displayTask;
+
       if (task.allDay ||
           task.startTimeMinutes == null) {
-        return task;
+        return occurrence;
       }
     }
 
@@ -420,31 +428,24 @@ class TodayPage extends StatelessWidget {
                       )
                       .toList();
 
-              final occurrenceByTaskId = {
-                for (final occurrence
-                    in occurrences)
-                  occurrence.task.id:
-                      occurrence,
-              };
-
               final completedCount =
-                  tasks.where(
-                (task) =>
-                    task.isCompleted,
+                  occurrences.where(
+                (occurrence) =>
+                    occurrence.isCompleted,
               ).length;
 
               final incompleteCount =
-                  tasks.length -
+                  occurrences.length -
                       completedCount;
 
-              final nextTask =
-                  _findNextTask(
-                tasks,
+              final nextOccurrence =
+                  _findNextOccurrence(
+                occurrences,
                 now,
               );
 
-              final visibleTasks =
-                  tasks
+              final visibleOccurrences =
+                  occurrences
                       .take(5)
                       .toList();
 
@@ -638,10 +639,11 @@ class TodayPage extends StatelessWidget {
                             )
                           else
                             TaskTimeline(
-                              tasks:
-                                  visibleTasks,
-                              nextTaskId:
-                                  nextTask?.id,
+                              occurrences:
+                                  visibleOccurrences,
+                              nextOccurrenceKey:
+                                  nextOccurrence
+                                      ?.occurrenceKey,
                               timeLabelBuilder:
                                   _timeLabel,
                               secondaryLabelBuilder:
@@ -682,18 +684,9 @@ class TodayPage extends StatelessWidget {
                               },
                               onCompletedChanged:
                                   (
-                                task,
+                                occurrence,
                                 completed,
                               ) async {
-                                final occurrence =
-                                    occurrenceByTaskId[
-                                        task.id];
-
-                                if (occurrence ==
-                                    null) {
-                                  return;
-                                }
-
                                 if (completed) {
                                   final remaining =
                                       occurrence
@@ -725,16 +718,7 @@ class TodayPage extends StatelessWidget {
                                 );
                               },
                               onTaskTap:
-                                  (task) {
-                                final occurrence =
-                                    occurrenceByTaskId[
-                                        task.id];
-
-                                if (occurrence ==
-                                    null) {
-                                  return;
-                                }
-
+                                  (occurrence) {
                                 _openTaskDetail(
                                   context,
                                   occurrence,

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/life_task.dart';
+import '../models/task_occurrence.dart';
 
 class TaskTimeline
     extends StatelessWidget {
-  final List<LifeTask> tasks;
+  final List<TaskOccurrence> occurrences;
 
   final String Function(
     LifeTask task,
@@ -26,20 +27,20 @@ class TaskTimeline
     LifeTask task,
   ) priorityColorBuilder;
 
-  final String? nextTaskId;
+  final String? nextOccurrenceKey;
 
   final Future<void> Function(
-    LifeTask task,
+    TaskOccurrence occurrence,
     bool completed,
   ) onCompletedChanged;
 
   final void Function(
-    LifeTask task,
+    TaskOccurrence occurrence,
   ) onTaskTap;
 
   const TaskTimeline({
     super.key,
-    required this.tasks,
+    required this.occurrences,
     required this.timeLabelBuilder,
     required this.secondaryLabelBuilder,
     required this.subtaskProgressBuilder,
@@ -47,7 +48,7 @@ class TaskTimeline
     required this.priorityColorBuilder,
     required this.onCompletedChanged,
     required this.onTaskTap,
-    this.nextTaskId,
+    this.nextOccurrenceKey,
   });
 
   @override
@@ -57,56 +58,70 @@ class TaskTimeline
     return Column(
       children: [
         for (int i = 0;
-            i < tasks.length;
+            i < occurrences.length;
             i++)
-          _TaskTimelineItem(
-            task: tasks[i],
+          Builder(
+            builder: (context) {
+              final occurrence =
+                  occurrences[i];
+              final task =
+                  occurrence.displayTask;
 
-            timeLabel:
-                timeLabelBuilder(
-              tasks[i],
-            ),
+              return _TaskTimelineItem(
+                task:
+                    task,
 
-            secondaryLabel:
-                secondaryLabelBuilder(
-              tasks[i],
-            ),
+                timeLabel:
+                    timeLabelBuilder(
+                  task,
+                ),
 
-            subtaskProgress:
-                subtaskProgressBuilder(
-              tasks[i],
-            ),
+                secondaryLabel:
+                    secondaryLabelBuilder(
+                  task,
+                ),
 
-            accentColor:
-                accentColorBuilder(
-              tasks[i],
-            ),
+                subtaskProgress:
+                    subtaskProgressBuilder(
+                  task,
+                ),
 
-            priorityColor:
-                priorityColorBuilder(
-              tasks[i],
-            ),
+                accentColor:
+                    accentColorBuilder(
+                  task,
+                ),
 
-            isFirst: i == 0,
+                priorityColor:
+                    priorityColorBuilder(
+                  task,
+                ),
 
-            isLast:
-                i == tasks.length - 1,
+                isFirst:
+                    i == 0,
 
-            isNext:
-                tasks[i].id ==
-                    nextTaskId,
+                isLast:
+                    i ==
+                        occurrences.length -
+                            1,
 
-            onCompletedChanged:
-                (completed) {
-              return onCompletedChanged(
-                tasks[i],
-                completed,
-              );
-            },
+                isNext:
+                    occurrence
+                            .occurrenceKey ==
+                        nextOccurrenceKey,
 
-            onTap: () {
-              onTaskTap(
-                tasks[i],
+                onCompletedChanged:
+                    (completed) {
+                  return onCompletedChanged(
+                    occurrence,
+                    completed,
+                  );
+                },
+
+                onTap: () {
+                  onTaskTap(
+                    occurrence,
+                  );
+                },
               );
             },
           ),
@@ -406,20 +421,20 @@ class _TaskTimelineItem
 
                         Row(
                           mainAxisSize:
-                              MainAxisSize.min,
+                              MainAxisSize
+                                  .min,
                           children: [
                             Icon(
                               Icons
-                                  .checklist_rounded,
+                                  .checklist_outlined,
                               size: 14,
                               color:
-                                  accentColor,
+                                  colorScheme
+                                      .onSurfaceVariant,
                             ),
-
                             const SizedBox(
-                              width: 5,
+                              width: 4,
                             ),
-
                             Text(
                               subtaskProgress!,
                               style:
@@ -430,7 +445,8 @@ class _TaskTimelineItem
                                       .bodySmall
                                       ?.copyWith(
                                         color:
-                                            accentColor,
+                                            colorScheme
+                                                .onSurfaceVariant,
                                         fontWeight:
                                             FontWeight
                                                 .w700,

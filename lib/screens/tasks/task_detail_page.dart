@@ -10,6 +10,11 @@ import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
 import 'task_form_page.dart';
 
+enum _RecurringActionScope {
+  occurrence,
+  series,
+}
+
 class TaskDetailPage extends StatefulWidget {
   final LifeTask task;
   final TaskOccurrence? occurrence;
@@ -31,26 +36,45 @@ class TaskDetailPage extends StatefulWidget {
 
 class _TaskDetailPageState
     extends State<TaskDetailPage> {
+  late LifeTask _seriesTask;
   late LifeTask _task;
   late bool _isCompleted;
   late List<TaskSubtask> _subtasks;
+
+  /// Data effettiva mostrata per questa occorrenza.
   DateTime? _occurrenceDate;
+
+  /// Data originaria generata dalla regola della serie.
+  /// Rimane stabile anche se l'occorrenza viene spostata.
+  DateTime? _seriesDate;
 
   @override
   void initState() {
     super.initState();
 
-    _task = widget.task;
+    _seriesTask =
+        widget.occurrence?.task ??
+            widget.task;
+
+    _task =
+        widget.occurrence?.displayTask ??
+            widget.task;
+
     _occurrenceDate =
         widget.occurrence?.date ??
-            widget.task.scheduledDate;
+            _task.scheduledDate;
+
+    _seriesDate =
+        widget.occurrence?.seriesDate ??
+            _task.scheduledDate;
+
     _isCompleted =
         widget.occurrence?.isCompleted ??
-            widget.task.isCompleted;
+            _task.isCompleted;
 
     _subtasks =
         (widget.occurrence?.subtasks ??
-                widget.task.subtasks)
+                _task.subtasks)
             .toList()
           ..sort(
             (a, b) =>
@@ -398,15 +422,15 @@ class _TaskDetailPageState
         !subtask.isCompleted;
 
     final occurrenceDate =
-        _task.recurrence.isRecurring
-            ? (_occurrenceDate ??
-                _task.scheduledDate)
+        _seriesTask.recurrence.isRecurring
+            ? (_seriesDate ??
+                _seriesTask.scheduledDate)
             : null;
 
     await widget.taskRepository
         .setSubtaskCompleted(
       task:
-          _task,
+          _seriesTask,
       subtask:
           subtask,
       completed:
@@ -428,19 +452,28 @@ class _TaskDetailPageState
           _occurrenceDate ??
               _task.scheduledDate;
 
-      if (_task.recurrence.isRecurring &&
-          date != null) {
+      final seriesDate =
+          _seriesDate ??
+              _seriesTask.scheduledDate;
+
+      if (_seriesTask.recurrence.isRecurring &&
+          date != null &&
+          seriesDate != null) {
         await widget.taskRepository
             .setOccurrenceCompleted(
           TaskOccurrence(
             task:
-                _task,
+                _seriesTask,
             date:
                 date,
+            seriesDate:
+                seriesDate,
             isCompleted:
                 true,
             subtasks:
                 _subtasks,
+            effectiveTask:
+                _task,
           ),
           false,
         );
@@ -479,9 +512,11 @@ class _TaskDetailPageState
         _isCompleted =
             false;
 
-        if (!_task.recurrence
+        if (!_seriesTask.recurrence
             .isRecurring) {
           _task.isCompleted =
+              false;
+          _seriesTask.isCompleted =
               false;
         }
       }
@@ -509,19 +544,28 @@ class _TaskDetailPageState
         _occurrenceDate ??
             _task.scheduledDate;
 
-    if (_task.recurrence.isRecurring &&
-        date != null) {
+    final seriesDate =
+        _seriesDate ??
+            _seriesTask.scheduledDate;
+
+    if (_seriesTask.recurrence.isRecurring &&
+        date != null &&
+        seriesDate != null) {
       await widget.taskRepository
           .setOccurrenceCompleted(
         TaskOccurrence(
           task:
-              _task,
+              _seriesTask,
           date:
               date,
+          seriesDate:
+              seriesDate,
           isCompleted:
               _isCompleted,
           subtasks:
               _subtasks,
+          effectiveTask:
+              _task,
         ),
         completed,
       );
@@ -552,24 +596,56 @@ class _TaskDetailPageState
         ];
       }
 
-      if (!_task.recurrence
+      if (!_seriesTask.recurrence
           .isRecurring) {
         _task.isCompleted =
+            completed;
+        _seriesTask.isCompleted =
             completed;
       }
     });
   }
 
-  LifeTask _taskForEditing() {
+  LifeTask _seriesTaskForEditing() {
     return LifeTask(
       id:
-          _task.id,
+          _seriesTask.id,
+      title:
+          _seriesTask.title,
+      description:
+          _seriesTask.description,
+      scheduledDate:
+          _seriesTask.scheduledDate,
+      startTimeMinutes:
+          _seriesTask.startTimeMinutes,
+      durationMinutes:
+          _seriesTask.durationMinutes,
+      categoryId:
+          _seriesTask.categoryId,
+      allDay:
+          _seriesTask.allDay,
+      priority:
+          _seriesTask.priority,
+      recurrence:
+          _seriesTask.recurrence,
+      subtasks:
+          _seriesTask.subtasks,
+      isCompleted:
+          _seriesTask.isCompleted,
+    );
+  }
+
+  LifeTask _occurrenceTaskForEditing() {
+    return LifeTask(
+      id:
+          _seriesTask.id,
       title:
           _task.title,
       description:
           _task.description,
       scheduledDate:
-          _task.scheduledDate,
+          _occurrenceDate ??
+              _task.scheduledDate,
       startTimeMinutes:
           _task.startTimeMinutes,
       durationMinutes:
@@ -581,7 +657,7 @@ class _TaskDetailPageState
       priority:
           _task.priority,
       recurrence:
-          _task.recurrence,
+          _seriesTask.recurrence,
       subtasks:
           _subtasks,
       isCompleted:
@@ -589,10 +665,37 @@ class _TaskDetailPageState
     );
   }
 
-  Future<void> _editTask() async {
-    final wasRecurring =
-        _task.recurrence.isRecurring;
+  TaskOccurrence? _currentOccurrence() {
+    final date =
+        _occurrenceDate ??
+            _task.scheduledDate;
 
+    final seriesDate =
+        _seriesDate ??
+            _seriesTask.scheduledDate;
+
+    if (date == null ||
+        seriesDate == null) {
+      return null;
+    }
+
+    return TaskOccurrence(
+      task:
+          _seriesTask,
+      date:
+          date,
+      seriesDate:
+          seriesDate,
+      isCompleted:
+          _isCompleted,
+      subtasks:
+          _subtasks,
+      effectiveTask:
+          _task,
+    );
+  }
+
+  Future<void> _editSeries() async {
     final result =
         await Navigator.push<
             TaskFormResult>(
@@ -603,7 +706,7 @@ class _TaskDetailPageState
           categoryRepository:
               widget.categoryRepository,
           initialTask:
-              _taskForEditing(),
+              _seriesTaskForEditing(),
         ),
       ),
     );
@@ -615,7 +718,7 @@ class _TaskDetailPageState
     if (result.shouldDelete) {
       await widget.taskRepository
           .deleteTask(
-        _task.id,
+        _seriesTask.id,
       );
 
       if (!mounted) {
@@ -644,78 +747,45 @@ class _TaskDetailPageState
       return;
     }
 
-    setState(() {
-      final previousSubtasks =
-          {
-        for (final subtask
-            in _subtasks)
-          subtask.id:
-              subtask.isCompleted,
-      };
+    if (_seriesTask.recurrence
+        .isRecurring) {
+      // Torniamo alla lista/calendario: la sorgente reattiva ricostruisce
+      // l'occorrenza con eventuali eccezioni ancora applicabili.
+      Navigator.pop(
+        context,
+      );
+      return;
+    }
 
+    setState(() {
+      _seriesTask =
+          updatedTask;
       _task =
           updatedTask;
-
-      if (!_task.recurrence
-          .isRecurring) {
-        _occurrenceDate =
-            _task.scheduledDate;
-        _isCompleted =
-            _task.isCompleted;
-        _subtasks =
-            _task.subtasks
-                .toList();
-      } else {
-        final currentDate =
-            _occurrenceDate;
-
-        if (!wasRecurring ||
-            currentDate == null ||
-            _task.scheduledDate ==
-                null ||
-            !_task.recurrence
-                .occursOn(
-              currentDate,
-              _task
-                  .scheduledDate!,
-            )) {
-          _occurrenceDate =
-              _task.scheduledDate;
-          _isCompleted =
-              false;
-          _subtasks = [
-            for (final subtask
-                in _task.subtasks)
-              subtask.copyWith(
-                isCompleted:
-                    false,
+      _occurrenceDate =
+          updatedTask.scheduledDate;
+      _seriesDate =
+          updatedTask.scheduledDate;
+      _isCompleted =
+          updatedTask.isCompleted;
+      _subtasks =
+          updatedTask.subtasks
+              .toList()
+            ..sort(
+              (a, b) =>
+                  a.sortOrder.compareTo(
+                b.sortOrder,
               ),
-          ];
-        } else {
-          _subtasks = [
-            for (final subtask
-                in _task.subtasks)
-              subtask.copyWith(
-                isCompleted:
-                    previousSubtasks[
-                            subtask.id] ??
-                        false,
-              ),
-          ];
-        }
-      }
-
-      _subtasks.sort(
-        (a, b) =>
-            a.sortOrder.compareTo(
-          b.sortOrder,
-        ),
-      );
+            );
     });
   }
 
-  Future<void> _rescheduleTask() async {
-    if (_task.recurrence.isRecurring) {
+  Future<void> _editOccurrence() async {
+    final occurrence =
+        _currentOccurrence();
+
+    if (occurrence == null ||
+        !occurrence.isRecurring) {
       return;
     }
 
@@ -729,7 +799,55 @@ class _TaskDetailPageState
           categoryRepository:
               widget.categoryRepository,
           initialTask:
-              _taskForEditing(),
+              _occurrenceTaskForEditing(),
+          occurrenceOnly:
+              true,
+        ),
+      ),
+    );
+
+    final editedTask =
+        result?.task;
+
+    if (editedTask == null) {
+      return;
+    }
+
+    await widget.taskRepository
+        .saveOccurrenceOverride(
+      occurrence:
+          occurrence,
+      editedTask:
+          editedTask,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    // La pagina sorgente è reattiva e ricostruirà l'occorrenza con
+    // titolo/data/orario/categoria/priorità effettivi aggiornati.
+    Navigator.pop(
+      context,
+    );
+  }
+
+  Future<void> _rescheduleTask() async {
+    if (_seriesTask.recurrence.isRecurring) {
+      return;
+    }
+
+    final result =
+        await Navigator.push<
+            TaskFormResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            TaskFormPage(
+          categoryRepository:
+              widget.categoryRepository,
+          initialTask:
+              _seriesTaskForEditing(),
           rescheduleOnly:
               true,
         ),
@@ -753,9 +871,13 @@ class _TaskDetailPageState
     }
 
     setState(() {
+      _seriesTask =
+          updatedTask;
       _task =
           updatedTask;
       _occurrenceDate =
+          updatedTask.scheduledDate;
+      _seriesDate =
           updatedTask.scheduledDate;
       _isCompleted =
           updatedTask.isCompleted;
@@ -771,9 +893,9 @@ class _TaskDetailPageState
     });
   }
 
-  Future<void> _deleteTask() async {
+  Future<void> _deleteSeries() async {
     final recurring =
-        _task.recurrence.isRecurring;
+        _seriesTask.recurrence.isRecurring;
 
     final confirmed =
         await showDialog<bool>(
@@ -788,9 +910,9 @@ class _TaskDetailPageState
           content: Text(
             recurring
                 ? 'Vuoi eliminare tutta la serie '
-                    '"${_task.title}"?'
+                    '"${_seriesTask.title}"?'
                 : 'Vuoi eliminare '
-                    '"${_task.title}"?',
+                    '"${_seriesTask.title}"?',
           ),
           actions: [
             TextButton(
@@ -828,7 +950,7 @@ class _TaskDetailPageState
 
     await widget.taskRepository
         .deleteTask(
-      _task.id,
+      _seriesTask.id,
     );
 
     if (!mounted) {
@@ -840,10 +962,303 @@ class _TaskDetailPageState
     );
   }
 
-  Future<void> _showTaskActions() async {
-    final recurring =
-        _task.recurrence.isRecurring;
+  Future<void> _deleteOccurrence() async {
+    final occurrence =
+        _currentOccurrence();
 
+    if (occurrence == null ||
+        !occurrence.isRecurring) {
+      return;
+    }
+
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title:
+              const Text(
+            'Eliminare questa occorrenza?',
+          ),
+          content:
+              const Text(
+            'Verrà rimossa solo questa data. '
+            'Le altre occorrenze della serie resteranno invariate.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  false,
+                );
+              },
+              child:
+                  const Text(
+                'Annulla',
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
+              child:
+                  const Text(
+                'Elimina',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    await widget.taskRepository
+        .deleteOccurrence(
+      occurrence,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.pop(
+      context,
+    );
+  }
+
+  Future<_RecurringActionScope?>
+      _chooseRecurringScope({
+    required String title,
+    required IconData occurrenceIcon,
+    required IconData seriesIcon,
+    bool destructive = false,
+  }) {
+    return showModalBottomSheet<
+        _RecurringActionScope>(
+      context: context,
+      backgroundColor:
+          Colors.transparent,
+      barrierColor:
+          Colors.black.withValues(
+        alpha: 0.28,
+      ),
+      builder: (sheetContext) {
+        final colorScheme =
+            Theme.of(sheetContext)
+                .colorScheme;
+
+        return SafeArea(
+          top: false,
+          child: Container(
+            margin:
+                const EdgeInsets
+                    .fromLTRB(
+              12,
+              0,
+              12,
+              12,
+            ),
+            padding:
+                const EdgeInsets
+                    .fromLTRB(
+              20,
+              18,
+              20,
+              10,
+            ),
+            decoration:
+                BoxDecoration(
+              color:
+                  colorScheme.surface,
+              borderRadius:
+                  BorderRadius.circular(
+                24,
+              ),
+              border:
+                  Border.all(
+                color:
+                    colorScheme
+                        .outlineVariant
+                        .withValues(
+                  alpha:
+                      0.55,
+                ),
+              ),
+            ),
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
+              children: [
+                Text(
+                  title.toUpperCase(),
+                  style:
+                      Theme.of(
+                    sheetContext,
+                  )
+                          .textTheme
+                          .labelMedium
+                          ?.copyWith(
+                            color:
+                                colorScheme
+                                    .onSurfaceVariant,
+                            fontWeight:
+                                FontWeight
+                                    .w800,
+                            letterSpacing:
+                                1,
+                          ),
+                ),
+                const SizedBox(
+                  height: 8,
+                ),
+                _ActionSheetRow(
+                  icon:
+                      occurrenceIcon,
+                  label:
+                      'Solo questa occorrenza',
+                  isDestructive:
+                      destructive,
+                  onTap: () {
+                    Navigator.pop(
+                      sheetContext,
+                      _RecurringActionScope
+                          .occurrence,
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  indent: 44,
+                  color:
+                      colorScheme
+                          .outlineVariant
+                          .withValues(
+                    alpha:
+                        0.5,
+                  ),
+                ),
+                _ActionSheetRow(
+                  icon:
+                      seriesIcon,
+                  label:
+                      'Tutta la serie',
+                  isDestructive:
+                      destructive,
+                  onTap: () {
+                    Navigator.pop(
+                      sheetContext,
+                      _RecurringActionScope
+                          .series,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleEditAction() async {
+    if (!_seriesTask.recurrence
+        .isRecurring) {
+      await _editSeries();
+      return;
+    }
+
+    final occurrence =
+        _currentOccurrence();
+
+    if (occurrence == null) {
+      await _editSeries();
+      return;
+    }
+
+    final scope =
+        await _chooseRecurringScope(
+      title:
+          'Modifica',
+      occurrenceIcon:
+          Icons.event_outlined,
+      seriesIcon:
+          Icons.repeat,
+    );
+
+    if (!mounted ||
+        scope == null) {
+      return;
+    }
+
+    switch (scope) {
+      case _RecurringActionScope
+            .occurrence:
+        await _editOccurrence();
+        break;
+
+      case _RecurringActionScope
+            .series:
+        await _editSeries();
+        break;
+    }
+  }
+
+  Future<void> _handleDeleteAction() async {
+    if (!_seriesTask.recurrence
+        .isRecurring) {
+      await _deleteSeries();
+      return;
+    }
+
+    final occurrence =
+        _currentOccurrence();
+
+    if (occurrence == null) {
+      await _deleteSeries();
+      return;
+    }
+
+    final scope =
+        await _chooseRecurringScope(
+      title:
+          'Elimina',
+      occurrenceIcon:
+          Icons.event_busy_outlined,
+      seriesIcon:
+          Icons.delete_sweep_outlined,
+      destructive:
+          true,
+    );
+
+    if (!mounted ||
+        scope == null) {
+      return;
+    }
+
+    switch (scope) {
+      case _RecurringActionScope
+            .occurrence:
+        await _deleteOccurrence();
+        break;
+
+      case _RecurringActionScope
+            .series:
+        await _deleteSeries();
+        break;
+    }
+  }
+
+  Future<void> _showTaskActions() async {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor:
@@ -931,14 +1346,12 @@ class _TaskDetailPageState
                       Icons
                           .edit_outlined,
                   label:
-                      recurring
-                          ? 'Modifica serie'
-                          : 'Modifica',
+                      'Modifica',
                   onTap: () {
                     Navigator.pop(
                       sheetContext,
                     );
-                    _editTask();
+                    _handleEditAction();
                   },
                 ),
                 Divider(
@@ -957,16 +1370,14 @@ class _TaskDetailPageState
                       Icons
                           .delete_outline,
                   label:
-                      recurring
-                          ? 'Elimina serie'
-                          : 'Elimina',
+                      'Elimina',
                   isDestructive:
                       true,
                   onTap: () {
                     Navigator.pop(
                       sheetContext,
                     );
-                    _deleteTask();
+                    _handleDeleteAction();
                   },
                 ),
               ],
@@ -1174,6 +1585,22 @@ class _TaskDetailPageState
                       _recurrenceLabel(
                     _task.recurrence,
                   ),
+                ),
+              ],
+
+              if (widget.occurrence
+                      ?.hasOverride ==
+                  true) ...[
+                const SizedBox(
+                  height: 16,
+                ),
+                const _InfoLine(
+                  icon:
+                      Icons.tune_outlined,
+                  title:
+                      'Eccezione',
+                  value:
+                      'Modificata solo per questa occorrenza',
                 ),
               ],
 

@@ -153,6 +153,58 @@ class TaskOccurrenceStates extends Table {
       };
 }
 
+
+@DataClassName('TaskOccurrenceOverrideRow')
+class TaskOccurrenceOverrides extends Table {
+  TextColumn get taskId => text().references(
+        TaskItems,
+        #id,
+        onDelete: KeyAction.cascade,
+      )();
+
+  /// Data originaria generata dalla regola della serie.
+  ///
+  /// Rimane stabile anche quando l'occorrenza viene spostata a un
+  /// altro giorno ed è quindi l'identità dell'eccezione.
+  DateTimeColumn get occurrenceDate => dateTime()();
+
+  /// Data effettiva mostrata all'utente per questa sola occorrenza.
+  DateTimeColumn get effectiveDate => dateTime()();
+
+  TextColumn get title => text()();
+
+  TextColumn get description =>
+      text().withDefault(const Constant(''))();
+
+  IntColumn get startTimeMinutes => integer().nullable()();
+
+  IntColumn get durationMinutes => integer().nullable()();
+
+  TextColumn get categoryId => text()
+      .nullable()
+      .references(
+        TaskCategories,
+        #id,
+        onDelete: KeyAction.setNull,
+      )();
+
+  BoolColumn get allDay =>
+      boolean().withDefault(const Constant(false))();
+
+  IntColumn get priority =>
+      integer().withDefault(const Constant(1))();
+
+  /// true = questa singola occorrenza è esclusa dalla serie.
+  BoolColumn get isDeleted =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {
+        taskId,
+        occurrenceDate,
+      };
+}
+
 @DriftDatabase(
   tables: [
     TaskCategories,
@@ -160,13 +212,14 @@ class TaskOccurrenceStates extends Table {
     TaskOccurrenceStates,
     TaskSubtasks,
     TaskSubtaskOccurrenceStates,
+    TaskOccurrenceOverrides,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -228,6 +281,12 @@ class AppDatabase extends _$AppDatabase {
 
             await m.createTable(
               taskSubtaskOccurrenceStates,
+            );
+          }
+
+          if (from < 6) {
+            await m.createTable(
+              taskOccurrenceOverrides,
             );
           }
 

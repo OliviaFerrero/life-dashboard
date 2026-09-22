@@ -2224,6 +2224,717 @@ class TaskSubtaskOccurrenceStatesCompanion
   }
 }
 
+class $TaskOccurrenceOverridesTable extends TaskOccurrenceOverrides
+    with TableInfo<$TaskOccurrenceOverridesTable, TaskOccurrenceOverrideRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskOccurrenceOverridesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+    'task_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES task_items (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _occurrenceDateMeta = const VerificationMeta(
+    'occurrenceDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> occurrenceDate =
+      GeneratedColumn<DateTime>(
+        'occurrence_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _effectiveDateMeta = const VerificationMeta(
+    'effectiveDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> effectiveDate =
+      GeneratedColumn<DateTime>(
+        'effective_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _startTimeMinutesMeta = const VerificationMeta(
+    'startTimeMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> startTimeMinutes = GeneratedColumn<int>(
+    'start_time_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMinutesMeta = const VerificationMeta(
+    'durationMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> durationMinutes = GeneratedColumn<int>(
+    'duration_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES task_categories (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _allDayMeta = const VerificationMeta('allDay');
+  @override
+  late final GeneratedColumn<bool> allDay = GeneratedColumn<bool>(
+    'all_day',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("all_day" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    taskId,
+    occurrenceDate,
+    effectiveDate,
+    title,
+    description,
+    startTimeMinutes,
+    durationMinutes,
+    categoryId,
+    allDay,
+    priority,
+    isDeleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_occurrence_overrides';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskOccurrenceOverrideRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('occurrence_date')) {
+      context.handle(
+        _occurrenceDateMeta,
+        occurrenceDate.isAcceptableOrUnknown(
+          data['occurrence_date']!,
+          _occurrenceDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_occurrenceDateMeta);
+    }
+    if (data.containsKey('effective_date')) {
+      context.handle(
+        _effectiveDateMeta,
+        effectiveDate.isAcceptableOrUnknown(
+          data['effective_date']!,
+          _effectiveDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_effectiveDateMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('start_time_minutes')) {
+      context.handle(
+        _startTimeMinutesMeta,
+        startTimeMinutes.isAcceptableOrUnknown(
+          data['start_time_minutes']!,
+          _startTimeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('duration_minutes')) {
+      context.handle(
+        _durationMinutesMeta,
+        durationMinutes.isAcceptableOrUnknown(
+          data['duration_minutes']!,
+          _durationMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('all_day')) {
+      context.handle(
+        _allDayMeta,
+        allDay.isAcceptableOrUnknown(data['all_day']!, _allDayMeta),
+      );
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {taskId, occurrenceDate};
+  @override
+  TaskOccurrenceOverrideRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskOccurrenceOverrideRow(
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_id'],
+      )!,
+      occurrenceDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}occurrence_date'],
+      )!,
+      effectiveDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}effective_date'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      )!,
+      startTimeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_time_minutes'],
+      ),
+      durationMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_minutes'],
+      ),
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
+      allDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}all_day'],
+      )!,
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}priority'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskOccurrenceOverridesTable createAlias(String alias) {
+    return $TaskOccurrenceOverridesTable(attachedDatabase, alias);
+  }
+}
+
+class TaskOccurrenceOverrideRow extends DataClass
+    implements Insertable<TaskOccurrenceOverrideRow> {
+  final String taskId;
+
+  /// Data originaria generata dalla regola della serie.
+  ///
+  /// Rimane stabile anche quando l'occorrenza viene spostata a un
+  /// altro giorno ed è quindi l'identità dell'eccezione.
+  final DateTime occurrenceDate;
+
+  /// Data effettiva mostrata all'utente per questa sola occorrenza.
+  final DateTime effectiveDate;
+  final String title;
+  final String description;
+  final int? startTimeMinutes;
+  final int? durationMinutes;
+  final String? categoryId;
+  final bool allDay;
+  final int priority;
+
+  /// true = questa singola occorrenza è esclusa dalla serie.
+  final bool isDeleted;
+  const TaskOccurrenceOverrideRow({
+    required this.taskId,
+    required this.occurrenceDate,
+    required this.effectiveDate,
+    required this.title,
+    required this.description,
+    this.startTimeMinutes,
+    this.durationMinutes,
+    this.categoryId,
+    required this.allDay,
+    required this.priority,
+    required this.isDeleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['task_id'] = Variable<String>(taskId);
+    map['occurrence_date'] = Variable<DateTime>(occurrenceDate);
+    map['effective_date'] = Variable<DateTime>(effectiveDate);
+    map['title'] = Variable<String>(title);
+    map['description'] = Variable<String>(description);
+    if (!nullToAbsent || startTimeMinutes != null) {
+      map['start_time_minutes'] = Variable<int>(startTimeMinutes);
+    }
+    if (!nullToAbsent || durationMinutes != null) {
+      map['duration_minutes'] = Variable<int>(durationMinutes);
+    }
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    map['all_day'] = Variable<bool>(allDay);
+    map['priority'] = Variable<int>(priority);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    return map;
+  }
+
+  TaskOccurrenceOverridesCompanion toCompanion(bool nullToAbsent) {
+    return TaskOccurrenceOverridesCompanion(
+      taskId: Value(taskId),
+      occurrenceDate: Value(occurrenceDate),
+      effectiveDate: Value(effectiveDate),
+      title: Value(title),
+      description: Value(description),
+      startTimeMinutes: startTimeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startTimeMinutes),
+      durationMinutes: durationMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMinutes),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      allDay: Value(allDay),
+      priority: Value(priority),
+      isDeleted: Value(isDeleted),
+    );
+  }
+
+  factory TaskOccurrenceOverrideRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskOccurrenceOverrideRow(
+      taskId: serializer.fromJson<String>(json['taskId']),
+      occurrenceDate: serializer.fromJson<DateTime>(json['occurrenceDate']),
+      effectiveDate: serializer.fromJson<DateTime>(json['effectiveDate']),
+      title: serializer.fromJson<String>(json['title']),
+      description: serializer.fromJson<String>(json['description']),
+      startTimeMinutes: serializer.fromJson<int?>(json['startTimeMinutes']),
+      durationMinutes: serializer.fromJson<int?>(json['durationMinutes']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      allDay: serializer.fromJson<bool>(json['allDay']),
+      priority: serializer.fromJson<int>(json['priority']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'taskId': serializer.toJson<String>(taskId),
+      'occurrenceDate': serializer.toJson<DateTime>(occurrenceDate),
+      'effectiveDate': serializer.toJson<DateTime>(effectiveDate),
+      'title': serializer.toJson<String>(title),
+      'description': serializer.toJson<String>(description),
+      'startTimeMinutes': serializer.toJson<int?>(startTimeMinutes),
+      'durationMinutes': serializer.toJson<int?>(durationMinutes),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'allDay': serializer.toJson<bool>(allDay),
+      'priority': serializer.toJson<int>(priority),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+    };
+  }
+
+  TaskOccurrenceOverrideRow copyWith({
+    String? taskId,
+    DateTime? occurrenceDate,
+    DateTime? effectiveDate,
+    String? title,
+    String? description,
+    Value<int?> startTimeMinutes = const Value.absent(),
+    Value<int?> durationMinutes = const Value.absent(),
+    Value<String?> categoryId = const Value.absent(),
+    bool? allDay,
+    int? priority,
+    bool? isDeleted,
+  }) => TaskOccurrenceOverrideRow(
+    taskId: taskId ?? this.taskId,
+    occurrenceDate: occurrenceDate ?? this.occurrenceDate,
+    effectiveDate: effectiveDate ?? this.effectiveDate,
+    title: title ?? this.title,
+    description: description ?? this.description,
+    startTimeMinutes: startTimeMinutes.present
+        ? startTimeMinutes.value
+        : this.startTimeMinutes,
+    durationMinutes: durationMinutes.present
+        ? durationMinutes.value
+        : this.durationMinutes,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    allDay: allDay ?? this.allDay,
+    priority: priority ?? this.priority,
+    isDeleted: isDeleted ?? this.isDeleted,
+  );
+  TaskOccurrenceOverrideRow copyWithCompanion(
+    TaskOccurrenceOverridesCompanion data,
+  ) {
+    return TaskOccurrenceOverrideRow(
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      occurrenceDate: data.occurrenceDate.present
+          ? data.occurrenceDate.value
+          : this.occurrenceDate,
+      effectiveDate: data.effectiveDate.present
+          ? data.effectiveDate.value
+          : this.effectiveDate,
+      title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      startTimeMinutes: data.startTimeMinutes.present
+          ? data.startTimeMinutes.value
+          : this.startTimeMinutes,
+      durationMinutes: data.durationMinutes.present
+          ? data.durationMinutes.value
+          : this.durationMinutes,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      allDay: data.allDay.present ? data.allDay.value : this.allDay,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskOccurrenceOverrideRow(')
+          ..write('taskId: $taskId, ')
+          ..write('occurrenceDate: $occurrenceDate, ')
+          ..write('effectiveDate: $effectiveDate, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('startTimeMinutes: $startTimeMinutes, ')
+          ..write('durationMinutes: $durationMinutes, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('allDay: $allDay, ')
+          ..write('priority: $priority, ')
+          ..write('isDeleted: $isDeleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    taskId,
+    occurrenceDate,
+    effectiveDate,
+    title,
+    description,
+    startTimeMinutes,
+    durationMinutes,
+    categoryId,
+    allDay,
+    priority,
+    isDeleted,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskOccurrenceOverrideRow &&
+          other.taskId == this.taskId &&
+          other.occurrenceDate == this.occurrenceDate &&
+          other.effectiveDate == this.effectiveDate &&
+          other.title == this.title &&
+          other.description == this.description &&
+          other.startTimeMinutes == this.startTimeMinutes &&
+          other.durationMinutes == this.durationMinutes &&
+          other.categoryId == this.categoryId &&
+          other.allDay == this.allDay &&
+          other.priority == this.priority &&
+          other.isDeleted == this.isDeleted);
+}
+
+class TaskOccurrenceOverridesCompanion
+    extends UpdateCompanion<TaskOccurrenceOverrideRow> {
+  final Value<String> taskId;
+  final Value<DateTime> occurrenceDate;
+  final Value<DateTime> effectiveDate;
+  final Value<String> title;
+  final Value<String> description;
+  final Value<int?> startTimeMinutes;
+  final Value<int?> durationMinutes;
+  final Value<String?> categoryId;
+  final Value<bool> allDay;
+  final Value<int> priority;
+  final Value<bool> isDeleted;
+  final Value<int> rowid;
+  const TaskOccurrenceOverridesCompanion({
+    this.taskId = const Value.absent(),
+    this.occurrenceDate = const Value.absent(),
+    this.effectiveDate = const Value.absent(),
+    this.title = const Value.absent(),
+    this.description = const Value.absent(),
+    this.startTimeMinutes = const Value.absent(),
+    this.durationMinutes = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.allDay = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskOccurrenceOverridesCompanion.insert({
+    required String taskId,
+    required DateTime occurrenceDate,
+    required DateTime effectiveDate,
+    required String title,
+    this.description = const Value.absent(),
+    this.startTimeMinutes = const Value.absent(),
+    this.durationMinutes = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.allDay = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : taskId = Value(taskId),
+       occurrenceDate = Value(occurrenceDate),
+       effectiveDate = Value(effectiveDate),
+       title = Value(title);
+  static Insertable<TaskOccurrenceOverrideRow> custom({
+    Expression<String>? taskId,
+    Expression<DateTime>? occurrenceDate,
+    Expression<DateTime>? effectiveDate,
+    Expression<String>? title,
+    Expression<String>? description,
+    Expression<int>? startTimeMinutes,
+    Expression<int>? durationMinutes,
+    Expression<String>? categoryId,
+    Expression<bool>? allDay,
+    Expression<int>? priority,
+    Expression<bool>? isDeleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (taskId != null) 'task_id': taskId,
+      if (occurrenceDate != null) 'occurrence_date': occurrenceDate,
+      if (effectiveDate != null) 'effective_date': effectiveDate,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (startTimeMinutes != null) 'start_time_minutes': startTimeMinutes,
+      if (durationMinutes != null) 'duration_minutes': durationMinutes,
+      if (categoryId != null) 'category_id': categoryId,
+      if (allDay != null) 'all_day': allDay,
+      if (priority != null) 'priority': priority,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskOccurrenceOverridesCompanion copyWith({
+    Value<String>? taskId,
+    Value<DateTime>? occurrenceDate,
+    Value<DateTime>? effectiveDate,
+    Value<String>? title,
+    Value<String>? description,
+    Value<int?>? startTimeMinutes,
+    Value<int?>? durationMinutes,
+    Value<String?>? categoryId,
+    Value<bool>? allDay,
+    Value<int>? priority,
+    Value<bool>? isDeleted,
+    Value<int>? rowid,
+  }) {
+    return TaskOccurrenceOverridesCompanion(
+      taskId: taskId ?? this.taskId,
+      occurrenceDate: occurrenceDate ?? this.occurrenceDate,
+      effectiveDate: effectiveDate ?? this.effectiveDate,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      startTimeMinutes: startTimeMinutes ?? this.startTimeMinutes,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      categoryId: categoryId ?? this.categoryId,
+      allDay: allDay ?? this.allDay,
+      priority: priority ?? this.priority,
+      isDeleted: isDeleted ?? this.isDeleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (occurrenceDate.present) {
+      map['occurrence_date'] = Variable<DateTime>(occurrenceDate.value);
+    }
+    if (effectiveDate.present) {
+      map['effective_date'] = Variable<DateTime>(effectiveDate.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (startTimeMinutes.present) {
+      map['start_time_minutes'] = Variable<int>(startTimeMinutes.value);
+    }
+    if (durationMinutes.present) {
+      map['duration_minutes'] = Variable<int>(durationMinutes.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (allDay.present) {
+      map['all_day'] = Variable<bool>(allDay.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<int>(priority.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskOccurrenceOverridesCompanion(')
+          ..write('taskId: $taskId, ')
+          ..write('occurrenceDate: $occurrenceDate, ')
+          ..write('effectiveDate: $effectiveDate, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('startTimeMinutes: $startTimeMinutes, ')
+          ..write('durationMinutes: $durationMinutes, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('allDay: $allDay, ')
+          ..write('priority: $priority, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2234,6 +2945,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TaskSubtasksTable taskSubtasks = $TaskSubtasksTable(this);
   late final $TaskSubtaskOccurrenceStatesTable taskSubtaskOccurrenceStates =
       $TaskSubtaskOccurrenceStatesTable(this);
+  late final $TaskOccurrenceOverridesTable taskOccurrenceOverrides =
+      $TaskOccurrenceOverridesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2244,6 +2957,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     taskOccurrenceStates,
     taskSubtasks,
     taskSubtaskOccurrenceStates,
+    taskOccurrenceOverrides,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2275,6 +2989,24 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [
         TableUpdate('task_subtask_occurrence_states', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'task_items',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('task_occurrence_overrides', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'task_categories',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('task_occurrence_overrides', kind: UpdateKind.update),
       ],
     ),
   ]);
@@ -2321,6 +3053,32 @@ final class $$TaskCategoriesTableReferences
     ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_taskItemsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $TaskOccurrenceOverridesTable,
+    List<TaskOccurrenceOverrideRow>
+  >
+  _taskOccurrenceOverridesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.taskOccurrenceOverrides,
+        aliasName:
+            'task_categories__id__task_occurrence_overrides__category_id',
+      );
+
+  $$TaskOccurrenceOverridesTableProcessedTableManager
+  get taskOccurrenceOverridesRefs {
+    final manager = $$TaskOccurrenceOverridesTableTableManager(
+      $_db,
+      $_db.taskOccurrenceOverrides,
+    ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _taskOccurrenceOverridesRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -2383,6 +3141,32 @@ class $$TaskCategoriesTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> taskOccurrenceOverridesRefs(
+    Expression<bool> Function($$TaskOccurrenceOverridesTableFilterComposer f) f,
+  ) {
+    final $$TaskOccurrenceOverridesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.taskOccurrenceOverrides,
+          getReferencedColumn: (t) => t.categoryId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TaskOccurrenceOverridesTableFilterComposer(
+                $db: $db,
+                $table: $db.taskOccurrenceOverrides,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -2472,6 +3256,33 @@ class $$TaskCategoriesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> taskOccurrenceOverridesRefs<T extends Object>(
+    Expression<T> Function($$TaskOccurrenceOverridesTableAnnotationComposer a)
+    f,
+  ) {
+    final $$TaskOccurrenceOverridesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.taskOccurrenceOverrides,
+          getReferencedColumn: (t) => t.categoryId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TaskOccurrenceOverridesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.taskOccurrenceOverrides,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$TaskCategoriesTableTableManager
@@ -2487,7 +3298,10 @@ class $$TaskCategoriesTableTableManager
           $$TaskCategoriesTableUpdateCompanionBuilder,
           (TaskCategoryRow, $$TaskCategoriesTableReferences),
           TaskCategoryRow,
-          PrefetchHooks Function({bool taskItemsRefs})
+          PrefetchHooks Function({
+            bool taskItemsRefs,
+            bool taskOccurrenceOverridesRefs,
+          })
         > {
   $$TaskCategoriesTableTableManager(
     _$AppDatabase db,
@@ -2542,36 +3356,63 @@ class $$TaskCategoriesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({taskItemsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (taskItemsRefs) db.taskItems],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (taskItemsRefs)
-                    await $_getPrefetchedData<
-                      TaskCategoryRow,
-                      $TaskCategoriesTable,
-                      TaskItem
-                    >(
-                      currentTable: table,
-                      referencedTable: $$TaskCategoriesTableReferences
-                          ._taskItemsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$TaskCategoriesTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).taskItemsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.categoryId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({taskItemsRefs = false, taskOccurrenceOverridesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (taskItemsRefs) db.taskItems,
+                    if (taskOccurrenceOverridesRefs) db.taskOccurrenceOverrides,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (taskItemsRefs)
+                        await $_getPrefetchedData<
+                          TaskCategoryRow,
+                          $TaskCategoriesTable,
+                          TaskItem
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TaskCategoriesTableReferences
+                              ._taskItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TaskCategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).taskItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (taskOccurrenceOverridesRefs)
+                        await $_getPrefetchedData<
+                          TaskCategoryRow,
+                          $TaskCategoriesTable,
+                          TaskOccurrenceOverrideRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TaskCategoriesTableReferences
+                              ._taskOccurrenceOverridesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TaskCategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).taskOccurrenceOverridesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -2588,7 +3429,10 @@ typedef $$TaskCategoriesTableProcessedTableManager =
       $$TaskCategoriesTableUpdateCompanionBuilder,
       (TaskCategoryRow, $$TaskCategoriesTableReferences),
       TaskCategoryRow,
-      PrefetchHooks Function({bool taskItemsRefs})
+      PrefetchHooks Function({
+        bool taskItemsRefs,
+        bool taskOccurrenceOverridesRefs,
+      })
     >;
 typedef $$TaskItemsTableCreateCompanionBuilder = TaskItemsCompanion Function({
   required String id,
@@ -2687,6 +3531,31 @@ final class $$TaskItemsTableReferences
     ).filter((f) => f.taskId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_taskSubtasksRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $TaskOccurrenceOverridesTable,
+    List<TaskOccurrenceOverrideRow>
+  >
+  _taskOccurrenceOverridesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.taskOccurrenceOverrides,
+        aliasName: 'task_items__id__task_occurrence_overrides__task_id',
+      );
+
+  $$TaskOccurrenceOverridesTableProcessedTableManager
+  get taskOccurrenceOverridesRefs {
+    final manager = $$TaskOccurrenceOverridesTableTableManager(
+      $_db,
+      $_db.taskOccurrenceOverrides,
+    ).filter((f) => f.taskId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _taskOccurrenceOverridesRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -2842,6 +3711,32 @@ class $$TaskItemsTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> taskOccurrenceOverridesRefs(
+    Expression<bool> Function($$TaskOccurrenceOverridesTableFilterComposer f) f,
+  ) {
+    final $$TaskOccurrenceOverridesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.taskOccurrenceOverrides,
+          getReferencedColumn: (t) => t.taskId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TaskOccurrenceOverridesTableFilterComposer(
+                $db: $db,
+                $table: $db.taskOccurrenceOverrides,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -3087,6 +3982,33 @@ class $$TaskItemsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> taskOccurrenceOverridesRefs<T extends Object>(
+    Expression<T> Function($$TaskOccurrenceOverridesTableAnnotationComposer a)
+    f,
+  ) {
+    final $$TaskOccurrenceOverridesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.taskOccurrenceOverrides,
+          getReferencedColumn: (t) => t.taskId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TaskOccurrenceOverridesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.taskOccurrenceOverrides,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$TaskItemsTableTableManager
@@ -3106,6 +4028,7 @@ class $$TaskItemsTableTableManager
             bool categoryId,
             bool taskOccurrenceStatesRefs,
             bool taskSubtasksRefs,
+            bool taskOccurrenceOverridesRefs,
           })
         > {
   $$TaskItemsTableTableManager(_$AppDatabase db, $TaskItemsTable table)
@@ -3204,12 +4127,14 @@ class $$TaskItemsTableTableManager
                 categoryId = false,
                 taskOccurrenceStatesRefs = false,
                 taskSubtasksRefs = false,
+                taskOccurrenceOverridesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (taskOccurrenceStatesRefs) db.taskOccurrenceStates,
                     if (taskSubtasksRefs) db.taskSubtasks,
+                    if (taskOccurrenceOverridesRefs) db.taskOccurrenceOverrides,
                   ],
                   addJoins:
                       <
@@ -3285,6 +4210,27 @@ class $$TaskItemsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (taskOccurrenceOverridesRefs)
+                        await $_getPrefetchedData<
+                          TaskItem,
+                          $TaskItemsTable,
+                          TaskOccurrenceOverrideRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TaskItemsTableReferences
+                              ._taskOccurrenceOverridesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TaskItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).taskOccurrenceOverridesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.taskId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -3309,6 +4255,7 @@ typedef $$TaskItemsTableProcessedTableManager =
         bool categoryId,
         bool taskOccurrenceStatesRefs,
         bool taskSubtasksRefs,
+        bool taskOccurrenceOverridesRefs,
       })
     >;
 typedef $$TaskOccurrenceStatesTableCreateCompanionBuilder =
@@ -4359,6 +5306,558 @@ typedef $$TaskSubtaskOccurrenceStatesTableProcessedTableManager =
       TaskSubtaskOccurrenceStateRow,
       PrefetchHooks Function({bool subtaskId})
     >;
+typedef $$TaskOccurrenceOverridesTableCreateCompanionBuilder =
+    TaskOccurrenceOverridesCompanion Function({
+      required String taskId,
+      required DateTime occurrenceDate,
+      required DateTime effectiveDate,
+      required String title,
+      Value<String> description,
+      Value<int?> startTimeMinutes,
+      Value<int?> durationMinutes,
+      Value<String?> categoryId,
+      Value<bool> allDay,
+      Value<int> priority,
+      Value<bool> isDeleted,
+      Value<int> rowid,
+    });
+typedef $$TaskOccurrenceOverridesTableUpdateCompanionBuilder =
+    TaskOccurrenceOverridesCompanion Function({
+      Value<String> taskId,
+      Value<DateTime> occurrenceDate,
+      Value<DateTime> effectiveDate,
+      Value<String> title,
+      Value<String> description,
+      Value<int?> startTimeMinutes,
+      Value<int?> durationMinutes,
+      Value<String?> categoryId,
+      Value<bool> allDay,
+      Value<int> priority,
+      Value<bool> isDeleted,
+      Value<int> rowid,
+    });
+
+final class $$TaskOccurrenceOverridesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $TaskOccurrenceOverridesTable,
+          TaskOccurrenceOverrideRow
+        > {
+  $$TaskOccurrenceOverridesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TaskItemsTable _taskIdTable(_$AppDatabase db) => db.taskItems
+      .createAlias('task_occurrence_overrides__task_id__task_items__id');
+
+  $$TaskItemsTableProcessedTableManager get taskId {
+    final $_column = $_itemColumn<String>('task_id')!;
+
+    final manager = $$TaskItemsTableTableManager(
+      $_db,
+      $_db.taskItems,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_taskIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $TaskCategoriesTable _categoryIdTable(_$AppDatabase db) =>
+      db.taskCategories.createAlias(
+        'task_occurrence_overrides__category_id__task_categories__id',
+      );
+
+  $$TaskCategoriesTableProcessedTableManager? get categoryId {
+    final $_column = $_itemColumn<String>('category_id');
+    if ($_column == null) return null;
+    final manager = $$TaskCategoriesTableTableManager(
+      $_db,
+      $_db.taskCategories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TaskOccurrenceOverridesTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskOccurrenceOverridesTable> {
+  $$TaskOccurrenceOverridesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get effectiveDate => $composableBuilder(
+    column: $table.effectiveDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startTimeMinutes => $composableBuilder(
+    column: $table.startTimeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMinutes => $composableBuilder(
+    column: $table.durationMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get allDay => $composableBuilder(
+    column: $table.allDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TaskItemsTableFilterComposer get taskId {
+    final $$TaskItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.taskId,
+      referencedTable: $db.taskItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.taskItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TaskCategoriesTableFilterComposer get categoryId {
+    final $$TaskCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.taskCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.taskCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskOccurrenceOverridesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskOccurrenceOverridesTable> {
+  $$TaskOccurrenceOverridesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get effectiveDate => $composableBuilder(
+    column: $table.effectiveDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startTimeMinutes => $composableBuilder(
+    column: $table.startTimeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMinutes => $composableBuilder(
+    column: $table.durationMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get allDay => $composableBuilder(
+    column: $table.allDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TaskItemsTableOrderingComposer get taskId {
+    final $$TaskItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.taskId,
+      referencedTable: $db.taskItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.taskItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TaskCategoriesTableOrderingComposer get categoryId {
+    final $$TaskCategoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.taskCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskCategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.taskCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskOccurrenceOverridesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskOccurrenceOverridesTable> {
+  $$TaskOccurrenceOverridesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get effectiveDate => $composableBuilder(
+    column: $table.effectiveDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get startTimeMinutes => $composableBuilder(
+    column: $table.startTimeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMinutes => $composableBuilder(
+    column: $table.durationMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get allDay =>
+      $composableBuilder(column: $table.allDay, builder: (column) => column);
+
+  GeneratedColumn<int> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  $$TaskItemsTableAnnotationComposer get taskId {
+    final $$TaskItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.taskId,
+      referencedTable: $db.taskItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.taskItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TaskCategoriesTableAnnotationComposer get categoryId {
+    final $$TaskCategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.taskCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskCategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.taskCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskOccurrenceOverridesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskOccurrenceOverridesTable,
+          TaskOccurrenceOverrideRow,
+          $$TaskOccurrenceOverridesTableFilterComposer,
+          $$TaskOccurrenceOverridesTableOrderingComposer,
+          $$TaskOccurrenceOverridesTableAnnotationComposer,
+          $$TaskOccurrenceOverridesTableCreateCompanionBuilder,
+          $$TaskOccurrenceOverridesTableUpdateCompanionBuilder,
+          (TaskOccurrenceOverrideRow, $$TaskOccurrenceOverridesTableReferences),
+          TaskOccurrenceOverrideRow,
+          PrefetchHooks Function({bool taskId, bool categoryId})
+        > {
+  $$TaskOccurrenceOverridesTableTableManager(
+    _$AppDatabase db,
+    $TaskOccurrenceOverridesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskOccurrenceOverridesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$TaskOccurrenceOverridesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$TaskOccurrenceOverridesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> taskId = const Value.absent(),
+                Value<DateTime> occurrenceDate = const Value.absent(),
+                Value<DateTime> effectiveDate = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<int?> startTimeMinutes = const Value.absent(),
+                Value<int?> durationMinutes = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                Value<bool> allDay = const Value.absent(),
+                Value<int> priority = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskOccurrenceOverridesCompanion(
+                taskId: taskId,
+                occurrenceDate: occurrenceDate,
+                effectiveDate: effectiveDate,
+                title: title,
+                description: description,
+                startTimeMinutes: startTimeMinutes,
+                durationMinutes: durationMinutes,
+                categoryId: categoryId,
+                allDay: allDay,
+                priority: priority,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String taskId,
+                required DateTime occurrenceDate,
+                required DateTime effectiveDate,
+                required String title,
+                Value<String> description = const Value.absent(),
+                Value<int?> startTimeMinutes = const Value.absent(),
+                Value<int?> durationMinutes = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                Value<bool> allDay = const Value.absent(),
+                Value<int> priority = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskOccurrenceOverridesCompanion.insert(
+                taskId: taskId,
+                occurrenceDate: occurrenceDate,
+                effectiveDate: effectiveDate,
+                title: title,
+                description: description,
+                startTimeMinutes: startTimeMinutes,
+                durationMinutes: durationMinutes,
+                categoryId: categoryId,
+                allDay: allDay,
+                priority: priority,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $TaskOccurrenceOverridesTable,
+                    TaskOccurrenceOverrideRow
+                  >(table),
+                  $$TaskOccurrenceOverridesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({taskId = false, categoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (taskId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.taskId,
+                        referencedTable:
+                            $$TaskOccurrenceOverridesTableReferences
+                                ._taskIdTable(db),
+                        referencedColumn:
+                            $$TaskOccurrenceOverridesTableReferences
+                                ._taskIdTable(db)
+                                .id,
+                      ) as T;
+                    }
+                    if (categoryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.categoryId,
+                        referencedTable:
+                            $$TaskOccurrenceOverridesTableReferences
+                                ._categoryIdTable(db),
+                        referencedColumn:
+                            $$TaskOccurrenceOverridesTableReferences
+                                ._categoryIdTable(db)
+                                .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TaskOccurrenceOverridesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskOccurrenceOverridesTable,
+      TaskOccurrenceOverrideRow,
+      $$TaskOccurrenceOverridesTableFilterComposer,
+      $$TaskOccurrenceOverridesTableOrderingComposer,
+      $$TaskOccurrenceOverridesTableAnnotationComposer,
+      $$TaskOccurrenceOverridesTableCreateCompanionBuilder,
+      $$TaskOccurrenceOverridesTableUpdateCompanionBuilder,
+      (TaskOccurrenceOverrideRow, $$TaskOccurrenceOverridesTableReferences),
+      TaskOccurrenceOverrideRow,
+      PrefetchHooks Function({bool taskId, bool categoryId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4376,5 +5875,10 @@ class $AppDatabaseManager {
       $$TaskSubtaskOccurrenceStatesTableTableManager(
         _db,
         _db.taskSubtaskOccurrenceStates,
+      );
+  $$TaskOccurrenceOverridesTableTableManager get taskOccurrenceOverrides =>
+      $$TaskOccurrenceOverridesTableTableManager(
+        _db,
+        _db.taskOccurrenceOverrides,
       );
 }

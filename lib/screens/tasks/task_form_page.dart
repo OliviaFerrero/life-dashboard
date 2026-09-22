@@ -28,12 +28,18 @@ class TaskFormPage extends StatefulWidget {
   final DateTime? initialDate;
   final bool rescheduleOnly;
 
+  /// true quando il form modifica soltanto una singola occorrenza
+  /// di una serie ricorrente. Ricorrenza e subtasks restano proprietà
+  /// della serie e non sono modificabili da questo form.
+  final bool occurrenceOnly;
+
   const TaskFormPage({
     super.key,
     required this.categoryRepository,
     this.initialTask,
     this.initialDate,
     this.rescheduleOnly = false,
+    this.occurrenceOnly = false,
   });
 
   @override
@@ -881,13 +887,15 @@ class _TaskFormPageState
     }
 
     final recurrence =
-        widget.rescheduleOnly
-            ? _selectedDate == null
-                ? const TaskRecurrence.none()
-                : oldTask!.recurrence
-            : _selectedDate == null
-                ? const TaskRecurrence.none()
-                : _recurrence;
+        widget.occurrenceOnly
+            ? oldTask!.recurrence
+            : widget.rescheduleOnly
+                ? _selectedDate == null
+                    ? const TaskRecurrence.none()
+                    : oldTask!.recurrence
+                : _selectedDate == null
+                    ? const TaskRecurrence.none()
+                    : _recurrence;
 
     final effectiveAllDay =
         _selectedDate != null &&
@@ -934,7 +942,8 @@ class _TaskFormPageState
           recurrence,
 
       subtasks:
-          widget.rescheduleOnly
+          widget.rescheduleOnly ||
+                  widget.occurrenceOnly
               ? oldTask!.subtasks
               : _normalizedSubtasks(),
 
@@ -1035,7 +1044,8 @@ class _TaskFormPageState
 
         actions: [
           if (_isEditing &&
-              !widget.rescheduleOnly)
+              !widget.rescheduleOnly &&
+              !widget.occurrenceOnly)
             IconButton(
               tooltip:
                   'Elimina attività',
@@ -1084,11 +1094,13 @@ class _TaskFormPageState
 
             children: [
               Text(
-                widget.rescheduleOnly
-                    ? 'Sposta attività'
-                    : _isEditing
-                        ? 'Modifica attività'
-                        : 'Nuova attività',
+                widget.occurrenceOnly
+                    ? 'Modifica occorrenza'
+                    : widget.rescheduleOnly
+                        ? 'Sposta attività'
+                        : _isEditing
+                            ? 'Modifica attività'
+                            : 'Nuova attività',
 
                 style:
                     Theme.of(context)
@@ -1102,6 +1114,28 @@ class _TaskFormPageState
                               -0.7,
                         ),
               ),
+
+              if (widget
+                  .occurrenceOnly) ...[
+                const SizedBox(
+                  height: 8,
+                ),
+
+                Text(
+                  'Le modifiche valgono solo per questa occorrenza. '
+                  'Ripetizione e sottoattività restano quelle della serie.',
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                            color:
+                                colorScheme
+                                    .onSurfaceVariant,
+                          ),
+                ),
+
+              ],
 
               if (widget
                   .rescheduleOnly) ...[
@@ -1296,10 +1330,12 @@ class _TaskFormPageState
                     Icons
                         .calendar_today_outlined,
                 title:
-                    _recurrence
-                            .isRecurring
-                        ? 'Inizio serie'
-                        : 'Data',
+                    widget.occurrenceOnly
+                        ? 'Data'
+                        : _recurrence
+                                .isRecurring
+                            ? 'Inizio serie'
+                            : 'Data',
                 value:
                     _selectedDate ==
                             null
@@ -1311,7 +1347,8 @@ class _TaskFormPageState
                     _selectDate,
                 onClear:
                     _selectedDate ==
-                            null
+                                null ||
+                            widget.occurrenceOnly
                         ? null
                         : _clearDate,
               ),
@@ -1319,7 +1356,9 @@ class _TaskFormPageState
               if (_selectedDate !=
                       null &&
                   !widget
-                      .rescheduleOnly) ...[
+                      .rescheduleOnly &&
+                  !widget
+                      .occurrenceOnly) ...[
                 const _FormDivider(),
 
                 _SettingRow(
@@ -1408,6 +1447,7 @@ class _TaskFormPageState
 
               if (!widget
                   .rescheduleOnly) ...[
+                if (!widget.occurrenceOnly) ...[
                 const SizedBox(
                   height: 34,
                 ),
@@ -1502,6 +1542,11 @@ class _TaskFormPageState
                 const SizedBox(
                   height: 26,
                 ),
+
+                ] else
+                  const SizedBox(
+                    height: 34,
+                  ),
 
                 const _FormSectionLabel(
                   text:
@@ -1619,11 +1664,13 @@ class _TaskFormPageState
           ),
 
           label: Text(
-            widget.rescheduleOnly
-                ? 'Sposta attività'
-                : _isEditing
-                    ? 'Salva'
-                    : 'Crea attività',
+            widget.occurrenceOnly
+                ? 'Salva occorrenza'
+                : widget.rescheduleOnly
+                    ? 'Sposta attività'
+                    : _isEditing
+                        ? 'Salva'
+                        : 'Crea attività',
           ),
 
           style:
