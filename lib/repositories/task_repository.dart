@@ -34,6 +34,80 @@ class TaskRepository {
     );
   }
 
+  /// Restituisce le occorrenze che INTERSECANO una finestra reale
+  /// [windowStart, windowEnd), non soltanto quelle che iniziano al suo interno.
+  ///
+  /// Serve per gestire correttamente task che attraversano la mezzanotte
+  /// (es. 23:30 -> 00:30) e prepara anche la futura timeline Oggi con
+  /// confini personalizzati della giornata (es. 06:00 -> 03:00).
+  Stream<List<TaskOccurrence>>
+      watchOccurrencesOverlappingWindow(
+    DateTime windowStart,
+    DateTime windowEnd, {
+    DateTime? untimedAnchorDate,
+  }) {
+    if (!windowEnd.isAfter(
+      windowStart,
+    )) {
+      return Stream.value(
+        const <TaskOccurrence>[],
+      );
+    }
+
+    return _watchTaskData().map(
+      (snapshot) {
+        final lookbackDays =
+            _maxCrossDayLookback(
+          snapshot,
+        );
+
+        final generationStart =
+            _dateOnly(
+          windowStart,
+        ).subtract(
+          Duration(
+            days:
+                lookbackDays,
+          ),
+        );
+
+        final lastVisibleInstant =
+            windowEnd.subtract(
+          const Duration(
+            microseconds: 1,
+          ),
+        );
+
+        final generationEnd =
+            _dateOnly(
+          lastVisibleInstant,
+        );
+
+        final candidates =
+            _buildOccurrencesInRange(
+          snapshot,
+          generationStart,
+          generationEnd,
+        );
+
+        return candidates
+            .where(
+              (occurrence) =>
+                  occurrence.overlapsWindow(
+                windowStart,
+                windowEnd,
+                untimedAnchorDate:
+                    untimedAnchorDate,
+              ),
+            )
+            .toList()
+          ..sort(
+            _compareOccurrencesByRealStart,
+          );
+      },
+    );
+  }
+
   /// Restituisce una sola voce pianificata per ogni task:
   /// - task singola -> la sua data reale
   /// - task ricorrente -> occorrenza di oggi se ancora rilevante,
@@ -364,6 +438,36 @@ class TaskRepository {
             const Value(false),
       ),
     );
+  }
+
+  /// Rimuove l'override di una singola occorrenza ricorrente.
+  ///
+  /// Usato quando un drag applicato a "Tutta la serie" deve far tornare
+  /// anche l'occorrenza corrente sotto la definizione della serie.
+  Future<void> clearOccurrenceOverride(
+    TaskOccurrence occurrence,
+  ) async {
+    if (!occurrence.isRecurring) {
+      return;
+    }
+
+    final occurrenceDate =
+        _dateOnly(
+      occurrence.seriesDate,
+    );
+
+    await (_database.delete(
+      _database.taskOccurrenceOverrides,
+    )..where(
+          (row) =>
+              row.taskId.equals(
+                occurrence.task.id,
+              ) &
+              row.occurrenceDate.equals(
+                occurrenceDate,
+              ),
+        ))
+        .go();
   }
 
   /// Esclude una sola occorrenza dalla serie senza toccare le altre.
@@ -784,6 +888,127 @@ class TaskRepository {
     });
   }
 
+  int _maxCrossDayLookback(
+    _TaskDataSnapshot snapshot,
+  ) {
+    var maxDays = 0;
+
+    for (final task in snapshot.tasks) {
+      final days =
+          _crossDaySpan(
+        allDay:
+            task.allDay,
+        startTimeMinutes:
+            task.startTimeMinutes,
+        durationMinutes:
+            task.durationMinutes,
+      );
+
+      if (days > maxDays) {
+        maxDays = days;
+      }
+    }
+
+    for (final taskOverrides
+        in snapshot.overridesByTaskId.values) {
+      for (final override
+          in taskOverrides.values) {
+        if (override.isDeleted) {
+          continue;
+        }
+
+        final days =
+            _crossDaySpan(
+          allDay:
+              override.allDay,
+          startTimeMinutes:
+              override.startTimeMinutes,
+          durationMinutes:
+              override.durationMinutes,
+        );
+
+        if (days > maxDays) {
+          maxDays = days;
+        }
+      }
+    }
+
+    return maxDays;
+  }
+
+  int _crossDaySpan({
+    required bool allDay,
+    required int? startTimeMinutes,
+    required int? durationMinutes,
+  }) {
+    if (allDay ||
+        startTimeMinutes == null ||
+        durationMinutes == null ||
+        durationMinutes <= 0) {
+      return 0;
+    }
+
+    final lastOccupiedMinute =
+        startTimeMinutes +
+        durationMinutes -
+        1;
+
+    if (lastOccupiedMinute < 0) {
+      return 0;
+    }
+
+    return lastOccupiedMinute ~/
+        (24 * 60);
+  }
+
+  int _compareOccurrencesByRealStart(
+    TaskOccurrence a,
+    TaskOccurrence b,
+  ) {
+    final aTask =
+        a.displayTask;
+    final bTask =
+        b.displayTask;
+
+    final aStart =
+        a.timedStart;
+    final bStart =
+        b.timedStart;
+
+    if (aStart != null &&
+        bStart != null) {
+      final comparison =
+          aStart.compareTo(
+        bStart,
+      );
+
+      if (comparison != 0) {
+        return comparison;
+      }
+    } else if (aStart == null &&
+        bStart != null) {
+      return -1;
+    } else if (aStart != null &&
+        bStart == null) {
+      return 1;
+    }
+
+    final dateComparison =
+        a.date.compareTo(
+      b.date,
+    );
+
+    if (dateComparison != 0) {
+      return dateComparison;
+    }
+
+    return aTask.title
+        .toLowerCase()
+        .compareTo(
+          bTask.title.toLowerCase(),
+        );
+  }
+
   List<TaskOccurrence>
       _buildOccurrencesInRange(
     _TaskDataSnapshot snapshot,
@@ -1138,11 +1363,34 @@ class TaskRepository {
     final today =
         _dateOnly(now);
 
-    var cursor =
-        _dateOnly(startDate);
+    final lookbackDays =
+        _crossDaySpan(
+      allDay:
+          task.allDay,
+      startTimeMinutes:
+          task.startTimeMinutes,
+      durationMinutes:
+          task.durationMinutes,
+    );
 
-    if (cursor.isBefore(today)) {
-      cursor = today;
+    var cursor =
+        today.subtract(
+      Duration(
+        days:
+            lookbackDays,
+      ),
+    );
+
+    final normalizedStartDate =
+        _dateOnly(
+      startDate,
+    );
+
+    if (cursor.isBefore(
+      normalizedStartDate,
+    )) {
+      cursor =
+          normalizedStartDate;
     }
 
     // Ogni eccezione può "occupare" una data base. Allunghiamo il
@@ -1236,36 +1484,46 @@ class TaskRepository {
     DateTime occurrenceDate,
     DateTime now,
   ) {
-    final today =
-        _dateOnly(now);
     final date =
-        _dateOnly(occurrenceDate);
-
-    if (date.isBefore(today)) {
-      return true;
-    }
-
-    if (date.isAfter(today)) {
-      return false;
-    }
-
-    if (task.allDay ||
-        task.startTimeMinutes == null) {
-      return false;
-    }
-
-    final endMinutes =
-        task.startTimeMinutes! +
-        (task.durationMinutes ?? 0);
-
-    final endMoment = date.add(
-      Duration(
-        minutes: endMinutes,
-      ),
+        _dateOnly(
+      occurrenceDate,
     );
 
-    return now.isAfter(
-      endMoment,
+    if (!task.allDay &&
+        task.startTimeMinutes !=
+            null) {
+      final startMoment =
+          date.add(
+        Duration(
+          minutes:
+              task.startTimeMinutes!,
+        ),
+      );
+
+      final duration =
+          task.durationMinutes;
+
+      final cutoff =
+          duration != null &&
+                  duration > 0
+              ? startMoment.add(
+                  Duration(
+                    minutes:
+                        duration,
+                  ),
+                )
+              : startMoment;
+
+      return now.isAfter(
+        cutoff,
+      );
+    }
+
+    final today =
+        _dateOnly(now);
+
+    return date.isBefore(
+      today,
     );
   }
 

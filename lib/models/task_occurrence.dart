@@ -5,7 +5,7 @@ class TaskOccurrence {
   /// Definizione della serie/task da cui nasce l'occorrenza.
   final LifeTask task;
 
-  /// Data effettiva mostrata all'utente.
+  /// Data effettiva di inizio mostrata all'utente.
   ///
   /// Può differire da [seriesDate] quando questa singola occorrenza
   /// è stata spostata.
@@ -70,6 +70,179 @@ class TaskOccurrence {
                 subtask.isCompleted,
           )
           .length;
+
+  /// Inizio reale della parte temporizzata dell'occorrenza.
+  ///
+  /// Rimane indipendente dai confini della giornata mostrata:
+  /// questo rende la timeline compatibile anche con una futura
+  /// "giornata personale" 06:00 -> 03:00 del giorno successivo.
+  DateTime? get timedStart {
+    final task =
+        displayTask;
+
+    if (task.allDay ||
+        task.startTimeMinutes == null) {
+      return null;
+    }
+
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+    ).add(
+      Duration(
+        minutes:
+            task.startTimeMinutes!,
+      ),
+    );
+  }
+
+  /// Fine reale della task temporizzata.
+  ///
+  /// Può cadere uno o più giorni dopo [date].
+  DateTime? get timedEnd {
+    final start =
+        timedStart;
+    final duration =
+        displayTask.durationMinutes;
+
+    if (start == null ||
+        duration == null ||
+        duration <= 0) {
+      return null;
+    }
+
+    return start.add(
+      Duration(
+        minutes:
+            duration,
+      ),
+    );
+  }
+
+  /// True se questa occorrenza deve essere considerata visibile
+  /// dentro una finestra temporale [windowStart, windowEnd).
+  ///
+  /// Le task con durata vengono considerate per INTERSEZIONE,
+  /// quindi una task 23:30 -> 00:30 compare su entrambi i giorni
+  /// quando le viste usano finestre civili separate.
+  bool overlapsWindow(
+    DateTime windowStart,
+    DateTime windowEnd, {
+    DateTime? untimedAnchorDate,
+  }) {
+    if (!windowEnd.isAfter(
+      windowStart,
+    )) {
+      return false;
+    }
+
+    final effective =
+        displayTask;
+
+    if (effective.allDay ||
+        effective.startTimeMinutes == null) {
+      final dayStart =
+          DateTime(
+        date.year,
+        date.month,
+        date.day,
+      );
+
+      if (untimedAnchorDate != null) {
+        return dayStart.year ==
+                untimedAnchorDate.year &&
+            dayStart.month ==
+                untimedAnchorDate.month &&
+            dayStart.day ==
+                untimedAnchorDate.day;
+      }
+
+      final dayEnd =
+          dayStart.add(
+        const Duration(days: 1),
+      );
+
+      return dayStart.isBefore(
+            windowEnd,
+          ) &&
+          dayEnd.isAfter(
+            windowStart,
+          );
+    }
+
+    final start =
+        timedStart!;
+
+    final end =
+        timedEnd;
+
+    if (end == null) {
+      return !start.isBefore(
+            windowStart,
+          ) &&
+          start.isBefore(
+            windowEnd,
+          );
+    }
+
+    return start.isBefore(
+          windowEnd,
+        ) &&
+        end.isAfter(
+          windowStart,
+        );
+  }
+
+  DateTime? visibleStartInWindow(
+    DateTime windowStart,
+    DateTime windowEnd,
+  ) {
+    if (!overlapsWindow(
+      windowStart,
+      windowEnd,
+    )) {
+      return null;
+    }
+
+    final start =
+        timedStart;
+
+    if (start == null) {
+      return null;
+    }
+
+    return start.isBefore(
+      windowStart,
+    )
+        ? windowStart
+        : start;
+  }
+
+  DateTime? visibleEndInWindow(
+    DateTime windowStart,
+    DateTime windowEnd,
+  ) {
+    if (!overlapsWindow(
+      windowStart,
+      windowEnd,
+    )) {
+      return null;
+    }
+
+    final end =
+        timedEnd;
+
+    if (end == null) {
+      return null;
+    }
+
+    return end.isAfter(
+      windowEnd,
+    )
+        ? windowEnd
+        : end;
+  }
 
   LifeTask get displayTask {
     final source =

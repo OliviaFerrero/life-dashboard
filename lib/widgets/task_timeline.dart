@@ -3,16 +3,29 @@ import 'package:flutter/material.dart';
 import '../models/life_task.dart';
 import '../models/task_occurrence.dart';
 
+/// Timeline della giornata basata su una finestra temporale esplicita.
+///
+/// Oggi usa ancora 00:00 -> 24:00, ma i confini NON sono codificati qui:
+/// in futuro potranno diventare, ad esempio, 06:00 -> 03:00 del giorno
+/// successivo. Un eventuale marker "Fine giornata" potrà quindi estendere
+/// windowEnd oltre l'orario configurato quando esistono task più tarde.
 class TaskTimeline
     extends StatelessWidget {
   final List<TaskOccurrence> occurrences;
 
+  final DateTime windowStart;
+  final DateTime windowEnd;
+
   final String Function(
-    LifeTask task,
+    TaskOccurrence occurrence,
+    DateTime windowStart,
+    DateTime windowEnd,
   ) timeLabelBuilder;
 
   final String Function(
-    LifeTask task,
+    TaskOccurrence occurrence,
+    DateTime windowStart,
+    DateTime windowEnd,
   ) secondaryLabelBuilder;
 
   final String? Function(
@@ -41,6 +54,8 @@ class TaskTimeline
   const TaskTimeline({
     super.key,
     required this.occurrences,
+    required this.windowStart,
+    required this.windowEnd,
     required this.timeLabelBuilder,
     required this.secondaryLabelBuilder,
     required this.subtaskProgressBuilder,
@@ -73,12 +88,16 @@ class TaskTimeline
 
                 timeLabel:
                     timeLabelBuilder(
-                  task,
+                  occurrence,
+                  windowStart,
+                  windowEnd,
                 ),
 
                 secondaryLabel:
                     secondaryLabelBuilder(
-                  task,
+                  occurrence,
+                  windowStart,
+                  windowEnd,
                 ),
 
                 subtaskProgress:

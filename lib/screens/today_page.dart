@@ -93,58 +93,102 @@ class TodayPage extends StatelessWidget {
     return '$hours h $remaining min';
   }
 
-  String _timeLabel(
-    LifeTask task,
+  String _clock(
+    DateTime value,
   ) {
+    return '${_twoDigits(value.hour)}:'
+        '${_twoDigits(value.minute)}';
+  }
+
+  String _timeLabelForWindow(
+    TaskOccurrence occurrence,
+    DateTime windowStart,
+    DateTime windowEnd,
+  ) {
+    final task =
+        occurrence.displayTask;
+
     if (task.allDay) {
       return 'Tutto il\ngiorno';
     }
 
-    final start =
-        task.startTimeMinutes;
-
-    if (start == null) {
+    if (task.startTimeMinutes == null) {
       return '';
     }
 
-    return _formatClockMinutes(
-      start,
+    final visibleStart =
+        occurrence.visibleStartInWindow(
+      windowStart,
+      windowEnd,
+    );
+
+    if (visibleStart == null) {
+      return _formatClockMinutes(
+        task.startTimeMinutes!,
+      );
+    }
+
+    return _clock(
+      visibleStart,
     );
   }
 
-  String _secondaryLabel(
-    LifeTask task,
+  String _secondaryLabelForWindow(
+    TaskOccurrence occurrence,
+    DateTime windowStart,
+    DateTime windowEnd,
   ) {
-    final parts = <String>[];
+    final task =
+        occurrence.displayTask;
+    final parts =
+        <String>[];
 
-    final start =
-        task.startTimeMinutes;
-    final duration =
-        task.durationMinutes;
+    final actualStart =
+        occurrence.timedStart;
+    final actualEnd =
+        occurrence.timedEnd;
 
     if (!task.allDay &&
-        start != null &&
-        duration != null) {
-      final end =
-          start + duration;
+        actualStart != null &&
+        actualEnd != null) {
+      final visibleStart =
+          occurrence.visibleStartInWindow(
+        windowStart,
+        windowEnd,
+      );
 
-      var endLabel =
-          _formatClockMinutes(end);
+      final visibleEnd =
+          occurrence.visibleEndInWindow(
+        windowStart,
+        windowEnd,
+      );
 
-      final extraDays =
-          end ~/ (24 * 60);
-
-      if (extraDays > 0) {
-        endLabel +=
-            extraDays == 1
-                ? ' (+1 g)'
-                : ' (+$extraDays g)';
+      if (visibleStart != null &&
+          actualStart.isBefore(
+            windowStart,
+          )) {
+        parts.add(
+          'continua da prima',
+        );
       }
 
-      parts.add(
-        'fino alle $endLabel',
-      );
+      if (visibleEnd != null) {
+        parts.add(
+          'fino alle ${_clock(visibleEnd)}',
+        );
+      }
+
+      if (actualEnd.isAfter(
+        windowEnd,
+      )) {
+        parts.add(
+          'continua dopo',
+        );
+      }
     }
+
+    final duration =
+        task.durationMinutes;
 
     if (duration != null) {
       parts.add(
@@ -227,29 +271,26 @@ class TodayPage extends StatelessWidget {
 
     for (final occurrence
         in incomplete) {
-      final task =
-          occurrence.displayTask;
+      final start =
+          occurrence.timedStart;
+      final end =
+          occurrence.timedEnd;
 
-      if (task.allDay ||
-          task.startTimeMinutes == null) {
-        continue;
+      if (start != null &&
+          end != null &&
+          !now.isBefore(start) &&
+          now.isBefore(end)) {
+        return occurrence;
       }
+    }
 
-      final date =
-          occurrence.date;
+    for (final occurrence
+        in incomplete) {
+      final start =
+          occurrence.timedStart;
 
-      final start = DateTime(
-        date.year,
-        date.month,
-        date.day,
-      ).add(
-        Duration(
-          minutes:
-              task.startTimeMinutes!,
-        ),
-      );
-
-      if (!start.isBefore(now)) {
+      if (start != null &&
+          !start.isBefore(now)) {
         return occurrence;
       }
     }
@@ -375,6 +416,18 @@ class TodayPage extends StatelessWidget {
       now.day,
     );
 
+    // Oggi usa ancora la giornata civile 00:00 -> 24:00.
+    // La timeline riceve però una finestra esplicita: in futuro
+    // questi confini potranno diventare configurabili (es. 06:00
+    // -> 03:00 del giorno successivo) senza cambiare la semantica
+    // delle occorrenze che attraversano la mezzanotte.
+    final dayWindowStart =
+        today;
+    final dayWindowEnd =
+        today.add(
+      const Duration(days: 1),
+    );
+
     final colorScheme =
         Theme.of(context)
             .colorScheme;
@@ -406,9 +459,11 @@ class TodayPage extends StatelessWidget {
               List<TaskOccurrence>>(
             stream:
                 taskRepository
-                    .watchOccurrencesInRange(
-              today,
-              today,
+                    .watchOccurrencesOverlappingWindow(
+              dayWindowStart,
+              dayWindowEnd,
+              untimedAnchorDate:
+                  today,
             ),
             initialData:
                 const [],
@@ -641,13 +696,17 @@ class TodayPage extends StatelessWidget {
                             TaskTimeline(
                               occurrences:
                                   visibleOccurrences,
+                              windowStart:
+                                  dayWindowStart,
+                              windowEnd:
+                                  dayWindowEnd,
                               nextOccurrenceKey:
                                   nextOccurrence
                                       ?.occurrenceKey,
                               timeLabelBuilder:
-                                  _timeLabel,
+                                  _timeLabelForWindow,
                               secondaryLabelBuilder:
-                                  _secondaryLabel,
+                                  _secondaryLabelForWindow,
                               subtaskProgressBuilder:
                                   (task) {
                                 if (task.subtasks

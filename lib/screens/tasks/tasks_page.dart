@@ -124,38 +124,46 @@ class _TasksPageState
       return false;
     }
 
-    final today =
-        _dateOnly(now);
     final date =
-        _dateOnly(scheduledDate);
-
-    if (date.isBefore(today)) {
-      return true;
-    }
-
-    if (date.isAfter(today)) {
-      return false;
-    }
-
-    if (task.allDay ||
-        task.startTimeMinutes == null) {
-      return false;
-    }
-
-    final endMinutes =
-        task.startTimeMinutes! +
-        (task.durationMinutes ?? 0);
-
-    final endMoment =
-        date.add(
-      Duration(
-        minutes:
-            endMinutes,
-      ),
+        _dateOnly(
+      scheduledDate,
     );
 
-    return now.isAfter(
-      endMoment,
+    if (!task.allDay &&
+        task.startTimeMinutes !=
+            null) {
+      final startMoment =
+          date.add(
+        Duration(
+          minutes:
+              task.startTimeMinutes!,
+        ),
+      );
+
+      final duration =
+          task.durationMinutes;
+
+      final cutoff =
+          duration != null &&
+                  duration > 0
+              ? startMoment.add(
+                  Duration(
+                    minutes:
+                        duration,
+                  ),
+                )
+              : startMoment;
+
+      return now.isAfter(
+        cutoff,
+      );
+    }
+
+    final today =
+        _dateOnly(now);
+
+    return date.isBefore(
+      today,
     );
   }
 
@@ -171,10 +179,10 @@ class _TasksPageState
     }
 
     final aTime =
-        a.task.startTimeMinutes ??
+        a.displayTask.startTimeMinutes ??
             -1;
     final bTime =
-        b.task.startTimeMinutes ??
+        b.displayTask.startTimeMinutes ??
             -1;
 
     return bTime.compareTo(
