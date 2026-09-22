@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/life_task.dart';
@@ -5,21 +7,58 @@ import '../models/task_category.dart';
 import '../models/task_occurrence.dart';
 import '../repositories/category_repository.dart';
 import '../repositories/task_repository.dart';
+import '../services/day_settings_controller.dart';
+import '../utils/task_category_icons.dart';
 import '../widgets/dashboard_card.dart';
 import '../widgets/life_section_header.dart';
 import '../widgets/task_timeline.dart';
 import 'tasks/task_detail_page.dart';
 import 'tasks/tasks_page.dart';
 
-class TodayPage extends StatelessWidget {
+class TodayPage extends StatefulWidget {
   final TaskRepository taskRepository;
   final CategoryRepository categoryRepository;
+  final DaySettingsController daySettingsController;
 
   const TodayPage({
     super.key,
     required this.taskRepository,
     required this.categoryRepository,
+    required this.daySettingsController,
   });
+
+  @override
+  State<TodayPage> createState() =>
+      _TodayPageState();
+}
+
+class _TodayPageState extends State<TodayPage> {
+  Timer? _clockTimer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _clockTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _now = DateTime.now();
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    super.dispose();
+  }
 
   String _dayLabel(
     DateTime date,
@@ -54,24 +93,6 @@ class TodayPage extends StatelessWidget {
         '${months[date.month - 1]}';
   }
 
-  String _twoDigits(
-    int value,
-  ) {
-    return value
-        .toString()
-        .padLeft(2, '0');
-  }
-
-  String _formatClockMinutes(
-    int minutes,
-  ) {
-    final normalized =
-        minutes % (24 * 60);
-
-    return '${_twoDigits(normalized ~/ 60)}:'
-        '${_twoDigits(normalized % 60)}';
-  }
-
   String _durationLabel(
     int minutes,
   ) {
@@ -93,46 +114,6 @@ class TodayPage extends StatelessWidget {
     return '$hours h $remaining min';
   }
 
-  String _clock(
-    DateTime value,
-  ) {
-    return '${_twoDigits(value.hour)}:'
-        '${_twoDigits(value.minute)}';
-  }
-
-  String _timeLabelForWindow(
-    TaskOccurrence occurrence,
-    DateTime windowStart,
-    DateTime windowEnd,
-  ) {
-    final task =
-        occurrence.displayTask;
-
-    if (task.allDay) {
-      return 'Tutto il\ngiorno';
-    }
-
-    if (task.startTimeMinutes == null) {
-      return '';
-    }
-
-    final visibleStart =
-        occurrence.visibleStartInWindow(
-      windowStart,
-      windowEnd,
-    );
-
-    if (visibleStart == null) {
-      return _formatClockMinutes(
-        task.startTimeMinutes!,
-      );
-    }
-
-    return _clock(
-      visibleStart,
-    );
-  }
-
   String _secondaryLabelForWindow(
     TaskOccurrence occurrence,
     DateTime windowStart,
@@ -151,30 +132,11 @@ class TodayPage extends StatelessWidget {
     if (!task.allDay &&
         actualStart != null &&
         actualEnd != null) {
-      final visibleStart =
-          occurrence.visibleStartInWindow(
+      if (actualStart.isBefore(
         windowStart,
-        windowEnd,
-      );
-
-      final visibleEnd =
-          occurrence.visibleEndInWindow(
-        windowStart,
-        windowEnd,
-      );
-
-      if (visibleStart != null &&
-          actualStart.isBefore(
-            windowStart,
-          )) {
+      )) {
         parts.add(
           'continua da prima',
-        );
-      }
-
-      if (visibleEnd != null) {
-        parts.add(
-          'fino alle ${_clock(visibleEnd)}',
         );
       }
 
@@ -253,60 +215,69 @@ class TodayPage extends StatelessWidget {
     );
   }
 
-  TaskOccurrence? _findNextOccurrence(
-    List<TaskOccurrence> occurrences,
-    DateTime now,
+  IconData _categoryIcon(
+    LifeTask task,
+    Map<String, TaskCategory> categoryMap,
   ) {
-    final incomplete =
-        occurrences
-            .where(
-              (occurrence) =>
-                  !occurrence.isCompleted,
-            )
-            .toList();
+    final category =
+        task.categoryId == null
+            ? null
+            : categoryMap[task.categoryId];
 
-    if (incomplete.isEmpty) {
-      return null;
+    if (category == null) {
+      return Icons.label_outline;
     }
 
-    for (final occurrence
-        in incomplete) {
-      final start =
-          occurrence.timedStart;
-      final end =
-          occurrence.timedEnd;
+    return taskCategoryIcon(
+      category.iconKey,
+    );
+  }
 
-      if (start != null &&
-          end != null &&
-          !now.isBefore(start) &&
-          now.isBefore(end)) {
-        return occurrence;
-      }
-    }
+  DateTime _effectiveDayEnd({
+    required DateTime dayStart,
+    required DateTime configuredEnd,
+    required DateTime nextDayStart,
+    required List<TaskOccurrence> occurrences,
+  }) {
+    var result = configuredEnd;
 
-    for (final occurrence
-        in incomplete) {
-      final start =
-          occurrence.timedStart;
-
-      if (start != null &&
-          !start.isBefore(now)) {
-        return occurrence;
-      }
-    }
-
-    for (final occurrence
-        in incomplete) {
+    for (final occurrence in occurrences) {
       final task =
           occurrence.displayTask;
 
       if (task.allDay ||
           task.startTimeMinutes == null) {
-        return occurrence;
+        continue;
+      }
+
+      final start =
+          occurrence.timedStart;
+
+      if (start == null ||
+          !start.isBefore(nextDayStart)) {
+        continue;
+      }
+
+      var end =
+          occurrence.timedEnd;
+
+      end ??= start.add(
+        Duration(
+          minutes:
+              task.durationMinutes ?? 30,
+        ),
+      );
+
+      if (!end.isAfter(dayStart)) {
+        continue;
+      }
+
+      if (end.isAfter(result)) {
+        result = end;
       }
     }
 
-    return incomplete.first;
+    return result;
   }
 
   void _openTasks(
@@ -318,9 +289,9 @@ class TodayPage extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) => TasksPage(
           taskRepository:
-              taskRepository,
+              widget.taskRepository,
           categoryRepository:
-              categoryRepository,
+              widget.categoryRepository,
           openInbox:
               inbox,
         ),
@@ -342,9 +313,9 @@ class TodayPage extends StatelessWidget {
           occurrence:
               occurrence,
           taskRepository:
-              taskRepository,
+              widget.taskRepository,
           categoryRepository:
-              categoryRepository,
+              widget.categoryRepository,
         ),
       ),
     );
@@ -406,509 +377,531 @@ class TodayPage extends StatelessWidget {
   Widget build(
     BuildContext context,
   ) {
-    final now =
-        DateTime.now();
+    return AnimatedBuilder(
+      animation:
+          widget.daySettingsController,
+      builder:
+          (context, _) {
+        final now =
+            _now;
 
-    final today =
-        DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+        final dayWindowStart =
+            widget.daySettingsController
+                .personalDayStartFor(
+          now,
+        );
 
-    // Oggi usa ancora la giornata civile 00:00 -> 24:00.
-    // La timeline riceve però una finestra esplicita: in futuro
-    // questi confini potranno diventare configurabili (es. 06:00
-    // -> 03:00 del giorno successivo) senza cambiare la semantica
-    // delle occorrenze che attraversano la mezzanotte.
-    final dayWindowStart =
-        today;
-    final dayWindowEnd =
-        today.add(
-      const Duration(days: 1),
-    );
+        final configuredDayEnd =
+            widget.daySettingsController
+                .configuredEndForStart(
+          dayWindowStart,
+        );
 
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+        final nextDayStart =
+            widget.daySettingsController
+                .nextPersonalDayStart(
+          dayWindowStart,
+        );
 
-    return SafeArea(
-      bottom: false,
-      child: StreamBuilder<
-          List<LifeTask>>(
-        stream:
-            taskRepository
-                .watchAllTasks(),
-        initialData:
-            const [],
-        builder:
-            (context, allTaskSnapshot) {
-          final allTasks =
-              allTaskSnapshot.data ??
-                  const <LifeTask>[];
+        final anchorDate =
+            DateTime(
+          dayWindowStart.year,
+          dayWindowStart.month,
+          dayWindowStart.day,
+        );
 
-          final inboxCount =
-              allTasks.where(
-            (task) =>
-                task.scheduledDate ==
-                    null &&
-                !task.isCompleted,
-          ).length;
+        final colorScheme =
+            Theme.of(context)
+                .colorScheme;
 
-          return StreamBuilder<
-              List<TaskOccurrence>>(
+        return SafeArea(
+          bottom: false,
+          child: StreamBuilder<
+              List<LifeTask>>(
             stream:
-                taskRepository
-                    .watchOccurrencesOverlappingWindow(
-              dayWindowStart,
-              dayWindowEnd,
-              untimedAnchorDate:
-                  today,
-            ),
+                widget.taskRepository
+                    .watchAllTasks(),
             initialData:
                 const [],
             builder:
-                (context, occurrenceSnapshot) {
-              final occurrences =
-                  occurrenceSnapshot.data ??
-                      const <
-                          TaskOccurrence>[];
+                (context, allTaskSnapshot) {
+              final allTasks =
+                  allTaskSnapshot.data ??
+                      const <LifeTask>[];
 
-              final tasks =
-                  occurrences
-                      .map(
-                        (occurrence) =>
-                            occurrence
-                                .displayTask,
-                      )
-                      .toList();
-
-              final completedCount =
-                  occurrences.where(
-                (occurrence) =>
-                    occurrence.isCompleted,
+              final inboxCount =
+                  allTasks.where(
+                (task) =>
+                    task.scheduledDate ==
+                        null &&
+                    !task.isCompleted,
               ).length;
 
-              final incompleteCount =
-                  occurrences.length -
-                      completedCount;
-
-              final nextOccurrence =
-                  _findNextOccurrence(
-                occurrences,
-                now,
-              );
-
-              return StreamBuilder<int>(
+              return StreamBuilder<
+                  List<TaskOccurrence>>(
                 stream:
-                    taskRepository
-                        .watchIncompleteOverviewCount(
-                  now,
+                    widget.taskRepository
+                        .watchOccurrencesOverlappingWindow(
+                  dayWindowStart,
+                  nextDayStart,
+                  untimedAnchorDate:
+                      anchorDate,
                 ),
                 initialData:
-                    0,
+                    const [],
                 builder:
-                    (context, totalSnapshot) {
-                  final totalIncompleteCount =
-                      totalSnapshot.data ??
-                          0;
+                    (context, occurrenceSnapshot) {
+                  final occurrences =
+                      occurrenceSnapshot.data ??
+                          const <
+                              TaskOccurrence>[];
 
-                  return StreamBuilder<
-                      Map<String,
-                          TaskCategory>>(
+                  final effectiveDayEnd =
+                      _effectiveDayEnd(
+                    dayStart:
+                        dayWindowStart,
+                    configuredEnd:
+                        configuredDayEnd,
+                    nextDayStart:
+                        nextDayStart,
+                    occurrences:
+                        occurrences,
+                  );
+
+                  final tasks =
+                      occurrences
+                          .map(
+                            (occurrence) =>
+                                occurrence
+                                    .displayTask,
+                          )
+                          .toList();
+
+                  final completedCount =
+                      occurrences.where(
+                    (occurrence) =>
+                        occurrence.isCompleted,
+                  ).length;
+
+                  final incompleteCount =
+                      occurrences.length -
+                          completedCount;
+
+                  return StreamBuilder<int>(
                     stream:
-                        categoryRepository
-                            .watchCategoryMap(),
+                        widget.taskRepository
+                            .watchIncompleteOverviewCount(
+                      now,
+                    ),
                     initialData:
-                        const {},
+                        0,
                     builder:
-                        (context,
-                            categorySnapshot) {
-                      final categoryMap =
-                          categorySnapshot
-                                  .data ??
-                              const <
-                                  String,
-                                  TaskCategory>{};
+                        (context, totalSnapshot) {
+                      final totalIncompleteCount =
+                          totalSnapshot.data ??
+                              0;
 
-                      return ListView(
-                        padding:
-                            const EdgeInsets
-                                .fromLTRB(
-                          20,
-                          24,
-                          20,
-                          40,
-                        ),
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Oggi',
-                                  style:
-                                      Theme.of(
-                                    context,
-                                  )
-                                          .textTheme
-                                          .displaySmall
-                                          ?.copyWith(
-                                            fontWeight:
-                                                FontWeight
-                                                    .w700,
-                                            letterSpacing:
-                                                -1.2,
-                                          ),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip:
-                                    'Inbox',
-                                onPressed:
-                                    () {
-                                  _openTasks(
-                                    context,
-                                    inbox:
-                                        true,
-                                  );
-                                },
-                                icon:
-                                    Badge(
-                                  isLabelVisible:
-                                      inboxCount >
-                                          0,
-                                  label: Text(
-                                    '$inboxCount',
-                                  ),
-                                  child:
-                                      const Icon(
-                                    Icons
-                                        .inbox_outlined,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                      return StreamBuilder<
+                          Map<String,
+                              TaskCategory>>(
+                        stream:
+                            widget.categoryRepository
+                                .watchCategoryMap(),
+                        initialData:
+                            const {},
+                        builder:
+                            (context,
+                                categorySnapshot) {
+                          final categoryMap =
+                              categorySnapshot
+                                      .data ??
+                                  const <
+                                      String,
+                                      TaskCategory>{};
 
-                          const SizedBox(
-                            height: 2,
-                          ),
-
-                          Text(
-                            _dayLabel(
-                              today,
+                          return ListView(
+                            padding:
+                                const EdgeInsets
+                                    .fromLTRB(
+                              20,
+                              24,
+                              20,
+                              40,
                             ),
-                            style:
-                                Theme.of(
-                              context,
-                            )
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      color:
-                                          colorScheme
-                                              .onSurfaceVariant,
-                                      fontWeight:
-                                          FontWeight
-                                              .w500,
-                                    ),
-                          ),
-
-                          const SizedBox(
-                            height: 32,
-                          ),
-
-                          LifeSectionHeader(
-                            title:
-                                'La tua giornata',
-                            value:
-                                tasks.isEmpty
-                                    ? null
-                                    : '$completedCount/'
-                                        '${tasks.length}',
-                            actionLabel:
-                                tasks.isEmpty
-                                    ? null
-                                    : 'Vedi tutte',
-                            onAction:
-                                tasks.isEmpty
-                                    ? null
-                                    : () {
-                                        _openTasks(
-                                          context,
-                                        );
-                                      },
-                          ),
-
-                          const SizedBox(
-                            height: 8,
-                          ),
-
-                          if (tasks.isEmpty)
-                            Padding(
-                              padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                vertical:
-                                    26,
-                              ),
-                              child: Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .start,
+                            children: [
+                              Row(
                                 children: [
-                                  Icon(
-                                    Icons
-                                        .wb_sunny_outlined,
-                                    color:
-                                        colorScheme
-                                            .primary,
-                                  ),
-                                  const SizedBox(
-                                    width: 14,
-                                  ),
                                   Expanded(
                                     child: Text(
-                                      'Nessuna attività '
-                                      'programmata per oggi.',
+                                      'Oggi',
                                       style:
                                           Theme.of(
                                         context,
                                       )
                                               .textTheme
-                                              .bodyLarge
+                                              .displaySmall
                                               ?.copyWith(
-                                                color:
-                                                    colorScheme
-                                                        .onSurfaceVariant,
+                                                fontWeight:
+                                                    FontWeight
+                                                        .w700,
+                                                letterSpacing:
+                                                    -1.2,
                                               ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip:
+                                        'Inbox',
+                                    onPressed:
+                                        () {
+                                      _openTasks(
+                                        context,
+                                        inbox:
+                                            true,
+                                      );
+                                    },
+                                    icon:
+                                        Badge(
+                                      isLabelVisible:
+                                          inboxCount >
+                                              0,
+                                      label: Text(
+                                        '$inboxCount',
+                                      ),
+                                      child:
+                                          const Icon(
+                                        Icons
+                                            .inbox_outlined,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                            )
-                          else
-                            TaskTimeline(
-                              occurrences:
-                                  occurrences,
-                              windowStart:
-                                  dayWindowStart,
-                              windowEnd:
-                                  dayWindowEnd,
-                              nextOccurrenceKey:
-                                  nextOccurrence
-                                      ?.occurrenceKey,
-                              timeLabelBuilder:
-                                  _timeLabelForWindow,
-                              secondaryLabelBuilder:
-                                  _secondaryLabelForWindow,
-                              subtaskProgressBuilder:
-                                  (task) {
-                                if (task.subtasks
-                                    .isEmpty) {
-                                  return null;
-                                }
 
-                                final completed =
-                                    task.subtasks
-                                        .where(
-                                          (subtask) =>
-                                              subtask
-                                                  .isCompleted,
-                                        )
-                                        .length;
-
-                                return '$completed/'
-                                    '${task.subtasks.length}';
-                              },
-                              accentColorBuilder:
-                                  (task) {
-                                return _categoryColor(
-                                  context,
-                                  task,
-                                  categoryMap,
-                                );
-                              },
-                              priorityColorBuilder:
-                                  (task) {
-                                return _priorityColor(
-                                  context,
-                                  task.priority,
-                                );
-                              },
-                              onCompletedChanged:
-                                  (
-                                occurrence,
-                                completed,
-                              ) async {
-                                if (completed) {
-                                  final remaining =
-                                      occurrence
-                                          .subtasks
-                                          .where(
-                                            (subtask) =>
-                                                !subtask
-                                                    .isCompleted,
-                                          )
-                                          .length;
-
-                                  if (remaining > 0) {
-                                    final confirmed =
-                                        await _confirmCompleteAll(
-                                      context,
-                                      remaining,
-                                    );
-
-                                    if (!confirmed) {
-                                      return;
-                                    }
-                                  }
-                                }
-
-                                await taskRepository
-                                    .setOccurrenceCompleted(
-                                  occurrence,
-                                  completed,
-                                );
-                              },
-                              onTaskTap:
-                                  (occurrence) {
-                                _openTaskDetail(
-                                  context,
-                                  occurrence,
-                                );
-                              },
-                            ),
-
-                          if (tasks.isNotEmpty)
-                            Padding(
-                              padding:
-                                  const EdgeInsets
-                                      .only(
-                                top: 8,
+                              const SizedBox(
+                                height: 2,
                               ),
-                              child: Text(
-                                incompleteCount ==
-                                        0
-                                    ? 'Tutto completato per oggi'
-                                    : incompleteCount ==
-                                            1
-                                        ? '1 attività ancora da completare'
-                                        : '$incompleteCount attività ancora da completare',
+
+                              Text(
+                                _dayLabel(
+                                  anchorDate,
+                                ),
                                 style:
                                     Theme.of(
                                   context,
                                 )
                                         .textTheme
-                                        .bodySmall
+                                        .titleMedium
                                         ?.copyWith(
                                           color:
                                               colorScheme
                                                   .onSurfaceVariant,
+                                          fontWeight:
+                                              FontWeight
+                                                  .w500,
                                         ),
                               ),
-                            ),
 
-                          const SizedBox(
-                            height: 34,
-                          ),
+                              const SizedBox(
+                                height: 32,
+                              ),
 
-                          const LifeSectionHeader(
-                            title:
-                                'Panoramica',
-                          ),
+                              LifeSectionHeader(
+                                title:
+                                    'La tua giornata',
+                                value:
+                                    tasks.isEmpty
+                                        ? null
+                                        : '$completedCount/'
+                                            '${tasks.length}',
+                                actionLabel:
+                                    tasks.isEmpty
+                                        ? null
+                                        : 'Vedi tutte',
+                                onAction:
+                                    tasks.isEmpty
+                                        ? null
+                                        : () {
+                                            _openTasks(
+                                              context,
+                                            );
+                                          },
+                              ),
 
-                          const SizedBox(
-                            height: 4,
-                          ),
+                              const SizedBox(
+                                height: 8,
+                              ),
 
-                          DashboardCard(
-                            icon:
-                                Icons
-                                    .task_alt,
-                            title:
-                                'Attività',
-                            value:
-                                totalIncompleteCount ==
-                                        1
-                                    ? '1 attività da completare'
-                                    : '$totalIncompleteCount attività da completare',
-                            onTap:
-                                () {
-                              _openTasks(
-                                context,
-                              );
-                            },
-                          ),
+                              if (tasks.isEmpty)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets
+                                          .symmetric(
+                                    vertical:
+                                        26,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment
+                                            .start,
+                                    children: [
+                                      Icon(
+                                        Icons
+                                            .wb_sunny_outlined,
+                                        color:
+                                            colorScheme
+                                                .primary,
+                                      ),
+                                      const SizedBox(
+                                        width: 14,
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          'Nessuna attività '
+                                          'programmata per questa giornata.',
+                                          style:
+                                              Theme.of(
+                                            context,
+                                          )
+                                                  .textTheme
+                                                  .bodyLarge
+                                                  ?.copyWith(
+                                                    color:
+                                                        colorScheme
+                                                            .onSurfaceVariant,
+                                                  ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                TaskTimeline(
+                                  occurrences:
+                                      occurrences,
+                                  windowStart:
+                                      dayWindowStart,
+                                  windowEnd:
+                                      effectiveDayEnd,
+                                  secondaryLabelBuilder:
+                                      _secondaryLabelForWindow,
+                                  subtaskProgressBuilder:
+                                      (task) {
+                                    if (task.subtasks
+                                        .isEmpty) {
+                                      return null;
+                                    }
 
-                          Divider(
-                            color:
-                                colorScheme
-                                    .outlineVariant
-                                    .withValues(
-                              alpha:
-                                  0.55,
-                            ),
-                          ),
+                                    final completed =
+                                        task.subtasks
+                                            .where(
+                                              (subtask) =>
+                                                  subtask
+                                                      .isCompleted,
+                                            )
+                                            .length;
 
-                          const DashboardCard(
-                            icon:
-                                Icons.repeat,
-                            title:
-                                'Abitudini',
-                            value:
-                                '0 completate oggi',
-                          ),
+                                    return '$completed/'
+                                        '${task.subtasks.length}';
+                                  },
+                                  accentColorBuilder:
+                                      (task) {
+                                    return _categoryColor(
+                                      context,
+                                      task,
+                                      categoryMap,
+                                    );
+                                  },
+                                  categoryIconBuilder:
+                                      (task) {
+                                    return _categoryIcon(
+                                      task,
+                                      categoryMap,
+                                    );
+                                  },
+                                  priorityColorBuilder:
+                                      (task) {
+                                    return _priorityColor(
+                                      context,
+                                      task.priority,
+                                    );
+                                  },
+                                  onCompletedChanged:
+                                      (
+                                    occurrence,
+                                    completed,
+                                  ) async {
+                                    if (completed) {
+                                      final remaining =
+                                          occurrence
+                                              .subtasks
+                                              .where(
+                                                (subtask) =>
+                                                    !subtask
+                                                        .isCompleted,
+                                              )
+                                              .length;
 
-                          Divider(
-                            color:
-                                colorScheme
-                                    .outlineVariant
-                                    .withValues(
-                              alpha:
-                                  0.55,
-                            ),
-                          ),
+                                      if (remaining > 0) {
+                                        final confirmed =
+                                            await _confirmCompleteAll(
+                                          context,
+                                          remaining,
+                                        );
 
-                          const DashboardCard(
-                            icon:
-                                Icons
-                                    .shopping_bag_outlined,
-                            title:
-                                'Lista della spesa',
-                            value:
-                                '0 prodotti',
-                          ),
+                                        if (!confirmed) {
+                                          return;
+                                        }
+                                      }
+                                    }
 
-                          Divider(
-                            color:
-                                colorScheme
-                                    .outlineVariant
-                                    .withValues(
-                              alpha:
-                                  0.55,
-                            ),
-                          ),
+                                    await widget
+                                        .taskRepository
+                                        .setOccurrenceCompleted(
+                                      occurrence,
+                                      completed,
+                                    );
+                                  },
+                                  onTaskTap:
+                                      (occurrence) {
+                                    _openTaskDetail(
+                                      context,
+                                      occurrence,
+                                    );
+                                  },
+                                ),
 
-                          const DashboardCard(
-                            icon:
-                                Icons
-                                    .account_balance_wallet_outlined,
-                            title:
-                                'Spese del mese',
-                            value:
-                                '€ 0,00',
-                          ),
-                        ],
+                              if (tasks.isNotEmpty)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets
+                                          .only(
+                                    top: 8,
+                                  ),
+                                  child: Text(
+                                    incompleteCount ==
+                                            0
+                                        ? 'Tutto completato per questa giornata'
+                                        : incompleteCount ==
+                                                1
+                                            ? '1 attività ancora da completare'
+                                            : '$incompleteCount attività ancora da completare',
+                                    style:
+                                        Theme.of(
+                                      context,
+                                    )
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme
+                                                      .onSurfaceVariant,
+                                            ),
+                                  ),
+                                ),
+
+                              const SizedBox(
+                                height: 34,
+                              ),
+
+                              const LifeSectionHeader(
+                                title:
+                                    'Panoramica',
+                              ),
+
+                              const SizedBox(
+                                height: 4,
+                              ),
+
+                              DashboardCard(
+                                icon:
+                                    Icons
+                                        .task_alt,
+                                title:
+                                    'Attività',
+                                value:
+                                    totalIncompleteCount ==
+                                            1
+                                        ? '1 attività da completare'
+                                        : '$totalIncompleteCount attività da completare',
+                                onTap:
+                                    () {
+                                  _openTasks(
+                                    context,
+                                  );
+                                },
+                              ),
+
+                              Divider(
+                                color:
+                                    colorScheme
+                                        .outlineVariant
+                                        .withValues(
+                                  alpha:
+                                      0.55,
+                                ),
+                              ),
+
+                              const DashboardCard(
+                                icon:
+                                    Icons.repeat,
+                                title:
+                                    'Abitudini',
+                                value:
+                                    '0 completate oggi',
+                              ),
+
+                              Divider(
+                                color:
+                                    colorScheme
+                                        .outlineVariant
+                                        .withValues(
+                                  alpha:
+                                      0.55,
+                                ),
+                              ),
+
+                              const DashboardCard(
+                                icon:
+                                    Icons
+                                        .shopping_bag_outlined,
+                                title:
+                                    'Lista della spesa',
+                                value:
+                                    '0 prodotti',
+                              ),
+
+                              Divider(
+                                color:
+                                    colorScheme
+                                        .outlineVariant
+                                        .withValues(
+                                  alpha:
+                                      0.55,
+                                ),
+                              ),
+
+                              const DashboardCard(
+                                icon:
+                                    Icons
+                                        .account_balance_wallet_outlined,
+                                title:
+                                    'Spese del mese',
+                                value:
+                                    '€ 0,00',
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
                   );
                 },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

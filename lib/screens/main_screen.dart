@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../repositories/category_repository.dart';
 import '../repositories/task_repository.dart';
+import '../services/day_settings_controller.dart';
 import 'calendar/calendar_page.dart';
+import 'more_page.dart';
 import 'placeholder_page.dart';
 import 'today_page.dart';
 
@@ -25,11 +27,19 @@ class _MainScreenState
     extends State<MainScreen> {
   int _selectedIndex = 0;
 
+  late final DaySettingsController
+      _daySettingsController;
+
   late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+
+    _daySettingsController =
+        DaySettingsController();
+
+    _daySettingsController.load();
 
     _pages = [
       TodayPage(
@@ -37,6 +47,8 @@ class _MainScreenState
             widget.taskRepository,
         categoryRepository:
             widget.categoryRepository,
+        daySettingsController:
+            _daySettingsController,
       ),
 
       CalendarPage(
@@ -58,11 +70,17 @@ class _MainScreenState
                 .account_balance_wallet_outlined,
       ),
 
-      const PlaceholderPage(
-        title: 'Altro',
-        icon: Icons.more_horiz,
+      MorePage(
+        daySettingsController:
+            _daySettingsController,
       ),
     ];
+  }
+
+  @override
+  void dispose() {
+    _daySettingsController.dispose();
+    super.dispose();
   }
 
   @override
