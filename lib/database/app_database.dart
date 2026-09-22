@@ -85,6 +85,53 @@ class TaskItems extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('TaskSubtaskRow')
+class TaskSubtasks extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get taskId => text().references(
+        TaskItems,
+        #id,
+        onDelete: KeyAction.cascade,
+      )();
+
+  TextColumn get title => text()();
+
+  IntColumn get sortOrder =>
+      integer().withDefault(const Constant(0))();
+
+  /// Stato usato dalle task NON ricorrenti.
+  ///
+  /// Per le task ricorrenti lo stato effettivo viene salvato in
+  /// TaskSubtaskOccurrenceStates.
+  BoolColumn get isCompleted =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('TaskSubtaskOccurrenceStateRow')
+class TaskSubtaskOccurrenceStates extends Table {
+  TextColumn get subtaskId => text().references(
+        TaskSubtasks,
+        #id,
+        onDelete: KeyAction.cascade,
+      )();
+
+  /// Giorno specifico dell'occorrenza, normalizzato a mezzanotte locale.
+  DateTimeColumn get occurrenceDate => dateTime()();
+
+  BoolColumn get isCompleted =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {
+        subtaskId,
+        occurrenceDate,
+      };
+}
+
 @DataClassName('TaskOccurrenceStateRow')
 class TaskOccurrenceStates extends Table {
   TextColumn get taskId => text().references(
@@ -111,13 +158,15 @@ class TaskOccurrenceStates extends Table {
     TaskCategories,
     TaskItems,
     TaskOccurrenceStates,
+    TaskSubtasks,
+    TaskSubtaskOccurrenceStates,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -169,6 +218,16 @@ class AppDatabase extends _$AppDatabase {
 
             await m.createTable(
               taskOccurrenceStates,
+            );
+          }
+
+          if (from < 5) {
+            await m.createTable(
+              taskSubtasks,
+            );
+
+            await m.createTable(
+              taskSubtaskOccurrenceStates,
             );
           }
 

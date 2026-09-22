@@ -1,4 +1,5 @@
 import 'task_recurrence.dart';
+import 'task_subtask.dart';
 
 enum TaskPriority {
   low,
@@ -36,6 +37,13 @@ class LifeTask {
   /// Una ricorrenza richiede [scheduledDate], che funge da inizio serie.
   final TaskRecurrence recurrence;
 
+  /// Definizione ordinata delle sottoattività.
+  ///
+  /// Per task non ricorrenti [TaskSubtask.isCompleted] contiene lo stato
+  /// persistito. Per task ricorrenti lo stato effettivo appartiene alla
+  /// singola occorrenza.
+  final List<TaskSubtask> subtasks;
+
   /// Stato della task singola.
   ///
   /// Per le task ricorrenti lo stato effettivo viene salvato per singola
@@ -53,14 +61,29 @@ class LifeTask {
     this.allDay = false,
     this.priority = TaskPriority.normal,
     this.recurrence = const TaskRecurrence.none(),
+    List<TaskSubtask> subtasks = const [],
     this.isCompleted = false,
-  }) : scheduledDate = scheduledDate == null
+  })  : scheduledDate = scheduledDate == null
             ? null
             : DateTime(
                 scheduledDate.year,
                 scheduledDate.month,
                 scheduledDate.day,
-              );
+              ),
+        subtasks = List.unmodifiable(
+          subtasks,
+        );
+
+  int get subtaskCount =>
+      subtasks.length;
+
+  int get completedSubtaskCount =>
+      subtasks
+          .where(
+            (subtask) =>
+                subtask.isCompleted,
+          )
+          .length;
 
   DateTime? get startAt {
     final date = scheduledDate;

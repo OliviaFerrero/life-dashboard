@@ -4,6 +4,7 @@ import '../database/app_database.dart';
 import '../models/life_task.dart';
 import '../models/task_occurrence.dart';
 import '../models/task_recurrence.dart';
+import '../models/task_subtask.dart';
 
 class TaskRepository {
   final AppDatabase _database;
@@ -11,16 +12,9 @@ class TaskRepository {
   TaskRepository(this._database);
 
   Stream<List<LifeTask>> watchAllTasks() {
-    return _database
-        .select(_database.taskItems)
-        .watch()
-        .map((rows) {
-      final tasks = rows.map(_taskFromRow).toList();
-
-      tasks.sort(_compareTasks);
-
-      return tasks;
-    });
+    return _watchTaskData().map(
+      (snapshot) => snapshot.tasks,
+    );
   }
 
   Stream<List<TaskOccurrence>>
@@ -90,102 +84,177 @@ class TaskRepository {
   Future<void> addTask(
     LifeTask task,
   ) async {
-    await _database.into(_database.taskItems).insert(
-          TaskItemsCompanion.insert(
-            id: task.id,
-            title: task.title,
-            description:
-                Value(task.description),
+    await _database.transaction(() async {
+      await _database
+          .into(_database.taskItems)
+          .insert(
+        TaskItemsCompanion.insert(
+          id: task.id,
+          title: task.title,
+          description:
+              Value(task.description),
 
-            // Legacy mantenuto sincronizzato.
-            startAt: Value(task.startAt),
-            endAt: Value(task.endAt),
+          // Legacy mantenuto sincronizzato.
+          startAt: Value(task.startAt),
+          endAt: Value(task.endAt),
 
-            scheduledDate:
-                Value(task.scheduledDate),
-            startTimeMinutes: Value(
-              task.allDay
-                  ? null
-                  : task.startTimeMinutes,
-            ),
-            durationMinutes:
-                Value(task.durationMinutes),
-
-            categoryId:
-                Value(task.categoryId),
-
-            allDay:
-                Value(task.allDay),
-            priority:
-                Value(task.priority.index),
-
-            // Per una serie ricorrente lo stato vive
-            // nelle singole occorrenze.
-            isCompleted: Value(
-              task.recurrence.isRecurring
-                  ? false
-                  : task.isCompleted,
-            ),
-
-            recurrenceType: Value(
-              task.recurrence.storageValue,
-            ),
-            recurrenceWeekdays: Value(
-              task.recurrence.weekdaysMask,
-            ),
+          scheduledDate:
+              Value(task.scheduledDate),
+          startTimeMinutes: Value(
+            task.allDay
+                ? null
+                : task.startTimeMinutes,
           ),
-        );
+          durationMinutes:
+              Value(task.durationMinutes),
+
+          categoryId:
+              Value(task.categoryId),
+
+          allDay:
+              Value(task.allDay),
+          priority:
+              Value(task.priority.index),
+
+          // Per una serie ricorrente lo stato vive
+          // nelle singole occorrenze.
+          isCompleted: Value(
+            task.recurrence.isRecurring
+                ? false
+                : task.isCompleted,
+          ),
+
+          recurrenceType: Value(
+            task.recurrence.storageValue,
+          ),
+          recurrenceWeekdays: Value(
+            task.recurrence.weekdaysMask,
+          ),
+        ),
+      );
+
+      await _syncSubtasks(
+        task,
+      );
+    });
   }
 
   Future<void> updateTask(
     LifeTask task,
   ) async {
-    await (_database.update(
-      _database.taskItems,
+    await _database.transaction(() async {
+      await (_database.update(
+        _database.taskItems,
+      )..where(
+            (row) => row.id.equals(task.id),
+          ))
+          .write(
+        TaskItemsCompanion(
+          title: Value(task.title),
+          description:
+              Value(task.description),
+
+          // Legacy mantenuto sincronizzato.
+          startAt: Value(task.startAt),
+          endAt: Value(task.endAt),
+
+          scheduledDate:
+              Value(task.scheduledDate),
+          startTimeMinutes: Value(
+            task.allDay
+                ? null
+                : task.startTimeMinutes,
+          ),
+          durationMinutes:
+              Value(task.durationMinutes),
+
+          categoryId:
+              Value(task.categoryId),
+
+          allDay:
+              Value(task.allDay),
+          priority:
+              Value(task.priority.index),
+          isCompleted: Value(
+            task.recurrence.isRecurring
+                ? false
+                : task.isCompleted,
+          ),
+
+          recurrenceType: Value(
+            task.recurrence.storageValue,
+          ),
+          recurrenceWeekdays: Value(
+            task.recurrence.weekdaysMask,
+          ),
+        ),
+      );
+
+      await _syncSubtasks(
+        task,
+      );
+    });
+  }
+
+  Future<void> _syncSubtasks(
+    LifeTask task,
+  ) async {
+    final existing =
+        await (_database.select(
+      _database.taskSubtasks,
     )..where(
-          (row) => row.id.equals(task.id),
-        ))
-        .write(
-      TaskItemsCompanion(
-        title: Value(task.title),
-        description:
-            Value(task.description),
+              (row) =>
+                  row.taskId.equals(task.id),
+            ))
+            .get();
 
-        // Legacy mantenuto sincronizzato.
-        startAt: Value(task.startAt),
-        endAt: Value(task.endAt),
+    final incomingIds =
+        task.subtasks
+            .map(
+              (subtask) =>
+                  subtask.id,
+            )
+            .toSet();
 
-        scheduledDate:
-            Value(task.scheduledDate),
-        startTimeMinutes: Value(
-          task.allDay
-              ? null
-              : task.startTimeMinutes,
+    for (final row in existing) {
+      if (!incomingIds.contains(
+        row.id,
+      )) {
+        await (_database.delete(
+          _database.taskSubtasks,
+        )..where(
+              (item) =>
+                  item.id.equals(row.id),
+            ))
+            .go();
+      }
+    }
+
+    for (var index = 0;
+        index < task.subtasks.length;
+        index++) {
+      final subtask =
+          task.subtasks[index];
+
+      await _database
+          .into(
+            _database.taskSubtasks,
+          )
+          .insertOnConflictUpdate(
+        TaskSubtasksCompanion.insert(
+          id: subtask.id,
+          taskId: task.id,
+          title: subtask.title,
+          sortOrder:
+              Value(index),
+          isCompleted: Value(
+            task.recurrence.isRecurring
+                ? false
+                : subtask.isCompleted,
+          ),
         ),
-        durationMinutes:
-            Value(task.durationMinutes),
-
-        categoryId:
-            Value(task.categoryId),
-
-        allDay:
-            Value(task.allDay),
-        priority:
-            Value(task.priority.index),
-        isCompleted: Value(
-          task.recurrence.isRecurring
-              ? false
-              : task.isCompleted,
-        ),
-
-        recurrenceType: Value(
-          task.recurrence.storageValue,
-        ),
-        recurrenceWeekdays: Value(
-          task.recurrence.weekdaysMask,
-        ),
-      ),
-    );
+      );
+    }
   }
 
   Future<void> deleteTask(
@@ -199,23 +268,49 @@ class TaskRepository {
         .go();
   }
 
+  /// Completion della task NON ricorrente.
+  ///
+  /// Quando si completa il parent vengono completate anche tutte le
+  /// sottoattività ancora aperte. Quando si riapre il parent, invece,
+  /// gli stati delle sottoattività restano invariati.
   Future<void> setCompleted(
     String id,
     bool completed,
   ) async {
-    await (_database.update(
-      _database.taskItems,
-    )..where(
-          (row) => row.id.equals(id),
-        ))
-        .write(
-      TaskItemsCompanion(
-        isCompleted:
-            Value(completed),
-      ),
-    );
+    await _database.transaction(() async {
+      await (_database.update(
+        _database.taskItems,
+      )..where(
+            (row) => row.id.equals(id),
+          ))
+          .write(
+        TaskItemsCompanion(
+          isCompleted:
+              Value(completed),
+        ),
+      );
+
+      if (completed) {
+        await (_database.update(
+          _database.taskSubtasks,
+        )..where(
+              (row) =>
+                  row.taskId.equals(id),
+            ))
+            .write(
+          const TaskSubtasksCompanion(
+            isCompleted:
+                Value(true),
+          ),
+        );
+      }
+    });
   }
 
+  /// Completion della singola occorrenza di una task ricorrente.
+  ///
+  /// Completando il parent vengono completate anche tutte le
+  /// sottoattività di QUELLA occorrenza.
   Future<void> setOccurrenceCompleted(
     TaskOccurrence occurrence,
     bool completed,
@@ -231,15 +326,120 @@ class TaskRepository {
     final date =
         _dateOnly(occurrence.date);
 
+    await _database.transaction(() async {
+      if (completed) {
+        await _database
+            .into(
+              _database.taskOccurrenceStates,
+            )
+            .insertOnConflictUpdate(
+          TaskOccurrenceStatesCompanion.insert(
+            taskId:
+                occurrence.task.id,
+            occurrenceDate:
+                date,
+            isCompleted:
+                const Value(true),
+          ),
+        );
+
+        final subtasks =
+            await (_database.select(
+          _database.taskSubtasks,
+        )..where(
+                  (row) =>
+                      row.taskId.equals(
+                        occurrence.task.id,
+                      ),
+                ))
+                .get();
+
+        for (final subtask in subtasks) {
+          await _database
+              .into(
+                _database
+                    .taskSubtaskOccurrenceStates,
+              )
+              .insertOnConflictUpdate(
+            TaskSubtaskOccurrenceStatesCompanion
+                .insert(
+              subtaskId:
+                  subtask.id,
+              occurrenceDate:
+                  date,
+              isCompleted:
+                  const Value(true),
+            ),
+          );
+        }
+
+        return;
+      }
+
+      await (_database.delete(
+        _database.taskOccurrenceStates,
+      )..where(
+            (row) =>
+                row.taskId.equals(
+                  occurrence.task.id,
+                ) &
+                row.occurrenceDate.equals(
+                  date,
+                ),
+          ))
+          .go();
+    });
+  }
+
+  /// Cambia lo stato di una singola sottoattività.
+  ///
+  /// Per le task ricorrenti lo stato è legato alla data
+  /// dell'occorrenza. Per le task singole viene salvato direttamente
+  /// sulla definizione della sottoattività.
+  Future<void> setSubtaskCompleted({
+    required LifeTask task,
+    required TaskSubtask subtask,
+    required bool completed,
+    DateTime? occurrenceDate,
+  }) async {
+    if (!task.recurrence.isRecurring) {
+      await (_database.update(
+        _database.taskSubtasks,
+      )..where(
+            (row) =>
+                row.id.equals(subtask.id) &
+                row.taskId.equals(task.id),
+          ))
+          .write(
+        TaskSubtasksCompanion(
+          isCompleted:
+              Value(completed),
+        ),
+      );
+
+      return;
+    }
+
+    if (occurrenceDate == null) {
+      throw ArgumentError(
+        'Una sottoattività ricorrente richiede occurrenceDate.',
+      );
+    }
+
+    final date =
+        _dateOnly(occurrenceDate);
+
     if (completed) {
       await _database
           .into(
-            _database.taskOccurrenceStates,
+            _database
+                .taskSubtaskOccurrenceStates,
           )
           .insertOnConflictUpdate(
-        TaskOccurrenceStatesCompanion.insert(
-          taskId:
-              occurrence.task.id,
+        TaskSubtaskOccurrenceStatesCompanion
+            .insert(
+          subtaskId:
+              subtask.id,
           occurrenceDate:
               date,
           isCompleted:
@@ -251,11 +451,12 @@ class TaskRepository {
     }
 
     await (_database.delete(
-      _database.taskOccurrenceStates,
+      _database
+          .taskSubtaskOccurrenceStates,
     )..where(
           (row) =>
-              row.taskId.equals(
-                occurrence.task.id,
+              row.subtaskId.equals(
+                subtask.id,
               ) &
               row.occurrenceDate.equals(
                 date,
@@ -279,49 +480,159 @@ class TaskRepository {
               _database.taskItems.id,
             ),
       ),
+      leftOuterJoin(
+        _database.taskSubtasks,
+        _database
+            .taskSubtasks
+            .taskId
+            .equalsExp(
+              _database.taskItems.id,
+            ),
+      ),
+      leftOuterJoin(
+        _database
+            .taskSubtaskOccurrenceStates,
+        _database
+            .taskSubtaskOccurrenceStates
+            .subtaskId
+            .equalsExp(
+              _database.taskSubtasks.id,
+            ),
+      ),
     ]);
 
     return query.watch().map((rows) {
-      final tasksById =
-          <String, LifeTask>{};
+      final taskRowsById =
+          <String, TaskItem>{};
+
+      final subtasksByTaskId =
+          <String, Map<String, TaskSubtask>>{};
 
       final completedOccurrenceKeys =
           <String>{};
 
+      final completedSubtaskOccurrenceKeys =
+          <String>{};
+
       for (final result in rows) {
-        final row = result.readTable(
+        final taskRow =
+            result.readTable(
           _database.taskItems,
         );
 
-        tasksById.putIfAbsent(
-          row.id,
-          () => _taskFromRow(row),
+        taskRowsById.putIfAbsent(
+          taskRow.id,
+          () => taskRow,
         );
 
-        final state =
+        final occurrenceState =
             result.readTableOrNull(
           _database.taskOccurrenceStates,
         );
 
-        if (state != null &&
-            state.isCompleted) {
+        if (occurrenceState != null &&
+            occurrenceState.isCompleted) {
           completedOccurrenceKeys.add(
             _stateKey(
-              state.taskId,
-              state.occurrenceDate,
+              occurrenceState.taskId,
+              occurrenceState.occurrenceDate,
+            ),
+          );
+        }
+
+        final subtaskRow =
+            result.readTableOrNull(
+          _database.taskSubtasks,
+        );
+
+        if (subtaskRow != null) {
+          subtasksByTaskId
+              .putIfAbsent(
+                taskRow.id,
+                () =>
+                    <String, TaskSubtask>{},
+              )
+              .putIfAbsent(
+                subtaskRow.id,
+                () => TaskSubtask(
+                  id: subtaskRow.id,
+                  title:
+                      subtaskRow.title,
+                  sortOrder:
+                      subtaskRow.sortOrder,
+                  isCompleted:
+                      subtaskRow
+                          .isCompleted,
+                ),
+              );
+        }
+
+        final subtaskState =
+            result.readTableOrNull(
+          _database
+              .taskSubtaskOccurrenceStates,
+        );
+
+        if (subtaskState != null &&
+            subtaskState.isCompleted) {
+          completedSubtaskOccurrenceKeys.add(
+            _subtaskStateKey(
+              subtaskState.subtaskId,
+              subtaskState.occurrenceDate,
             ),
           );
         }
       }
 
       final tasks =
-          tasksById.values.toList()
-            ..sort(_compareTasks);
+          <LifeTask>[];
+
+      for (final entry
+          in taskRowsById.entries) {
+        final subtasks =
+            subtasksByTaskId[entry.key]
+                    ?.values
+                    .toList() ??
+                <TaskSubtask>[];
+
+        subtasks.sort(
+          (a, b) {
+            final order =
+                a.sortOrder.compareTo(
+              b.sortOrder,
+            );
+
+            if (order != 0) {
+              return order;
+            }
+
+            return a.title
+                .toLowerCase()
+                .compareTo(
+                  b.title.toLowerCase(),
+                );
+          },
+        );
+
+        tasks.add(
+          _taskFromRow(
+            entry.value,
+            subtasks:
+                subtasks,
+          ),
+        );
+      }
+
+      tasks.sort(
+        _compareTasks,
+      );
 
       return _TaskDataSnapshot(
         tasks: tasks,
         completedOccurrenceKeys:
             completedOccurrenceKeys,
+        completedSubtaskOccurrenceKeys:
+            completedSubtaskOccurrenceKeys,
       );
     });
   }
@@ -359,6 +670,8 @@ class TaskRepository {
               date: date,
               isCompleted:
                   task.isCompleted,
+              subtasks:
+                  task.subtasks,
             ),
           );
         }
@@ -390,6 +703,12 @@ class TaskRepository {
                   task.id,
                   cursor,
                 ),
+              ),
+              subtasks:
+                  _effectiveSubtasksForOccurrence(
+                task,
+                cursor,
+                snapshot,
               ),
             ),
           );
@@ -431,6 +750,8 @@ class TaskRepository {
             date: startDate,
             isCompleted:
                 task.isCompleted,
+            subtasks:
+                task.subtasks,
           ),
         );
 
@@ -460,6 +781,12 @@ class TaskRepository {
               nextDate,
             ),
           ),
+          subtasks:
+              _effectiveSubtasksForOccurrence(
+            task,
+            nextDate,
+            snapshot,
+          ),
         ),
       );
     }
@@ -469,6 +796,33 @@ class TaskRepository {
     );
 
     return result;
+  }
+
+  List<TaskSubtask>
+      _effectiveSubtasksForOccurrence(
+    LifeTask task,
+    DateTime date,
+    _TaskDataSnapshot snapshot,
+  ) {
+    if (!task.recurrence.isRecurring) {
+      return task.subtasks;
+    }
+
+    return [
+      for (final subtask
+          in task.subtasks)
+        subtask.copyWith(
+          isCompleted:
+              snapshot
+                  .completedSubtaskOccurrenceKeys
+                  .contains(
+            _subtaskStateKey(
+              subtask.id,
+              date,
+            ),
+          ),
+        ),
+    ];
   }
 
   DateTime? _nextRelevantOccurrenceDate(
@@ -675,8 +1029,10 @@ class TaskRepository {
   }
 
   LifeTask _taskFromRow(
-    TaskItem row,
-  ) {
+    TaskItem row, {
+    List<TaskSubtask> subtasks =
+        const [],
+  }) {
     final fallbackDate =
         row.startAt == null
             ? null
@@ -753,6 +1109,8 @@ class TaskRepository {
         row.recurrenceType,
         row.recurrenceWeekdays,
       ),
+      subtasks:
+          subtasks,
       isCompleted:
           row.isCompleted,
     );
@@ -795,15 +1153,31 @@ class TaskRepository {
         '${normalized.month.toString().padLeft(2, '0')}-'
         '${normalized.day.toString().padLeft(2, '0')}';
   }
+
+  String _subtaskStateKey(
+    String subtaskId,
+    DateTime date,
+  ) {
+    final normalized =
+        _dateOnly(date);
+
+    return '$subtaskId@'
+        '${normalized.year.toString().padLeft(4, '0')}-'
+        '${normalized.month.toString().padLeft(2, '0')}-'
+        '${normalized.day.toString().padLeft(2, '0')}';
+  }
 }
 
 class _TaskDataSnapshot {
   final List<LifeTask> tasks;
   final Set<String>
       completedOccurrenceKeys;
+  final Set<String>
+      completedSubtaskOccurrenceKeys;
 
   const _TaskDataSnapshot({
     required this.tasks,
     required this.completedOccurrenceKeys,
+    required this.completedSubtaskOccurrenceKeys,
   });
 }

@@ -4,6 +4,7 @@ import '../../models/life_task.dart';
 import '../../models/task_category.dart';
 import '../../models/task_occurrence.dart';
 import '../../models/task_recurrence.dart';
+import '../../models/task_subtask.dart';
 import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
@@ -32,6 +33,7 @@ class _TaskDetailPageState
     extends State<TaskDetailPage> {
   late LifeTask _task;
   late bool _isCompleted;
+  late List<TaskSubtask> _subtasks;
   DateTime? _occurrenceDate;
 
   @override
@@ -45,6 +47,17 @@ class _TaskDetailPageState
     _isCompleted =
         widget.occurrence?.isCompleted ??
             widget.task.isCompleted;
+
+    _subtasks =
+        (widget.occurrence?.subtasks ??
+                widget.task.subtasks)
+            .toList()
+          ..sort(
+            (a, b) =>
+                a.sortOrder.compareTo(
+              b.sortOrder,
+            ),
+          );
   }
 
   String _twoDigits(
@@ -312,9 +325,186 @@ class _TaskDetailPageState
     );
   }
 
+  int get _completedSubtaskCount =>
+      _subtasks
+          .where(
+            (subtask) =>
+                subtask.isCompleted,
+          )
+          .length;
+
+  Future<bool> _confirmCompleteWithOpenSubtasks() async {
+    final remaining =
+        _subtasks.length -
+            _completedSubtaskCount;
+
+    if (remaining <= 0) {
+      return true;
+    }
+
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title:
+              const Text(
+            'Completare attività?',
+          ),
+          content: Text(
+            remaining == 1
+                ? 'C’è ancora 1 sottoattività da completare. '
+                    'Completando l’attività verrà completata anche quella.'
+                : 'Ci sono ancora $remaining sottoattività da completare. '
+                    'Completando l’attività verranno completate tutte.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  false,
+                );
+              },
+              child:
+                  const Text(
+                'Annulla',
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
+              child:
+                  const Text(
+                'Completa tutto',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
+  Future<void> _toggleSubtask(
+    TaskSubtask subtask,
+  ) async {
+    final completed =
+        !subtask.isCompleted;
+
+    final occurrenceDate =
+        _task.recurrence.isRecurring
+            ? (_occurrenceDate ??
+                _task.scheduledDate)
+            : null;
+
+    await widget.taskRepository
+        .setSubtaskCompleted(
+      task:
+          _task,
+      subtask:
+          subtask,
+      completed:
+          completed,
+      occurrenceDate:
+          occurrenceDate,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    var parentBecameIncomplete =
+        false;
+
+    if (!completed &&
+        _isCompleted) {
+      final date =
+          _occurrenceDate ??
+              _task.scheduledDate;
+
+      if (_task.recurrence.isRecurring &&
+          date != null) {
+        await widget.taskRepository
+            .setOccurrenceCompleted(
+          TaskOccurrence(
+            task:
+                _task,
+            date:
+                date,
+            isCompleted:
+                true,
+            subtasks:
+                _subtasks,
+          ),
+          false,
+        );
+      } else {
+        await widget.taskRepository
+            .setCompleted(
+          _task.id,
+          false,
+        );
+      }
+
+      parentBecameIncomplete =
+          true;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      final index =
+          _subtasks.indexWhere(
+        (item) =>
+            item.id == subtask.id,
+      );
+
+      if (index >= 0) {
+        _subtasks[index] =
+            _subtasks[index].copyWith(
+          isCompleted:
+              completed,
+        );
+      }
+
+      if (parentBecameIncomplete) {
+        _isCompleted =
+            false;
+
+        if (!_task.recurrence
+            .isRecurring) {
+          _task.isCompleted =
+              false;
+        }
+      }
+    });
+  }
+
   Future<void> _setCompleted(
     bool completed,
   ) async {
+    if (completed &&
+        _subtasks.any(
+          (subtask) =>
+              !subtask.isCompleted,
+        )) {
+      final confirmed =
+          await _confirmCompleteWithOpenSubtasks();
+
+      if (!confirmed ||
+          !mounted) {
+        return;
+      }
+    }
+
     final date =
         _occurrenceDate ??
             _task.scheduledDate;
@@ -330,6 +520,8 @@ class _TaskDetailPageState
               date,
           isCompleted:
               _isCompleted,
+          subtasks:
+              _subtasks,
         ),
         completed,
       );
@@ -349,12 +541,52 @@ class _TaskDetailPageState
       _isCompleted =
           completed;
 
+      if (completed) {
+        _subtasks = [
+          for (final subtask
+              in _subtasks)
+            subtask.copyWith(
+              isCompleted:
+                  true,
+            ),
+        ];
+      }
+
       if (!_task.recurrence
           .isRecurring) {
         _task.isCompleted =
             completed;
       }
     });
+  }
+
+  LifeTask _taskForEditing() {
+    return LifeTask(
+      id:
+          _task.id,
+      title:
+          _task.title,
+      description:
+          _task.description,
+      scheduledDate:
+          _task.scheduledDate,
+      startTimeMinutes:
+          _task.startTimeMinutes,
+      durationMinutes:
+          _task.durationMinutes,
+      categoryId:
+          _task.categoryId,
+      allDay:
+          _task.allDay,
+      priority:
+          _task.priority,
+      recurrence:
+          _task.recurrence,
+      subtasks:
+          _subtasks,
+      isCompleted:
+          _isCompleted,
+    );
   }
 
   Future<void> _editTask() async {
@@ -371,7 +603,7 @@ class _TaskDetailPageState
           categoryRepository:
               widget.categoryRepository,
           initialTask:
-              _task,
+              _taskForEditing(),
         ),
       ),
     );
@@ -413,6 +645,14 @@ class _TaskDetailPageState
     }
 
     setState(() {
+      final previousSubtasks =
+          {
+        for (final subtask
+            in _subtasks)
+          subtask.id:
+              subtask.isCompleted,
+      };
+
       _task =
           updatedTask;
 
@@ -422,6 +662,9 @@ class _TaskDetailPageState
             _task.scheduledDate;
         _isCompleted =
             _task.isCompleted;
+        _subtasks =
+            _task.subtasks
+                .toList();
       } else {
         final currentDate =
             _occurrenceDate;
@@ -440,8 +683,34 @@ class _TaskDetailPageState
               _task.scheduledDate;
           _isCompleted =
               false;
+          _subtasks = [
+            for (final subtask
+                in _task.subtasks)
+              subtask.copyWith(
+                isCompleted:
+                    false,
+              ),
+          ];
+        } else {
+          _subtasks = [
+            for (final subtask
+                in _task.subtasks)
+              subtask.copyWith(
+                isCompleted:
+                    previousSubtasks[
+                            subtask.id] ??
+                        false,
+              ),
+          ];
         }
       }
+
+      _subtasks.sort(
+        (a, b) =>
+            a.sortOrder.compareTo(
+          b.sortOrder,
+        ),
+      );
     });
   }
 
@@ -460,7 +729,7 @@ class _TaskDetailPageState
           categoryRepository:
               widget.categoryRepository,
           initialTask:
-              _task,
+              _taskForEditing(),
           rescheduleOnly:
               true,
         ),
@@ -490,6 +759,15 @@ class _TaskDetailPageState
           updatedTask.scheduledDate;
       _isCompleted =
           updatedTask.isCompleted;
+      _subtasks =
+          updatedTask.subtasks
+              .toList()
+            ..sort(
+              (a, b) =>
+                  a.sortOrder.compareTo(
+                b.sortOrder,
+              ),
+            );
     });
   }
 
@@ -983,6 +1261,100 @@ class _TaskDetailPageState
                 ),
               ],
 
+              if (_subtasks.isNotEmpty) ...[
+                const SizedBox(
+                  height: 34,
+                ),
+                const _SoftDivider(),
+                const SizedBox(
+                  height: 28,
+                ),
+
+                Row(
+                  children: [
+                    const Expanded(
+                      child:
+                          _SectionLabel(
+                        text:
+                            'SOTTOATTIVITÀ',
+                      ),
+                    ),
+                    Text(
+                      '$_completedSubtaskCount/${_subtasks.length}',
+                      style:
+                          Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color:
+                                    colorScheme
+                                        .onSurfaceVariant,
+                                fontWeight:
+                                    FontWeight
+                                        .w700,
+                              ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(
+                  height: 10,
+                ),
+
+                for (var index = 0;
+                    index <
+                        _subtasks.length;
+                    index++) ...[
+                  _SubtaskDetailRow(
+                    subtask:
+                        _subtasks[index],
+                    accentColor:
+                        categoryColor,
+                    onTap: () {
+                      _toggleSubtask(
+                        _subtasks[index],
+                      );
+                    },
+                  ),
+
+                  if (index !=
+                      _subtasks.length -
+                          1)
+                    Divider(
+                      height: 1,
+                      indent: 34,
+                      color:
+                          colorScheme
+                              .outlineVariant
+                              .withValues(
+                            alpha:
+                                0.45,
+                          ),
+                    ),
+                ],
+
+                if (_completedSubtaskCount ==
+                    _subtasks.length) ...[
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  Text(
+                    'Tutte le sottoattività sono completate.',
+                    style:
+                        Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              color:
+                                  categoryColor,
+                              fontWeight:
+                                  FontWeight
+                                      .w600,
+                            ),
+                  ),
+                ],
+              ],
+
               const SizedBox(
                 height: 34,
               ),
@@ -1143,6 +1515,113 @@ class _TaskDetailPageState
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _SubtaskDetailRow
+    extends StatelessWidget {
+  final TaskSubtask subtask;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  const _SubtaskDetailRow({
+    required this.subtask,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          Colors.transparent,
+      child: InkWell(
+        onTap:
+            onTap,
+        borderRadius:
+            BorderRadius.circular(
+          10,
+        ),
+        child: Padding(
+          padding:
+              const EdgeInsets
+                  .symmetric(
+            vertical: 12,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      subtask.isCompleted
+                          ? accentColor
+                          : Colors
+                              .transparent,
+                  shape:
+                      BoxShape.circle,
+                  border:
+                      Border.all(
+                    color:
+                        subtask.isCompleted
+                            ? accentColor
+                            : colorScheme
+                                .onSurfaceVariant,
+                    width: 2,
+                  ),
+                ),
+                child:
+                    subtask.isCompleted
+                        ? const Icon(
+                            Icons.check,
+                            size: 12,
+                            color:
+                                Colors.white,
+                          )
+                        : null,
+              ),
+
+              const SizedBox(
+                width: 12,
+              ),
+
+              Expanded(
+                child: Text(
+                  subtask.title,
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(
+                            fontWeight:
+                                FontWeight
+                                    .w500,
+                            decoration:
+                                subtask.isCompleted
+                                    ? TextDecoration
+                                        .lineThrough
+                                    : null,
+                            color:
+                                subtask.isCompleted
+                                    ? colorScheme
+                                        .onSurfaceVariant
+                                    : null,
+                          ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

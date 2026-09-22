@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
 import '../../models/task_recurrence.dart';
+import '../../models/task_subtask.dart';
 import '../../repositories/category_repository.dart';
 import '../../utils/task_category_icons.dart';
 import 'category_management_page.dart';
@@ -61,6 +62,9 @@ class _TaskFormPageState
   TaskRecurrence _recurrence =
       const TaskRecurrence.none();
 
+  List<TaskSubtask> _subtasks =
+      <TaskSubtask>[];
+
   bool _allDay = false;
 
   TaskPriority _priority =
@@ -94,6 +98,16 @@ class _TaskFormPageState
 
       _recurrence =
           task.recurrence;
+
+      _subtasks =
+          task.subtasks
+              .toList()
+            ..sort(
+              (a, b) =>
+                  a.sortOrder.compareTo(
+                b.sortOrder,
+              ),
+            );
 
       _allDay =
           task.allDay;
@@ -571,6 +585,166 @@ class _TaskFormPageState
     });
   }
 
+  List<TaskSubtask>
+      _normalizedSubtasks() {
+    return [
+      for (var index = 0;
+          index < _subtasks.length;
+          index++)
+        _subtasks[index].copyWith(
+          sortOrder:
+              index,
+        ),
+    ];
+  }
+
+  Future<String?> _editSubtaskTitle({
+    String initialTitle = '',
+    required String title,
+    required String actionLabel,
+  }) async {
+    _dismissKeyboard();
+
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor:
+          Colors.transparent,
+      barrierColor:
+          Colors.black.withValues(
+        alpha: 0.28,
+      ),
+      isScrollControlled:
+          true,
+      useSafeArea:
+          true,
+      builder: (context) {
+        return _SubtaskTitleSheet(
+          title:
+              title,
+          actionLabel:
+              actionLabel,
+          initialTitle:
+              initialTitle,
+        );
+      },
+    );
+  }
+
+  Future<void> _addSubtask() async {
+    final title =
+        await _editSubtaskTitle(
+      title:
+          'Nuova sottoattività',
+      actionLabel:
+          'Aggiungi',
+    );
+
+    if (!mounted ||
+        title == null) {
+      return;
+    }
+
+    final trimmed =
+        title.trim();
+
+    if (trimmed.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _subtasks.add(
+        TaskSubtask(
+          id:
+              'subtask_${DateTime.now().microsecondsSinceEpoch}',
+          title:
+              trimmed,
+          sortOrder:
+              _subtasks.length,
+        ),
+      );
+    });
+  }
+
+  Future<void> _renameSubtask(
+    TaskSubtask subtask,
+  ) async {
+    final title =
+        await _editSubtaskTitle(
+      initialTitle:
+          subtask.title,
+      title:
+          'Modifica sottoattività',
+      actionLabel:
+          'Salva',
+    );
+
+    if (!mounted ||
+        title == null) {
+      return;
+    }
+
+    final trimmed =
+        title.trim();
+
+    if (trimmed.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      final index =
+          _subtasks.indexWhere(
+        (item) =>
+            item.id == subtask.id,
+      );
+
+      if (index < 0) {
+        return;
+      }
+
+      _subtasks[index] =
+          _subtasks[index].copyWith(
+        title:
+            trimmed,
+      );
+    });
+  }
+
+  void _removeSubtask(
+    TaskSubtask subtask,
+  ) {
+    _dismissKeyboard();
+
+    setState(() {
+      _subtasks.removeWhere(
+        (item) =>
+            item.id == subtask.id,
+      );
+
+      _subtasks =
+          _normalizedSubtasks();
+    });
+  }
+
+  void _reorderSubtasks(
+    int oldIndex,
+    int newIndex,
+  ) {
+    setState(() {
+      final item =
+          _subtasks.removeAt(
+        oldIndex,
+      );
+
+      _subtasks.insert(
+        newIndex,
+        item,
+      );
+
+      _subtasks =
+          _normalizedSubtasks();
+    });
+  }
+
   TaskCategory? _findCategory(
     List<TaskCategory> categories,
     String? id,
@@ -758,6 +932,11 @@ class _TaskFormPageState
 
       recurrence:
           recurrence,
+
+      subtasks:
+          widget.rescheduleOnly
+              ? oldTask!.subtasks
+              : _normalizedSubtasks(),
 
       isCompleted:
           oldTask?.isCompleted ??
@@ -1231,6 +1410,97 @@ class _TaskFormPageState
                   .rescheduleOnly) ...[
                 const SizedBox(
                   height: 34,
+                ),
+
+                const _FormSectionLabel(
+                  text:
+                      'SOTTOATTIVITÀ',
+                ),
+
+                const SizedBox(
+                  height: 8,
+                ),
+
+                if (_subtasks.isEmpty)
+                  Padding(
+                    padding:
+                        const EdgeInsets
+                            .symmetric(
+                      vertical: 10,
+                    ),
+                    child: Text(
+                      'Nessuna sottoattività.',
+                      style:
+                          Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color:
+                                    colorScheme
+                                        .onSurfaceVariant,
+                              ),
+                    ),
+                  )
+                else
+                  ReorderableListView.builder(
+                    shrinkWrap:
+                        true,
+                    physics:
+                        const NeverScrollableScrollPhysics(),
+                    buildDefaultDragHandles:
+                        false,
+                    itemCount:
+                        _subtasks.length,
+                    onReorderItem:
+                        _reorderSubtasks,
+                    itemBuilder:
+                        (context, index) {
+                      final subtask =
+                          _subtasks[index];
+
+                      return _SubtaskFormRow(
+                        key:
+                            ValueKey(
+                          subtask.id,
+                        ),
+                        subtask:
+                            subtask,
+                        index:
+                            index,
+                        onTap: () {
+                          _renameSubtask(
+                            subtask,
+                          );
+                        },
+                        onDelete: () {
+                          _removeSubtask(
+                            subtask,
+                          );
+                        },
+                      );
+                    },
+                  ),
+
+                Align(
+                  alignment:
+                      Alignment.centerLeft,
+                  child:
+                      TextButton.icon(
+                    onPressed:
+                        _addSubtask,
+                    icon:
+                        const Icon(
+                      Icons.add,
+                    ),
+                    label:
+                        const Text(
+                      'Aggiungi sottoattività',
+                    ),
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 26,
                 ),
 
                 const _FormSectionLabel(
@@ -2132,6 +2402,306 @@ class _WeekdayChoice
                                 .w700,
                       ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SubtaskFormRow
+    extends StatelessWidget {
+  final TaskSubtask subtask;
+  final int index;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _SubtaskFormRow({
+    super.key,
+    required this.subtask,
+    required this.index,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          Colors.transparent,
+      child: InkWell(
+        onTap:
+            onTap,
+        borderRadius:
+            BorderRadius.circular(
+          12,
+        ),
+        child: Padding(
+          padding:
+              const EdgeInsets
+                  .symmetric(
+            vertical: 8,
+          ),
+          child: Row(
+            children: [
+              ReorderableDragStartListener(
+                index:
+                    index,
+                child: Padding(
+                  padding:
+                      const EdgeInsets
+                          .fromLTRB(
+                    2,
+                    10,
+                    12,
+                    10,
+                  ),
+                  child: Icon(
+                    Icons
+                        .drag_indicator,
+                    size: 20,
+                    color:
+                        colorScheme
+                            .onSurfaceVariant,
+                  ),
+                ),
+              ),
+
+              Expanded(
+                child: Text(
+                  subtask.title,
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(
+                            fontWeight:
+                                FontWeight
+                                    .w500,
+                          ),
+                ),
+              ),
+
+              IconButton(
+                tooltip:
+                    'Rimuovi sottoattività',
+                visualDensity:
+                    VisualDensity
+                        .compact,
+                onPressed:
+                    onDelete,
+                icon:
+                    Icon(
+                  Icons.close,
+                  size: 18,
+                  color:
+                      colorScheme
+                          .onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SubtaskTitleSheet
+    extends StatefulWidget {
+  final String title;
+  final String actionLabel;
+  final String initialTitle;
+
+  const _SubtaskTitleSheet({
+    required this.title,
+    required this.actionLabel,
+    required this.initialTitle,
+  });
+
+  @override
+  State<_SubtaskTitleSheet>
+      createState() =>
+          _SubtaskTitleSheetState();
+}
+
+class _SubtaskTitleSheetState
+    extends State<_SubtaskTitleSheet> {
+  late final TextEditingController
+      _controller;
+
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller =
+        TextEditingController(
+      text:
+          widget.initialTitle,
+    );
+
+    _controller.selection =
+        TextSelection.collapsed(
+      offset:
+          _controller.text.length,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    final value =
+        _controller.text.trim();
+
+    if (value.isEmpty) {
+      setState(() {
+        _errorText =
+            'Inserisci un titolo.';
+      });
+      return;
+    }
+
+    FocusManager
+        .instance
+        .primaryFocus
+        ?.unfocus();
+
+    Navigator.pop(
+      context,
+      value,
+    );
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Padding(
+      padding:
+          EdgeInsets.only(
+        bottom:
+            MediaQuery.viewInsetsOf(
+          context,
+        ).bottom,
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          margin:
+              const EdgeInsets
+                  .fromLTRB(
+            12,
+            0,
+            12,
+            12,
+          ),
+          padding:
+              const EdgeInsets
+                  .fromLTRB(
+            20,
+            18,
+            20,
+            18,
+          ),
+          decoration:
+              BoxDecoration(
+            color:
+                colorScheme.surface,
+            borderRadius:
+                BorderRadius.circular(
+              24,
+            ),
+            border:
+                Border.all(
+              color:
+                  colorScheme
+                      .outlineVariant
+                      .withValues(
+                alpha:
+                    0.55,
+              ),
+            ),
+          ),
+          child: Column(
+            mainAxisSize:
+                MainAxisSize.min,
+            crossAxisAlignment:
+                CrossAxisAlignment
+                    .start,
+            children: [
+              Text(
+                widget.title,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(
+                          fontWeight:
+                              FontWeight
+                                  .w700,
+                        ),
+              ),
+
+              const SizedBox(
+                height: 18,
+              ),
+
+              TextField(
+                controller:
+                    _controller,
+                autofocus:
+                    true,
+                textInputAction:
+                    TextInputAction.done,
+                onSubmitted:
+                    (_) {
+                  _confirm();
+                },
+                decoration:
+                    InputDecoration(
+                  hintText:
+                      'Titolo sottoattività',
+                  errorText:
+                      _errorText,
+                  border:
+                      const UnderlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(
+                height: 22,
+              ),
+
+              SizedBox(
+                width:
+                    double.infinity,
+                child:
+                    FilledButton(
+                  onPressed:
+                      _confirm,
+                  child:
+                      Text(
+                    widget.actionLabel,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
