@@ -317,7 +317,7 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
         20,
         0,
         20,
-        100,
+        28,
       ),
       children: [
         Container(
@@ -692,21 +692,82 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
               18,
         ),
 
-        Text(
-          'AGENDA DEL GIORNO',
-          style:
-              Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(
-                    color:
-                        colorScheme
-                            .onSurfaceVariant,
-                    fontWeight:
-                        FontWeight.w800,
-                    letterSpacing:
-                        1,
+        Row(
+          children: [
+            Expanded(
+              child:
+                  Text(
+                'AGENDA DEL GIORNO',
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .labelSmall
+                        ?.copyWith(
+                          color:
+                              colorScheme
+                                  .onSurfaceVariant,
+                          fontWeight:
+                              FontWeight.w800,
+                          letterSpacing:
+                              1,
+                        ),
+              ),
+            ),
+            Material(
+              color:
+                  Colors.transparent,
+              child:
+                  InkWell(
+                onTap:
+                    _addTask,
+                borderRadius:
+                    BorderRadius.circular(
+                  8,
+                ),
+                child:
+                    Padding(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal:
+                        4,
+                    vertical:
+                        6,
                   ),
+                  child:
+                      Row(
+                    mainAxisSize:
+                        MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.add_rounded,
+                        size:
+                            16,
+                        color:
+                            colorScheme.primary,
+                      ),
+                      const SizedBox(
+                        width:
+                            3,
+                      ),
+                      Text(
+                        'Attività',
+                        style:
+                            Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                  color:
+                                      colorScheme.primary,
+                                  fontWeight:
+                                      FontWeight.w700,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
 
         const SizedBox(

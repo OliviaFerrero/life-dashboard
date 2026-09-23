@@ -681,6 +681,26 @@ class _CalendarPageState extends State<CalendarPage>
             const Text(
           'Calendario',
         ),
+        actions:
+            _calendarFormat ==
+                    CalendarFormat.week
+                ? [
+                    IconButton(
+                      tooltip:
+                          'Nuova attività',
+                      onPressed:
+                          _addTask,
+                      icon:
+                          const Icon(
+                        Icons.add_rounded,
+                      ),
+                    ),
+                    const SizedBox(
+                      width:
+                          4,
+                    ),
+                  ]
+                : null,
       ),
       body: StreamBuilder<
           List<TaskOccurrence>>(
@@ -822,19 +842,6 @@ class _CalendarPageState extends State<CalendarPage>
             },
           );
         },
-      ),
-      floatingActionButton:
-          FloatingActionButton.extended(
-        onPressed:
-            _addTask,
-        icon:
-            const Icon(
-          Icons.add,
-        ),
-        label:
-            const Text(
-          'Attività',
-        ),
       ),
     );
   }
