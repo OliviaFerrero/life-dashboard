@@ -2341,22 +2341,30 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
         break;
 
       case _WeekPinchAxis.horizontal:
+        // Finché la settimana è più larga del viewport manteniamo la
+        // sensibilità attuale. Quando i sette giorni sono già tutti visibili,
+        // il pinch continua nell'overview con un controllo un po' più fine.
+        final horizontalSensitivity =
+            _weekPinchStartDayWidth <=
+                    _weekPinchFittedDayWidth + 0.5
+                ? 190.0
+                : 140.0;
+
         final nextStoredDayWidth =
             (_weekPinchStartDayWidth *
                     (1 +
                         horizontalDelta /
-                            140))
+                            horizontalSensitivity))
                 .clamp(
                   _CalendarPageState._weekMinDayWidth,
                   _CalendarPageState._weekMaxDayWidth,
                 )
                 .toDouble();
 
+        // Non imponiamo più fittedDayWidth come minimo renderizzato:
+        // sotto quella soglia si entra davvero nella modalità overview.
         final nextRenderedDayWidth =
-            math.max(
-          _weekPinchFittedDayWidth,
-          nextStoredDayWidth,
-        ).toDouble();
+            nextStoredDayWidth;
 
         if ((nextStoredDayWidth -
                     _weekDayWidth)

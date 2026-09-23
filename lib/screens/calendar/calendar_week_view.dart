@@ -253,11 +253,16 @@ extension _CalendarWeekViewExtension on _CalendarPageState {
               7,
         ).toDouble();
 
+        // fittedDayWidth segna il punto in cui i sette giorni riempiono
+        // esattamente lo spazio disponibile. _weekDayWidth può ora scendere
+        // anche sotto quella soglia: è la modalità overview/dezoom.
         final dayWidth =
-            math.max(
-          fittedDayWidth,
-          _weekDayWidth,
-        ).toDouble();
+            _weekDayWidth
+                .clamp(
+                  _CalendarPageState._weekMinDayWidth,
+                  _CalendarPageState._weekMaxDayWidth,
+                )
+                .toDouble();
 
         final totalWidth =
             _CalendarPageState._weekGutterWidth +

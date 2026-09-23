@@ -442,26 +442,53 @@ class _WeekHourlyGrid
       ),
     ).toDouble();
 
+    // In overview le colonne possono diventare molto strette. Il margine
+    // laterale si riduce insieme alla colonna e ogni blocco resta confinato
+    // nella propria lane, invece di forzare una larghezza minima che potrebbe
+    // invadere il giorno vicino.
+    final dayHorizontalInset =
+        (dayWidth * 0.08)
+            .clamp(
+              2.0,
+              4.0,
+            )
+            .toDouble();
+
     final availableWidth =
-        dayWidth -
-        8;
+        math.max(
+      1.0,
+      dayWidth -
+          dayHorizontalInset *
+              2,
+    ).toDouble();
+
     final laneWidth =
         availableWidth /
         layout.laneCount;
+
+    final laneGap =
+        math.min(
+      3.0,
+      math.max(
+        1.0,
+        laneWidth *
+            0.12,
+      ),
+    ).toDouble();
 
     final left =
         gutterWidth +
         dayIndex *
             dayWidth +
-        4 +
+        dayHorizontalInset +
         layout.lane *
             laneWidth;
 
     final width =
         math.max(
+      1.0,
       laneWidth -
-          3,
-      24.0,
+          laneGap,
     ).toDouble();
 
     final subtaskText =

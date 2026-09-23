@@ -42,7 +42,10 @@ class _CalendarPageState extends State<CalendarPage>
   static const double _weekMaxHourHeight = 110;
 
   static const double _weekDefaultDayWidth = 96;
-  static const double _weekMinDayWidth = 48;
+  // Sotto la larghezza necessaria a riempire il viewport la Week entra
+  // nell'overview: i sette giorni possono restringersi lasciando spazio
+  // libero nel canvas, mentre il gutter delle ore resta fisso.
+  static const double _weekMinDayWidth = 32;
   static const double _weekMaxDayWidth = 180;
 
   static const double _weekGridTopPadding = 12;
