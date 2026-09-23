@@ -15,7 +15,10 @@ import '../tasks/task_detail_page.dart';
 import '../tasks/task_form_page.dart';
 
 part 'calendar_month_view.dart';
+part 'calendar_week_interactions.dart';
 part 'calendar_week_view.dart';
+part 'calendar_week_widgets.dart';
+part 'calendar_week_grid.dart';
 
 
 class CalendarPage extends StatefulWidget {
