@@ -26,7 +26,18 @@ class TaskFormPage extends StatefulWidget {
   final CategoryRepository categoryRepository;
   final LifeTask? initialTask;
   final DateTime? initialDate;
+  final int? initialStartTimeMinutes;
+
+  /// Punto temporale scelto con long press nella Week. Quando presente,
+  /// il form prova a mantenere il BLOCCO centrato attorno a questo minuto
+  /// finché l'utente non modifica manualmente l'ora di inizio/fine.
+  final int? initialCenterTimeMinutes;
+
   final bool rescheduleOnly;
+
+  /// true quando il form viene aperto da "Duplica": i dati iniziali
+  /// vengono usati come modello, ma al salvataggio nasce una nuova task.
+  final bool duplicateMode;
 
   /// true quando il form modifica soltanto una singola occorrenza
   /// di una serie ricorrente. Ricorrenza e subtasks restano proprietà
@@ -38,7 +49,10 @@ class TaskFormPage extends StatefulWidget {
     required this.categoryRepository,
     this.initialTask,
     this.initialDate,
+    this.initialStartTimeMinutes,
+    this.initialCenterTimeMinutes,
     this.rescheduleOnly = false,
+    this.duplicateMode = false,
     this.occurrenceOnly = false,
   });
 
@@ -76,8 +90,11 @@ class _TaskFormPageState
   TaskPriority _priority =
       TaskPriority.normal;
 
+  bool _centerPlacementActive = false;
+
   bool get _isEditing =>
-      widget.initialTask != null;
+      widget.initialTask != null &&
+      !widget.duplicateMode;
 
   @override
   void initState() {
@@ -103,9 +120,11 @@ class _TaskFormPageState
           task.categoryId;
 
       _recurrence =
-          task.recurrence;
+          widget.duplicateMode
+              ? const TaskRecurrence.none()
+              : task.recurrence;
 
-      _subtasks =
+      final sourceSubtasks =
           task.subtasks
               .toList()
             ..sort(
@@ -114,6 +133,31 @@ class _TaskFormPageState
                 b.sortOrder,
               ),
             );
+
+      if (widget.duplicateMode) {
+        final duplicateSeed =
+            DateTime.now()
+                .microsecondsSinceEpoch;
+
+        _subtasks = [
+          for (var index = 0;
+              index < sourceSubtasks.length;
+              index++)
+            TaskSubtask(
+              id:
+                  'subtask_${duplicateSeed}_$index',
+              title:
+                  sourceSubtasks[index].title,
+              sortOrder:
+                  index,
+              isCompleted:
+                  false,
+            ),
+        ];
+      } else {
+        _subtasks =
+            sourceSubtasks;
+      }
 
       _allDay =
           task.allDay;
@@ -128,14 +172,33 @@ class _TaskFormPageState
           task.startTimeMinutes!,
         );
       }
-    } else if (widget.initialDate !=
-        null) {
-      _selectedDate =
-          DateTime(
-        widget.initialDate!.year,
-        widget.initialDate!.month,
-        widget.initialDate!.day,
-      );
+    } else {
+      if (widget.initialDate !=
+          null) {
+        _selectedDate =
+            DateTime(
+          widget.initialDate!.year,
+          widget.initialDate!.month,
+          widget.initialDate!.day,
+        );
+      }
+
+      if (widget.initialCenterTimeMinutes !=
+          null) {
+        _centerPlacementActive = true;
+        _startTime =
+            _timeOfDayFromMinutes(
+          _centeredWeekStartMinutes(
+            _durationMinutes,
+          ),
+        );
+      } else if (widget.initialStartTimeMinutes !=
+          null) {
+        _startTime =
+            _timeOfDayFromMinutes(
+          widget.initialStartTimeMinutes!,
+        );
+      }
     }
   }
 
@@ -172,6 +235,54 @@ class _TaskFormPageState
           normalized ~/ 60,
       minute:
           normalized % 60,
+    );
+  }
+
+  int _preferredWeekStartMinutes(
+    double rawMinutes,
+  ) {
+    final nearestQuarter =
+        (rawMinutes / 15).round() * 15;
+
+    final nearestHalfHour =
+        (rawMinutes / 30).round() * 30;
+
+    // Piccolo effetto magnetico verso :00 / :30. Non lo forziamo se
+    // servirebbe spostare troppo il blocco rispetto al punto premuto.
+    final preferred =
+        (rawMinutes - nearestHalfHour).abs() <= 8
+            ? nearestHalfHour
+            : nearestQuarter;
+
+    return preferred
+        .clamp(
+          0,
+          24 * 60 - 15,
+        )
+        .toInt();
+  }
+
+  int _centeredWeekStartMinutes(
+    int? durationMinutes,
+  ) {
+    final center =
+        widget.initialCenterTimeMinutes;
+
+    if (center == null) {
+      return widget.initialStartTimeMinutes ?? 0;
+    }
+
+    // La Week visualizza una task senza durata come blocco provvisorio
+    // di 30 minuti: usiamo la stessa regola anche nel posizionamento.
+    final effectiveDuration =
+        durationMinutes != null &&
+                durationMinutes > 0
+            ? durationMinutes
+            : 30;
+
+    return _preferredWeekStartMinutes(
+      center -
+          effectiveDuration / 2,
     );
   }
 
@@ -316,6 +427,8 @@ class _TaskFormPageState
       setState(() {
         _startTime =
             result;
+        _centerPlacementActive =
+            false;
       });
     }
   }
@@ -325,6 +438,8 @@ class _TaskFormPageState
 
     setState(() {
       _startTime = null;
+      _centerPlacementActive =
+          false;
     });
   }
 
@@ -397,6 +512,8 @@ class _TaskFormPageState
     setState(() {
       _durationMinutes =
           end - start;
+      _centerPlacementActive =
+          false;
     });
   }
 
@@ -431,6 +548,17 @@ class _TaskFormPageState
           result < 0
               ? null
               : result;
+
+      if (_centerPlacementActive &&
+          widget.initialCenterTimeMinutes !=
+              null) {
+        _startTime =
+            _timeOfDayFromMinutes(
+          _centeredWeekStartMinutes(
+            _durationMinutes,
+          ),
+        );
+      }
     });
   }
 
@@ -843,30 +971,35 @@ class _TaskFormPageState
       return;
     }
 
-    final oldTask =
+    final sourceTask =
         widget.initialTask;
+
+    final oldTask =
+        widget.duplicateMode
+            ? null
+            : sourceTask;
 
     final title =
         widget.rescheduleOnly
-            ? oldTask!.title
+            ? sourceTask!.title
             : _titleController.text
                 .trim();
 
     final description =
         widget.rescheduleOnly
-            ? oldTask!.description
+            ? sourceTask!.description
             : _descriptionController
                 .text
                 .trim();
 
     final priority =
         widget.rescheduleOnly
-            ? oldTask!.priority
+            ? sourceTask!.priority
             : _priority;
 
     String? categoryId =
         widget.rescheduleOnly
-            ? oldTask!.categoryId
+            ? sourceTask!.categoryId
             : _selectedCategoryId;
 
     if (categoryId != null) {
@@ -888,11 +1021,11 @@ class _TaskFormPageState
 
     final recurrence =
         widget.occurrenceOnly
-            ? oldTask!.recurrence
+            ? sourceTask!.recurrence
             : widget.rescheduleOnly
                 ? _selectedDate == null
                     ? const TaskRecurrence.none()
-                    : oldTask!.recurrence
+                    : sourceTask!.recurrence
                 : _selectedDate == null
                     ? const TaskRecurrence.none()
                     : _recurrence;
@@ -944,12 +1077,14 @@ class _TaskFormPageState
       subtasks:
           widget.rescheduleOnly ||
                   widget.occurrenceOnly
-              ? oldTask!.subtasks
+              ? sourceTask!.subtasks
               : _normalizedSubtasks(),
 
       isCompleted:
-          oldTask?.isCompleted ??
-              false,
+          widget.duplicateMode
+              ? false
+              : oldTask?.isCompleted ??
+                  false,
     );
 
     Navigator.pop(
@@ -1098,9 +1233,11 @@ class _TaskFormPageState
                     ? 'Modifica occorrenza'
                     : widget.rescheduleOnly
                         ? 'Sposta attività'
-                        : _isEditing
-                            ? 'Modifica attività'
-                            : 'Nuova attività',
+                        : widget.duplicateMode
+                            ? 'Duplica attività'
+                            : _isEditing
+                                ? 'Modifica attività'
+                                : 'Nuova attività',
 
                 style:
                     Theme.of(context)
@@ -1190,7 +1327,8 @@ class _TaskFormPageState
                       _titleController,
 
                   autofocus:
-                      !_isEditing,
+                      !_isEditing &&
+                      !widget.duplicateMode,
 
                   onTapOutside:
                       (_) {
@@ -1656,11 +1794,14 @@ class _TaskFormPageState
             widget.rescheduleOnly
                 ? Icons
                     .event_repeat_outlined
-                : _isEditing
+                : widget.duplicateMode
                     ? Icons
-                        .check
-                    : Icons
-                        .add,
+                        .library_add_outlined
+                    : _isEditing
+                        ? Icons
+                            .check
+                        : Icons
+                            .add,
           ),
 
           label: Text(
@@ -1668,9 +1809,11 @@ class _TaskFormPageState
                 ? 'Salva occorrenza'
                 : widget.rescheduleOnly
                     ? 'Sposta attività'
-                    : _isEditing
-                        ? 'Salva'
-                        : 'Crea attività',
+                    : widget.duplicateMode
+                        ? 'Crea duplicato'
+                        : _isEditing
+                            ? 'Salva'
+                            : 'Crea attività',
           ),
 
           style:
