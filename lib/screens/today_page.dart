@@ -9,8 +9,6 @@ import '../repositories/category_repository.dart';
 import '../repositories/task_repository.dart';
 import '../services/day_settings_controller.dart';
 import '../utils/task_category_icons.dart';
-import '../widgets/dashboard_card.dart';
-import '../widgets/life_section_header.dart';
 import '../widgets/task_timeline.dart';
 import 'tasks/task_detail_page.dart';
 import 'tasks/tasks_page.dart';
@@ -483,10 +481,6 @@ class _TodayPageState extends State<TodayPage> {
                         occurrence.isCompleted,
                   ).length;
 
-                  final incompleteCount =
-                      occurrences.length -
-                          completedCount;
-
                   return StreamBuilder<int>(
                     stream:
                         widget.taskRepository
@@ -519,376 +513,322 @@ class _TodayPageState extends State<TodayPage> {
                                       String,
                                       TaskCategory>{};
 
-                          return ListView(
-                            padding:
-                                const EdgeInsets
-                                    .fromLTRB(
-                              20,
-                              24,
-                              20,
-                              40,
-                            ),
+                          return Column(
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Oggi',
-                                      style:
-                                          Theme.of(
-                                        context,
-                                      )
-                                              .textTheme
-                                              .displaySmall
-                                              ?.copyWith(
-                                                fontWeight:
-                                                    FontWeight
-                                                        .w700,
-                                                letterSpacing:
-                                                    -1.2,
-                                              ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    tooltip:
-                                        'Inbox',
-                                    onPressed:
-                                        () {
-                                      _openTasks(
-                                        context,
-                                        inbox:
-                                            true,
-                                      );
-                                    },
-                                    icon:
-                                        Badge(
-                                      isLabelVisible:
-                                          inboxCount >
-                                              0,
-                                      label: Text(
-                                        '$inboxCount',
-                                      ),
-                                      child:
-                                          const Icon(
-                                        Icons
-                                            .inbox_outlined,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(
-                                height: 2,
-                              ),
-
-                              Text(
-                                _dayLabel(
-                                  anchorDate,
+                              Container(
+                                width:
+                                    double.infinity,
+                                padding:
+                                    const EdgeInsets.fromLTRB(
+                                  20,
+                                  20,
+                                  20,
+                                  14,
                                 ),
-                                style:
-                                    Theme.of(
-                                  context,
-                                )
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          color:
-                                              colorScheme
-                                                  .onSurfaceVariant,
-                                          fontWeight:
-                                              FontWeight
-                                                  .w500,
+                                decoration:
+                                    BoxDecoration(
+                                  color:
+                                      Theme.of(context)
+                                          .scaffoldBackgroundColor,
+                                  border:
+                                      Border(
+                                    bottom:
+                                        BorderSide(
+                                      color:
+                                          colorScheme
+                                              .outlineVariant
+                                              .withValues(
+                                        alpha:
+                                            0.38,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            'Oggi',
+                                            style:
+                                                Theme.of(
+                                              context,
+                                            )
+                                                    .textTheme
+                                                    .headlineLarge
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      letterSpacing:
+                                                          -0.8,
+                                                    ),
+                                          ),
                                         ),
-                              ),
-
-                              const SizedBox(
-                                height: 32,
-                              ),
-
-                              LifeSectionHeader(
-                                title:
-                                    'La tua giornata',
-                                value:
-                                    tasks.isEmpty
-                                        ? null
-                                        : '$completedCount/'
-                                            '${tasks.length}',
-                                actionLabel:
-                                    tasks.isEmpty
-                                        ? null
-                                        : 'Vedi tutte',
-                                onAction:
-                                    tasks.isEmpty
-                                        ? null
-                                        : () {
+                                        IconButton(
+                                          tooltip:
+                                              'Tutte le attività',
+                                          onPressed:
+                                              () {
                                             _openTasks(
                                               context,
                                             );
                                           },
-                              ),
-
-                              const SizedBox(
-                                height: 8,
-                              ),
-
-                              if (tasks.isEmpty)
-                                Padding(
-                                  padding:
-                                      const EdgeInsets
-                                          .symmetric(
-                                    vertical:
-                                        26,
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment
-                                            .start,
-                                    children: [
-                                      Icon(
-                                        Icons
-                                            .wb_sunny_outlined,
-                                        color:
-                                            colorScheme
-                                                .primary,
-                                      ),
-                                      const SizedBox(
-                                        width: 14,
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          'Nessuna attività '
-                                          'programmata per questa giornata.',
-                                          style:
-                                              Theme.of(
-                                            context,
-                                          )
-                                                  .textTheme
-                                                  .bodyLarge
-                                                  ?.copyWith(
-                                                    color:
-                                                        colorScheme
-                                                            .onSurfaceVariant,
-                                                  ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                TaskTimeline(
-                                  occurrences:
-                                      occurrences,
-                                  windowStart:
-                                      dayWindowStart,
-                                  windowEnd:
-                                      effectiveDayEnd,
-                                  secondaryLabelBuilder:
-                                      _secondaryLabelForWindow,
-                                  subtaskProgressBuilder:
-                                      (task) {
-                                    if (task.subtasks
-                                        .isEmpty) {
-                                      return null;
-                                    }
-
-                                    final completed =
-                                        task.subtasks
-                                            .where(
-                                              (subtask) =>
-                                                  subtask
-                                                      .isCompleted,
-                                            )
-                                            .length;
-
-                                    return '$completed/'
-                                        '${task.subtasks.length}';
-                                  },
-                                  accentColorBuilder:
-                                      (task) {
-                                    return _categoryColor(
-                                      context,
-                                      task,
-                                      categoryMap,
-                                    );
-                                  },
-                                  categoryIconBuilder:
-                                      (task) {
-                                    return _categoryIcon(
-                                      task,
-                                      categoryMap,
-                                    );
-                                  },
-                                  priorityColorBuilder:
-                                      (task) {
-                                    return _priorityColor(
-                                      context,
-                                      task.priority,
-                                    );
-                                  },
-                                  onCompletedChanged:
-                                      (
-                                    occurrence,
-                                    completed,
-                                  ) async {
-                                    if (completed) {
-                                      final remaining =
-                                          occurrence
-                                              .subtasks
-                                              .where(
-                                                (subtask) =>
-                                                    !subtask
-                                                        .isCompleted,
-                                              )
-                                              .length;
-
-                                      if (remaining > 0) {
-                                        final confirmed =
-                                            await _confirmCompleteAll(
-                                          context,
-                                          remaining,
-                                        );
-
-                                        if (!confirmed) {
-                                          return;
-                                        }
-                                      }
-                                    }
-
-                                    await widget
-                                        .taskRepository
-                                        .setOccurrenceCompleted(
-                                      occurrence,
-                                      completed,
-                                    );
-                                  },
-                                  onTaskTap:
-                                      (occurrence) {
-                                    _openTaskDetail(
-                                      context,
-                                      occurrence,
-                                    );
-                                  },
-                                ),
-
-                              if (tasks.isNotEmpty)
-                                Padding(
-                                  padding:
-                                      const EdgeInsets
-                                          .only(
-                                    top: 8,
-                                  ),
-                                  child: Text(
-                                    incompleteCount ==
-                                            0
-                                        ? 'Tutto completato per questa giornata'
-                                        : incompleteCount ==
-                                                1
-                                            ? '1 attività ancora da completare'
-                                            : '$incompleteCount attività ancora da completare',
-                                    style:
-                                        Theme.of(
-                                      context,
-                                    )
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color:
-                                                  colorScheme
-                                                      .onSurfaceVariant,
+                                          icon:
+                                              Badge(
+                                            isLabelVisible:
+                                                totalIncompleteCount >
+                                                    0,
+                                            label: Text(
+                                              '$totalIncompleteCount',
                                             ),
+                                            child:
+                                                const Icon(
+                                              Icons
+                                                  .checklist_rounded,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          tooltip:
+                                              'Inbox',
+                                          onPressed:
+                                              () {
+                                            _openTasks(
+                                              context,
+                                              inbox:
+                                                  true,
+                                            );
+                                          },
+                                          icon:
+                                              Badge(
+                                            isLabelVisible:
+                                                inboxCount >
+                                                    0,
+                                            label: Text(
+                                              '$inboxCount',
+                                            ),
+                                            child:
+                                                const Icon(
+                                              Icons
+                                                  .inbox_outlined,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(
+                                      height: 3,
+                                    ),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            _dayLabel(
+                                              anchorDate,
+                                            ),
+                                            maxLines: 1,
+                                            overflow:
+                                                TextOverflow.ellipsis,
+                                            style:
+                                                Theme.of(
+                                              context,
+                                            )
+                                                    .textTheme
+                                                    .bodyLarge
+                                                    ?.copyWith(
+                                                      color:
+                                                          colorScheme
+                                                              .onSurfaceVariant,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                          ),
+                                        ),
+                                        if (tasks.isNotEmpty) ...[
+                                          const SizedBox(
+                                            width: 16,
+                                          ),
+                                          Icon(
+                                            Icons.check_rounded,
+                                            size: 15,
+                                            color:
+                                                colorScheme.primary,
+                                          ),
+                                          const SizedBox(
+                                            width: 4,
+                                          ),
+                                          Text(
+                                            '$completedCount/${tasks.length}',
+                                            style:
+                                                Theme.of(
+                                              context,
+                                            )
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(
+                                                      color:
+                                                          colorScheme
+                                                              .onSurfaceVariant,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: ListView(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(
+                                    20,
+                                    16,
+                                    20,
+                                    32,
                                   ),
+                                  children: [
+                                    if (tasks.isEmpty)
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                          vertical:
+                                              26,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Icon(
+                                              Icons
+                                                  .wb_sunny_outlined,
+                                              color:
+                                                  colorScheme.primary,
+                                            ),
+                                            const SizedBox(
+                                              width: 14,
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                'Nessuna attività '
+                                                'programmata per questa giornata.',
+                                                style:
+                                                    Theme.of(
+                                                  context,
+                                                )
+                                                        .textTheme
+                                                        .bodyLarge
+                                                        ?.copyWith(
+                                                          color:
+                                                              colorScheme
+                                                                  .onSurfaceVariant,
+                                                        ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    else
+                                      TaskTimeline(
+                                        occurrences:
+                                            occurrences,
+                                        windowStart:
+                                            dayWindowStart,
+                                        windowEnd:
+                                            effectiveDayEnd,
+                                        secondaryLabelBuilder:
+                                            _secondaryLabelForWindow,
+                                        subtaskProgressBuilder:
+                                            (task) {
+                                          if (task.subtasks
+                                              .isEmpty) {
+                                            return null;
+                                          }
+
+                                          final completed =
+                                              task.subtasks
+                                                  .where(
+                                                    (subtask) =>
+                                                        subtask
+                                                            .isCompleted,
+                                                  )
+                                                  .length;
+
+                                          return '$completed/'
+                                              '${task.subtasks.length}';
+                                        },
+                                        accentColorBuilder:
+                                            (task) {
+                                          return _categoryColor(
+                                            context,
+                                            task,
+                                            categoryMap,
+                                          );
+                                        },
+                                        categoryIconBuilder:
+                                            (task) {
+                                          return _categoryIcon(
+                                            task,
+                                            categoryMap,
+                                          );
+                                        },
+                                        priorityColorBuilder:
+                                            (task) {
+                                          return _priorityColor(
+                                            context,
+                                            task.priority,
+                                          );
+                                        },
+                                        onCompletedChanged:
+                                            (
+                                          occurrence,
+                                          completed,
+                                        ) async {
+                                          if (completed) {
+                                            final remaining =
+                                                occurrence
+                                                    .subtasks
+                                                    .where(
+                                                      (subtask) =>
+                                                          !subtask
+                                                              .isCompleted,
+                                                    )
+                                                    .length;
+
+                                            if (remaining > 0) {
+                                              final confirmed =
+                                                  await _confirmCompleteAll(
+                                                context,
+                                                remaining,
+                                              );
+
+                                              if (!confirmed) {
+                                                return;
+                                              }
+                                            }
+                                          }
+
+                                          await widget
+                                              .taskRepository
+                                              .setOccurrenceCompleted(
+                                            occurrence,
+                                            completed,
+                                          );
+                                        },
+                                        onTaskTap:
+                                            (occurrence) {
+                                          _openTaskDetail(
+                                            context,
+                                            occurrence,
+                                          );
+                                        },
+                                      ),
+                                  ],
                                 ),
-
-                              const SizedBox(
-                                height: 34,
-                              ),
-
-                              const LifeSectionHeader(
-                                title:
-                                    'Panoramica',
-                              ),
-
-                              const SizedBox(
-                                height: 4,
-                              ),
-
-                              DashboardCard(
-                                icon:
-                                    Icons
-                                        .task_alt,
-                                title:
-                                    'Attività',
-                                value:
-                                    totalIncompleteCount ==
-                                            1
-                                        ? '1 attività da completare'
-                                        : '$totalIncompleteCount attività da completare',
-                                onTap:
-                                    () {
-                                  _openTasks(
-                                    context,
-                                  );
-                                },
-                              ),
-
-                              Divider(
-                                color:
-                                    colorScheme
-                                        .outlineVariant
-                                        .withValues(
-                                  alpha:
-                                      0.55,
-                                ),
-                              ),
-
-                              const DashboardCard(
-                                icon:
-                                    Icons.repeat,
-                                title:
-                                    'Abitudini',
-                                value:
-                                    '0 completate oggi',
-                              ),
-
-                              Divider(
-                                color:
-                                    colorScheme
-                                        .outlineVariant
-                                        .withValues(
-                                  alpha:
-                                      0.55,
-                                ),
-                              ),
-
-                              const DashboardCard(
-                                icon:
-                                    Icons
-                                        .shopping_bag_outlined,
-                                title:
-                                    'Lista della spesa',
-                                value:
-                                    '0 prodotti',
-                              ),
-
-                              Divider(
-                                color:
-                                    colorScheme
-                                        .outlineVariant
-                                        .withValues(
-                                  alpha:
-                                      0.55,
-                                ),
-                              ),
-
-                              const DashboardCard(
-                                icon:
-                                    Icons
-                                        .account_balance_wallet_outlined,
-                                title:
-                                    'Spese del mese',
-                                value:
-                                    '€ 0,00',
                               ),
                             ],
                           );
