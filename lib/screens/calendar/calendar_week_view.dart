@@ -33,11 +33,10 @@ extension _CalendarWeekViewExtension on _CalendarPageState {
       if (task.allDay ||
           task.startTimeMinutes == null) {
         final dayIndex =
-            occurrence.date
-                .difference(
-                  days.first,
-                )
-                .inDays;
+            CivilDate.differenceInDays(
+          days.first,
+          occurrence.date,
+        );
 
         if (dayIndex >= 0 &&
             dayIndex <= 6) {
@@ -67,8 +66,8 @@ extension _CalendarWeekViewExtension on _CalendarPageState {
         final dayStart =
             days[dayIndex];
         final dayEnd =
-            dayStart.add(
-          const Duration(days: 1),
+            CivilDate.nextDay(
+          dayStart,
         );
 
         if (!occurrence.overlapsWindow(

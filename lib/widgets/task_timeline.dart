@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../core/time/civil_date.dart';
+
 import '../models/life_task.dart';
 import '../models/task_occurrence.dart';
 
@@ -2224,7 +2226,12 @@ class _TaskTimelineState extends State<TaskTimeline> {
         value.hour == 0 &&
         value.minute == 0 &&
         value.isAfter(widget.windowStart)) {
-      final exactDay = value.difference(widget.windowStart).inHours == 24 &&
+      final exactDay =
+          CivilDate.differenceInDays(
+                widget.windowStart,
+                value,
+              ) ==
+              1 &&
           widget.windowStart.hour == 0 &&
           widget.windowStart.minute == 0;
 

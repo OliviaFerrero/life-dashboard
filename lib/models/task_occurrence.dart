@@ -1,3 +1,5 @@
+import '../core/time/civil_date.dart';
+
 import 'life_task.dart';
 import 'task_subtask.dart';
 
@@ -33,15 +35,12 @@ class TaskOccurrence {
     required this.isCompleted,
     List<TaskSubtask> subtasks = const [],
     this.effectiveTask,
-  })  : date = DateTime(
-          date.year,
-          date.month,
-          date.day,
+  })  : date = CivilDate.dateOnly(
+          date,
         ),
-        seriesDate = DateTime(
-          (seriesDate ?? date).year,
-          (seriesDate ?? date).month,
-          (seriesDate ?? date).day,
+        seriesDate = CivilDate.dateOnly(
+          seriesDate ??
+              date,
         ),
         subtasks = List.unmodifiable(
           subtasks,
@@ -159,8 +158,8 @@ class TaskOccurrence {
       }
 
       final dayEnd =
-          dayStart.add(
-        const Duration(days: 1),
+          CivilDate.nextDay(
+        dayStart,
       );
 
       return dayStart.isBefore(

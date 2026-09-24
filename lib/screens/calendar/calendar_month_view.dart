@@ -11,8 +11,8 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
     final start =
         _dateOnly(day);
     final end =
-        start.add(
-      const Duration(days: 1),
+        CivilDate.nextDay(
+      start,
     );
 
     return occurrences
@@ -83,8 +83,8 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
     final dayStart =
         _dateOnly(day);
     final dayEnd =
-        dayStart.add(
-      const Duration(days: 1),
+        CivilDate.nextDay(
+      dayStart,
     );
 
     final visibleStart =
@@ -116,8 +116,8 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
     final dayStart =
         _dateOnly(day);
     final dayEnd =
-        dayStart.add(
-      const Duration(days: 1),
+        CivilDate.nextDay(
+      dayStart,
     );
 
     final actualStart =

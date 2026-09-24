@@ -1870,11 +1870,10 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
       }
 
       final dayDelta =
-          normalizedTargetDate
-              .difference(
-                occurrence.date,
-              )
-              .inDays;
+          CivilDate.differenceInDays(
+        occurrence.date,
+        normalizedTargetDate,
+      );
 
       final shiftedRecurrence =
           _shiftRecurrence(
@@ -1887,11 +1886,9 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
         source:
             series,
         date:
-            startDate.add(
-          Duration(
-            days:
-                dayDelta,
-          ),
+            CivilDate.addDays(
+          startDate,
+          dayDelta,
         ),
         startTimeMinutes:
             targetStartMinutes,

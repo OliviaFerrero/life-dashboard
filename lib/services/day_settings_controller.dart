@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/time/civil_date.dart';
+
 class DaySettingsController extends ChangeNotifier {
   static const int defaultStartMinutes = 6 * 60;
   static const int defaultEndMinutes = 3 * 60;
@@ -96,22 +98,20 @@ class DaySettingsController extends ChangeNotifier {
   DateTime personalDayStartFor(
     DateTime moment,
   ) {
-    final civilDate = DateTime(
-      moment.year,
-      moment.month,
-      moment.day,
+    final civilDate =
+        CivilDate.dateOnly(
+      moment,
     );
 
     final currentMinutes =
         moment.hour * 60 + moment.minute;
 
-    final anchorDate = currentMinutes < _startMinutes
-        ? DateTime(
-            civilDate.year,
-            civilDate.month,
-            civilDate.day - 1,
-          )
-        : civilDate;
+    final anchorDate =
+        currentMinutes < _startMinutes
+            ? CivilDate.previousDay(
+                civilDate,
+              )
+            : civilDate;
 
     return DateTime(
       anchorDate.year,
@@ -134,10 +134,15 @@ class DaySettingsController extends ChangeNotifier {
     );
 
     if (!end.isAfter(dayStart)) {
+      final nextDay =
+          CivilDate.nextDay(
+        dayStart,
+      );
+
       end = DateTime(
-        dayStart.year,
-        dayStart.month,
-        dayStart.day + 1,
+        nextDay.year,
+        nextDay.month,
+        nextDay.day,
         _endMinutes ~/ 60,
         _endMinutes % 60,
       );
@@ -149,10 +154,15 @@ class DaySettingsController extends ChangeNotifier {
   DateTime nextPersonalDayStart(
     DateTime dayStart,
   ) {
+    final nextDay =
+        CivilDate.nextDay(
+      dayStart,
+    );
+
     return DateTime(
-      dayStart.year,
-      dayStart.month,
-      dayStart.day + 1,
+      nextDay.year,
+      nextDay.month,
+      nextDay.day,
       _startMinutes ~/ 60,
       _startMinutes % 60,
     );

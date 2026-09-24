@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../core/time/civil_date.dart';
 import '../database/app_database.dart';
 import '../models/life_task.dart';
 import '../models/task_occurrence.dart';
@@ -62,13 +63,11 @@ class TaskRepository {
         );
 
         final generationStart =
-            _dateOnly(
-          windowStart,
-        ).subtract(
-          Duration(
-            days:
-                lookbackDays,
+            CivilDate.addDays(
+          _dateOnly(
+            windowStart,
           ),
+          -lookbackDays,
         );
 
         final lastVisibleInstant =
@@ -1080,8 +1079,9 @@ class TaskRepository {
           }
         }
 
-        cursor = cursor.add(
-          const Duration(days: 1),
+        cursor =
+            CivilDate.nextDay(
+          cursor,
         );
       }
 
@@ -1362,11 +1362,9 @@ class TaskRepository {
     );
 
     var cursor =
-        today.subtract(
-      Duration(
-        days:
-            lookbackDays,
-      ),
+        CivilDate.addDays(
+      today,
+      -lookbackDays,
     );
 
     final normalizedStartDate =
@@ -1424,8 +1422,9 @@ class TaskRepository {
         }
       }
 
-      cursor = cursor.add(
-        const Duration(days: 1),
+      cursor =
+          CivilDate.nextDay(
+        cursor,
       );
     }
 
@@ -1743,10 +1742,8 @@ class TaskRepository {
   DateTime _dateOnly(
     DateTime value,
   ) {
-    return DateTime(
-      value.year,
-      value.month,
-      value.day,
+    return CivilDate.dateOnly(
+      value,
     );
   }
 

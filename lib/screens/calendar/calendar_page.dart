@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
 import '../../models/task_occurrence.dart';
@@ -182,32 +183,30 @@ class _CalendarPageState extends State<CalendarPage>
   DateTime _dateOnly(
     DateTime date,
   ) {
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
+    return CivilDate.dateOnly(
+      date,
     );
   }
 
   DateTime _weekStartFor(
     DateTime date,
   ) {
-    final normalized = _dateOnly(date);
-
-    return normalized.subtract(
-      Duration(
-        days: normalized.weekday - DateTime.monday,
-      ),
+    return CivilDate.startOfWeek(
+      date,
     );
   }
 
   List<DateTime> _weekDays() {
-    final start = _weekStartFor(_focusedDay);
+    final start =
+        _weekStartFor(
+      _focusedDay,
+    );
 
     return [
       for (var i = 0; i < 7; i++)
-        start.add(
-          Duration(days: i),
+        CivilDate.addDays(
+          start,
+          i,
         ),
     ];
   }
@@ -218,28 +217,31 @@ class _CalendarPageState extends State<CalendarPage>
       return _weekStartFor(_focusedDay);
     }
 
-    return DateTime(
-      _focusedDay.year,
-      _focusedDay.month,
-      1,
-    ).subtract(
-      const Duration(days: 7),
+    return CivilDate.addDays(
+      DateTime(
+        _focusedDay.year,
+        _focusedDay.month,
+        1,
+      ),
+      -7,
     );
   }
 
   DateTime _rangeEnd() {
     if (_calendarFormat == CalendarFormat.week) {
-      return _rangeStart().add(
-        const Duration(days: 6),
+      return CivilDate.addDays(
+        _rangeStart(),
+        6,
       );
     }
 
-    return DateTime(
-      _focusedDay.year,
-      _focusedDay.month + 1,
-      0,
-    ).add(
-      const Duration(days: 7),
+    return CivilDate.addDays(
+      DateTime(
+        _focusedDay.year,
+        _focusedDay.month + 1,
+        0,
+      ),
+      7,
     );
   }
 
@@ -465,11 +467,9 @@ class _CalendarPageState extends State<CalendarPage>
   ) {
     setState(() {
       _selectedDay =
-          _selectedDay.add(
-        Duration(
-          days:
-              7 * weekOffset,
-        ),
+          CivilDate.addDays(
+        _selectedDay,
+        7 * weekOffset,
       );
       _focusedDay =
           _selectedDay;
@@ -659,8 +659,8 @@ class _CalendarPageState extends State<CalendarPage>
     final rangeStart =
         _rangeStart();
     final rangeEndExclusive =
-        _rangeEnd().add(
-      const Duration(days: 1),
+        CivilDate.nextDay(
+      _rangeEnd(),
     );
 
     return Scaffold(

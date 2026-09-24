@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
 import '../../models/task_occurrence.dart';
@@ -97,10 +98,8 @@ class _TasksPageState
   DateTime _dateOnly(
     DateTime date,
   ) {
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
+    return CivilDate.dateOnly(
+      date,
     );
   }
 
@@ -108,9 +107,10 @@ class _TasksPageState
     DateTime first,
     DateTime second,
   ) {
-    return first.year == second.year &&
-        first.month == second.month &&
-        first.day == second.day;
+    return CivilDate.sameDay(
+      first,
+      second,
+    );
   }
 
   bool _isPastTask(
@@ -309,13 +309,13 @@ class _TasksPageState
         _dateOnly(now);
 
     final tomorrow =
-        today.add(
-      const Duration(days: 1),
+        CivilDate.nextDay(
+      today,
     );
 
     final yesterday =
-        today.subtract(
-      const Duration(days: 1),
+        CivilDate.previousDay(
+      today,
     );
 
     if (_sameDay(

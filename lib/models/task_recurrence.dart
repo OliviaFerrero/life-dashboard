@@ -1,3 +1,5 @@
+import '../core/time/civil_date.dart';
+
 enum TaskRecurrenceType {
   none,
   daily,
@@ -73,16 +75,14 @@ class TaskRecurrence {
     DateTime date,
     DateTime startDate,
   ) {
-    final normalizedDate = DateTime(
-      date.year,
-      date.month,
-      date.day,
+    final normalizedDate =
+        CivilDate.dateOnly(
+      date,
     );
 
-    final normalizedStart = DateTime(
-      startDate.year,
-      startDate.month,
-      startDate.day,
+    final normalizedStart =
+        CivilDate.dateOnly(
+      startDate,
     );
 
     if (normalizedDate.isBefore(
