@@ -217,6 +217,17 @@ class _TaskFormPageState
         ?.unfocus();
   }
 
+  String _twoDigits(
+    int value,
+  ) {
+    return value
+        .toString()
+        .padLeft(
+          2,
+          '0',
+        );
+  }
+
   int _minutesFromTimeOfDay(
     TimeOfDay time,
   ) {
@@ -368,37 +379,49 @@ class _TaskFormPageState
                 : ' (+$extraDays giorni)'
             : '';
 
-    return '${end.format(context)}'
+    return '${_twoDigits(end.hour)}:'
+        '${_twoDigits(end.minute)}'
         '$daySuffix';
   }
 
   Future<void> _selectDate() async {
     _dismissKeyboard();
 
-    final now =
-        DateTime.now();
-
     final result =
-        await showDatePicker(
+        await showModalBottomSheet<DateTime>(
       context: context,
-      initialDate:
-          _selectedDate ?? now,
-      firstDate:
-          DateTime(now.year - 5),
-      lastDate:
-          DateTime(now.year + 10),
+      backgroundColor:
+          Colors.transparent,
+      barrierColor:
+          Colors.black.withValues(
+        alpha: 0.24,
+      ),
+      isScrollControlled:
+          true,
+      useSafeArea:
+          true,
+      builder: (context) {
+        return _DatePickerSheet(
+          initialDate:
+              _selectedDate ??
+                  DateTime.now(),
+        );
+      },
     );
 
-    if (result != null) {
-      setState(() {
-        _selectedDate =
-            DateTime(
-          result.year,
-          result.month,
-          result.day,
-        );
-      });
+    if (!mounted ||
+        result == null) {
+      return;
     }
+
+    setState(() {
+      _selectedDate =
+          DateTime(
+        result.year,
+        result.month,
+        result.day,
+      );
+    });
   }
 
   void _clearDate() {
@@ -415,22 +438,44 @@ class _TaskFormPageState
   Future<void> _selectStartTime() async {
     _dismissKeyboard();
 
+    final initialTime =
+        _startTime ??
+            TimeOfDay.now();
+
     final result =
-        await showTimePicker(
+        await showModalBottomSheet<TimeOfDay>(
       context: context,
-      initialTime:
-          _startTime ??
-              TimeOfDay.now(),
+      backgroundColor:
+          Colors.transparent,
+      barrierColor:
+          Colors.black.withValues(
+        alpha: 0.24,
+      ),
+      isScrollControlled:
+          true,
+      useSafeArea:
+          true,
+      builder: (context) {
+        return _TimePickerSheet(
+          title:
+              'Ora inizio',
+          initialTime:
+              initialTime,
+        );
+      },
     );
 
-    if (result != null) {
-      setState(() {
-        _startTime =
-            result;
-        _centerPlacementActive =
-            false;
-      });
+    if (!mounted ||
+        result == null) {
+      return;
     }
+
+    setState(() {
+      _startTime =
+          result;
+      _centerPlacementActive =
+          false;
+    });
   }
 
   void _clearStartTime() {
@@ -466,13 +511,30 @@ class _TaskFormPageState
               );
 
     final result =
-        await showTimePicker(
+        await showModalBottomSheet<TimeOfDay>(
       context: context,
-      initialTime:
-          initialTime,
+      backgroundColor:
+          Colors.transparent,
+      barrierColor:
+          Colors.black.withValues(
+        alpha: 0.24,
+      ),
+      isScrollControlled:
+          true,
+      useSafeArea:
+          true,
+      builder: (context) {
+        return _TimePickerSheet(
+          title:
+              'Ora fine',
+          initialTime:
+              initialTime,
+        );
+      },
     );
 
-    if (result == null) {
+    if (!mounted ||
+        result == null) {
       return;
     }
 
@@ -487,10 +549,6 @@ class _TaskFormPageState
     );
 
     if (end == start) {
-      if (!mounted) {
-        return;
-      }
-
       ScaffoldMessenger
           .of(context)
           .showSnackBar(
@@ -517,19 +575,42 @@ class _TaskFormPageState
     });
   }
 
+  void _setDurationValue(
+    int? minutes,
+  ) {
+    setState(() {
+      _durationMinutes =
+          minutes;
+
+      if (_centerPlacementActive &&
+          widget.initialCenterTimeMinutes !=
+              null) {
+        _startTime =
+            _timeOfDayFromMinutes(
+          _centeredWeekStartMinutes(
+            _durationMinutes,
+          ),
+        );
+      }
+    });
+  }
+
   Future<void> _selectDuration() async {
     _dismissKeyboard();
 
     final result =
         await showModalBottomSheet<int>(
       context: context,
+      backgroundColor:
+          Colors.transparent,
+      barrierColor:
+          Colors.black.withValues(
+        alpha: 0.24,
+      ),
       isScrollControlled:
           true,
       useSafeArea:
           true,
-      showDragHandle:
-          true,
-
       builder: (context) {
         return _DurationPickerSheet(
           initialMinutes:
@@ -543,23 +624,11 @@ class _TaskFormPageState
       return;
     }
 
-    setState(() {
-      _durationMinutes =
-          result < 0
-              ? null
-              : result;
-
-      if (_centerPlacementActive &&
-          widget.initialCenterTimeMinutes !=
-              null) {
-        _startTime =
-            _timeOfDayFromMinutes(
-          _centeredWeekStartMinutes(
-            _durationMinutes,
-          ),
-        );
-      }
-    });
+    _setDurationValue(
+      result < 0
+          ? null
+          : result,
+    );
   }
 
   String _priorityLabel(
@@ -979,11 +1048,16 @@ class _TaskFormPageState
             ? null
             : sourceTask;
 
+    final enteredTitle =
+        _titleController.text
+            .trim();
+
     final title =
         widget.rescheduleOnly
             ? sourceTask!.title
-            : _titleController.text
-                .trim();
+            : enteredTitle.isEmpty
+                ? 'Senza titolo'
+                : enteredTitle;
 
     final description =
         widget.rescheduleOnly
@@ -1171,12 +1245,22 @@ class _TaskFormPageState
         Theme.of(context)
             .colorScheme;
 
+    final screenTitle =
+        widget.occurrenceOnly
+            ? 'Modifica occorrenza'
+            : widget.rescheduleOnly
+                ? 'Sposta attività'
+                : widget.duplicateMode
+                    ? 'Duplica attività'
+                    : _isEditing
+                        ? 'Modifica attività'
+                        : 'Nuova attività';
+
     return Scaffold(
       appBar: AppBar(
         title:
             const SizedBox
                 .shrink(),
-
         actions: [
           if (_isEditing &&
               !widget.rescheduleOnly &&
@@ -1186,78 +1270,58 @@ class _TaskFormPageState
                   'Elimina attività',
               icon:
                   const Icon(
-                Icons
-                    .delete_outline,
+                Icons.delete_outline,
               ),
               color:
                   colorScheme.error,
               onPressed:
                   _deleteTask,
             ),
-
           const SizedBox(
             width: 8,
           ),
         ],
       ),
-
       body: GestureDetector(
         behavior:
             HitTestBehavior
                 .translucent,
-
         onTap:
             _dismissKeyboard,
-
         child: Form(
           key:
               _formKey,
-
           child: ListView(
             keyboardDismissBehavior:
                 ScrollViewKeyboardDismissBehavior
                     .onDrag,
-
             padding:
                 const EdgeInsets
                     .fromLTRB(
               24,
-              8,
+              6,
               24,
-              120,
+              110,
             ),
-
             children: [
               Text(
-                widget.occurrenceOnly
-                    ? 'Modifica occorrenza'
-                    : widget.rescheduleOnly
-                        ? 'Sposta attività'
-                        : widget.duplicateMode
-                            ? 'Duplica attività'
-                            : _isEditing
-                                ? 'Modifica attività'
-                                : 'Nuova attività',
-
+                screenTitle,
                 style:
                     Theme.of(context)
                         .textTheme
                         .headlineMedium
                         ?.copyWith(
                           fontWeight:
-                              FontWeight
-                                  .w700,
+                              FontWeight.w700,
                           letterSpacing:
                               -0.7,
                         ),
               ),
 
-              if (widget
-                  .occurrenceOnly) ...[
+              if (widget.occurrenceOnly) ...[
                 const SizedBox(
                   height: 8,
                 ),
-
                 Text(
                   'Le modifiche valgono solo per questa occorrenza. '
                   'Ripetizione e sottoattività restano quelle della serie.',
@@ -1269,17 +1333,16 @@ class _TaskFormPageState
                             color:
                                 colorScheme
                                     .onSurfaceVariant,
+                            height:
+                                1.35,
                           ),
                 ),
-
               ],
 
-              if (widget
-                  .rescheduleOnly) ...[
+              if (widget.rescheduleOnly) ...[
                 const SizedBox(
                   height: 8,
                 ),
-
                 Text(
                   widget
                       .initialTask!
@@ -1290,19 +1353,15 @@ class _TaskFormPageState
                           .titleLarge
                           ?.copyWith(
                             fontWeight:
-                                FontWeight
-                                    .w600,
+                                FontWeight.w600,
                           ),
                 ),
-
                 const SizedBox(
                   height: 5,
                 ),
-
                 Text(
-                  'Scegli una nuova data, '
-                  'un nuovo orario oppure '
-                  'modifica la durata.',
+                  'Scegli una nuova data, un nuovo orario '
+                  'oppure modifica la durata.',
                   style:
                       Theme.of(context)
                           .textTheme
@@ -1311,53 +1370,48 @@ class _TaskFormPageState
                             color:
                                 colorScheme
                                     .onSurfaceVariant,
+                            height:
+                                1.35,
                           ),
                 ),
-
                 const SizedBox(
-                  height: 34,
+                  height: 30,
                 ),
               ] else ...[
                 const SizedBox(
-                  height: 28,
+                  height: 26,
                 ),
-
                 TextFormField(
                   controller:
                       _titleController,
-
-                  autofocus:
-                      !_isEditing &&
-                      !widget.duplicateMode,
-
+                  textCapitalization:
+                      TextCapitalization.sentences,
                   onTapOutside:
                       (_) {
                     _dismissKeyboard();
                   },
-
                   style:
                       Theme.of(context)
                           .textTheme
                           .headlineSmall
                           ?.copyWith(
                             fontWeight:
-                                FontWeight
-                                    .w600,
+                                FontWeight.w600,
+                            letterSpacing:
+                                -0.35,
                           ),
-
                   decoration:
                       InputDecoration(
                     hintText:
-                        'Titolo attività',
+                        'Senza titolo',
                     hintStyle:
                         TextStyle(
                       color:
                           colorScheme
                               .onSurfaceVariant
                               .withValues(
-                        alpha:
-                            0.75,
-                      ),
+                                alpha: 0.68,
+                              ),
                     ),
                     border:
                         InputBorder.none,
@@ -1368,73 +1422,20 @@ class _TaskFormPageState
                     contentPadding:
                         EdgeInsets.zero,
                   ),
-
-                  validator:
-                      (value) {
-                    if (value == null ||
-                        value
-                            .trim()
-                            .isEmpty) {
-                      return 'Inserisci un titolo.';
-                    }
-
-                    return null;
-                  },
                 ),
-
                 const SizedBox(
-                  height: 12,
+                  height: 8,
                 ),
-
                 Divider(
                   color:
                       colorScheme
                           .outlineVariant
                           .withValues(
-                    alpha:
-                        0.65,
-                  ),
+                            alpha: 0.58,
+                          ),
                 ),
-
                 const SizedBox(
-                  height: 12,
-                ),
-
-                TextFormField(
-                  controller:
-                      _descriptionController,
-
-                  minLines: 2,
-                  maxLines: 5,
-
-                  onTapOutside:
-                      (_) {
-                    _dismissKeyboard();
-                  },
-
-                  decoration:
-                      InputDecoration(
-                    hintText:
-                        'Aggiungi una descrizione…',
-                    hintStyle:
-                        TextStyle(
-                      color:
-                          colorScheme
-                              .onSurfaceVariant,
-                    ),
-                    border:
-                        InputBorder.none,
-                    enabledBorder:
-                        InputBorder.none,
-                    focusedBorder:
-                        InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.zero,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 30,
+                  height: 24,
                 ),
               ],
 
@@ -1442,26 +1443,9 @@ class _TaskFormPageState
                 text:
                     'PIANIFICAZIONE',
               ),
-
               const SizedBox(
                 height: 8,
               ),
-
-              _SettingRow(
-                icon:
-                    Icons
-                        .timer_outlined,
-                title:
-                    'Durata',
-                value:
-                    _durationLabel(
-                  _durationMinutes,
-                ),
-                onTap:
-                    _selectDuration,
-              ),
-
-              const _FormDivider(),
 
               _SettingRow(
                 icon:
@@ -1492,31 +1476,8 @@ class _TaskFormPageState
               ),
 
               if (_selectedDate !=
-                      null &&
-                  !widget
-                      .rescheduleOnly &&
-                  !widget
-                      .occurrenceOnly) ...[
-                const _FormDivider(),
-
-                _SettingRow(
-                  icon:
-                      Icons.repeat,
-                  title:
-                      'Ripeti',
-                  value:
-                      _recurrenceLabel(
-                    _recurrence,
-                  ),
-                  onTap:
-                      _selectRecurrence,
-                ),
-              ],
-
-              if (_selectedDate !=
                   null) ...[
                 const _FormDivider(),
-
                 _SwitchSettingRow(
                   icon:
                       Icons
@@ -1537,20 +1498,21 @@ class _TaskFormPageState
 
               if (!_allDay) ...[
                 const _FormDivider(),
-
                 _SettingRow(
                   icon:
-                      Icons.schedule,
+                      Icons
+                          .schedule_outlined,
                   title:
-                      'Ora inizio',
+                      _selectedDate ==
+                              null
+                          ? 'Orario preferito'
+                          : 'Ora inizio',
                   value:
                       _startTime ==
                               null
                           ? 'Nessuna'
-                          : _startTime!
-                              .format(
-                                context,
-                              ),
+                          : '${_twoDigits(_startTime!.hour)}:'
+                              '${_twoDigits(_startTime!.minute)}',
                   onTap:
                       _selectStartTime,
                   onClear:
@@ -1561,7 +1523,6 @@ class _TaskFormPageState
                 ),
 
                 const _FormDivider(),
-
                 _SettingRow(
                   icon:
                       Icons
@@ -1583,114 +1544,48 @@ class _TaskFormPageState
                 ),
               ],
 
+              const _FormDivider(),
+              _InlineDurationPicker(
+                value:
+                    _durationMinutes,
+                labelBuilder:
+                    _durationLabel,
+                onChanged:
+                    _setDurationValue,
+                onCustom:
+                    _selectDuration,
+              ),
+
+              if (_selectedDate !=
+                      null &&
+                  !widget
+                      .rescheduleOnly &&
+                  !widget
+                      .occurrenceOnly) ...[
+                const _FormDivider(),
+                _SettingRow(
+                  icon:
+                      Icons.repeat,
+                  title:
+                      'Ripetizione',
+                  value:
+                      _recurrenceLabel(
+                    _recurrence,
+                  ),
+                  onTap:
+                      _selectRecurrence,
+                ),
+              ],
+
               if (!widget
                   .rescheduleOnly) ...[
-                if (!widget.occurrenceOnly) ...[
                 const SizedBox(
-                  height: 34,
+                  height: 30,
                 ),
-
                 const _FormSectionLabel(
                   text:
-                      'SOTTOATTIVITÀ',
+                      'IDENTITÀ',
                 ),
-
-                const SizedBox(
-                  height: 8,
-                ),
-
-                if (_subtasks.isEmpty)
-                  Padding(
-                    padding:
-                        const EdgeInsets
-                            .symmetric(
-                      vertical: 10,
-                    ),
-                    child: Text(
-                      'Nessuna sottoattività.',
-                      style:
-                          Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color:
-                                    colorScheme
-                                        .onSurfaceVariant,
-                              ),
-                    ),
-                  )
-                else
-                  ReorderableListView.builder(
-                    shrinkWrap:
-                        true,
-                    physics:
-                        const NeverScrollableScrollPhysics(),
-                    buildDefaultDragHandles:
-                        false,
-                    itemCount:
-                        _subtasks.length,
-                    onReorderItem:
-                        _reorderSubtasks,
-                    itemBuilder:
-                        (context, index) {
-                      final subtask =
-                          _subtasks[index];
-
-                      return _SubtaskFormRow(
-                        key:
-                            ValueKey(
-                          subtask.id,
-                        ),
-                        subtask:
-                            subtask,
-                        index:
-                            index,
-                        onTap: () {
-                          _renameSubtask(
-                            subtask,
-                          );
-                        },
-                        onDelete: () {
-                          _removeSubtask(
-                            subtask,
-                          );
-                        },
-                      );
-                    },
-                  ),
-
-                Align(
-                  alignment:
-                      Alignment.centerLeft,
-                  child:
-                      TextButton.icon(
-                    onPressed:
-                        _addSubtask,
-                    icon:
-                        const Icon(
-                      Icons.add,
-                    ),
-                    label:
-                        const Text(
-                      'Aggiungi sottoattività',
-                    ),
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 26,
-                ),
-
-                ] else
-                  const SizedBox(
-                    height: 34,
-                  ),
-
-                const _FormSectionLabel(
-                  text:
-                      'CATEGORIA',
-                ),
-
                 const SizedBox(
                   height: 8,
                 ),
@@ -1701,7 +1596,6 @@ class _TaskFormPageState
                       widget
                           .categoryRepository
                           .watchAllCategories(),
-
                   builder:
                       (context, snapshot) {
                     if (snapshot.hasError) {
@@ -1737,18 +1631,25 @@ class _TaskFormPageState
                 ),
 
                 const SizedBox(
-                  height: 34,
+                  height: 18,
                 ),
-
-                const _FormSectionLabel(
-                  text:
-                      'PRIORITÀ',
+                Text(
+                  'Priorità',
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            color:
+                                colorScheme
+                                    .onSurfaceVariant,
+                            fontWeight:
+                                FontWeight.w600,
+                          ),
                 ),
-
                 const SizedBox(
-                  height: 12,
+                  height: 7,
                 ),
-
                 _PrioritySelector(
                   value:
                       _priority,
@@ -1768,12 +1669,165 @@ class _TaskFormPageState
                     });
                   },
                 ),
+
+                if (!widget
+                    .occurrenceOnly) ...[
+                  const SizedBox(
+                    height: 30,
+                  ),
+                  const _FormSectionLabel(
+                    text:
+                        'SOTTOATTIVITÀ',
+                  ),
+                  const SizedBox(
+                    height: 8,
+                  ),
+
+                  if (_subtasks.isEmpty)
+                    Padding(
+                      padding:
+                          const EdgeInsets
+                              .symmetric(
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        'Nessuna sottoattività.',
+                        style:
+                            Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color:
+                                      colorScheme
+                                          .onSurfaceVariant,
+                                ),
+                      ),
+                    )
+                  else
+                    ReorderableListView.builder(
+                      shrinkWrap:
+                          true,
+                      physics:
+                          const NeverScrollableScrollPhysics(),
+                      buildDefaultDragHandles:
+                          false,
+                      itemCount:
+                          _subtasks.length,
+                      onReorderItem:
+                          _reorderSubtasks,
+                      itemBuilder:
+                          (context, index) {
+                        final subtask =
+                            _subtasks[index];
+
+                        return _SubtaskFormRow(
+                          key:
+                              ValueKey(
+                            subtask.id,
+                          ),
+                          subtask:
+                              subtask,
+                          index:
+                              index,
+                          onTap: () {
+                            _renameSubtask(
+                              subtask,
+                            );
+                          },
+                          onDelete: () {
+                            _removeSubtask(
+                              subtask,
+                            );
+                          },
+                        );
+                      },
+                    ),
+
+                  Align(
+                    alignment:
+                        Alignment.centerLeft,
+                    child:
+                        TextButton.icon(
+                      onPressed:
+                          _addSubtask,
+                      icon:
+                          const Icon(
+                        Icons.add,
+                        size: 18,
+                      ),
+                      label:
+                          const Text(
+                        'Aggiungi sottoattività',
+                      ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(
+                  height: 28,
+                ),
+                const _FormSectionLabel(
+                  text:
+                      'NOTE',
+                ),
+                const SizedBox(
+                  height: 7,
+                ),
+                TextFormField(
+                  controller:
+                      _descriptionController,
+                  minLines:
+                      3,
+                  maxLines:
+                      8,
+                  textCapitalization:
+                      TextCapitalization.sentences,
+                  onTapOutside:
+                      (_) {
+                    _dismissKeyboard();
+                  },
+                  decoration:
+                      InputDecoration(
+                    hintText:
+                        'Dettagli, promemoria, link…',
+                    hintStyle:
+                        TextStyle(
+                      color:
+                          colorScheme
+                              .onSurfaceVariant
+                              .withValues(
+                                alpha: 0.78,
+                              ),
+                    ),
+                    border:
+                        InputBorder.none,
+                    enabledBorder:
+                        InputBorder.none,
+                    focusedBorder:
+                        InputBorder.none,
+                    contentPadding:
+                        const EdgeInsets
+                            .symmetric(
+                      vertical: 4,
+                    ),
+                  ),
+                ),
+                const SizedBox(
+                  height: 8,
+                ),
+                Divider(
+                  color:
+                      colorScheme
+                          .outlineVariant
+                          .withValues(
+                            alpha: 0.5,
+                          ),
+                ),
               ],
             ],
           ),
         ),
       ),
-
       bottomNavigationBar:
           SafeArea(
         minimum:
@@ -1784,47 +1838,30 @@ class _TaskFormPageState
           20,
           16,
         ),
-
         child:
-            FilledButton.icon(
-          onPressed:
+            _FormPrimaryAction(
+          onTap:
               _saveTask,
-
-          icon: Icon(
-            widget.rescheduleOnly
-                ? Icons
-                    .event_repeat_outlined
-                : widget.duplicateMode
-                    ? Icons
-                        .library_add_outlined
-                    : _isEditing
-                        ? Icons
-                            .check
-                        : Icons
-                            .add,
-          ),
-
-          label: Text(
-            widget.occurrenceOnly
-                ? 'Salva occorrenza'
-                : widget.rescheduleOnly
-                    ? 'Sposta attività'
-                    : widget.duplicateMode
-                        ? 'Crea duplicato'
-                        : _isEditing
-                            ? 'Salva'
-                            : 'Crea attività',
-          ),
-
-          style:
-              FilledButton
-                  .styleFrom(
-            minimumSize:
-                const Size
-                    .fromHeight(
-              54,
-            ),
-          ),
+          icon:
+              widget.rescheduleOnly
+                  ? Icons
+                      .event_repeat_outlined
+                  : widget.duplicateMode
+                      ? Icons
+                          .library_add_outlined
+                      : _isEditing
+                          ? Icons.check
+                          : Icons.add,
+          label:
+              widget.occurrenceOnly
+                  ? 'Salva occorrenza'
+                  : widget.rescheduleOnly
+                      ? 'Sposta attività'
+                      : widget.duplicateMode
+                          ? 'Crea duplicato'
+                          : _isEditing
+                              ? 'Salva'
+                              : 'Crea attività',
         ),
       ),
     );
@@ -1890,9 +1927,7 @@ class _SettingRow
   final IconData icon;
   final String title;
   final String value;
-
   final bool enabled;
-
   final VoidCallback? onTap;
   final VoidCallback? onClear;
 
@@ -1918,113 +1953,96 @@ class _SettingRow
           enabled
               ? 1
               : 0.42,
-
       child: Material(
         color:
             Colors.transparent,
-
         child: InkWell(
           onTap:
               enabled
                   ? onTap
                   : null,
-
+          borderRadius:
+              BorderRadius.circular(
+            10,
+          ),
           child: Padding(
             padding:
                 const EdgeInsets
                     .symmetric(
-              vertical: 16,
+              vertical: 12,
             ),
-
             child: Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.center,
               children: [
                 SizedBox(
                   width: 32,
                   child: Icon(
                     icon,
-                    size: 20,
+                    size: 19,
                     color:
                         colorScheme
                             .onSurfaceVariant,
                   ),
                 ),
-
                 const SizedBox(
-                  width: 12,
+                  width: 10,
                 ),
-
                 Expanded(
-                  child: Text(
-                    title,
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .bodyLarge
-                            ?.copyWith(
-                              fontWeight:
-                                  FontWeight
-                                      .w600,
-                            ),
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style:
+                            Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color:
+                                      colorScheme
+                                          .onSurfaceVariant,
+                                  fontWeight:
+                                      FontWeight.w600,
+                                ),
+                      ),
+                      const SizedBox(
+                        height: 2,
+                      ),
+                      Text(
+                        value,
+                        maxLines: 2,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(
+                                  fontWeight:
+                                      FontWeight.w600,
+                                  height:
+                                      1.15,
+                                ),
+                      ),
+                    ],
                   ),
                 ),
-
                 const SizedBox(
-                  width: 12,
+                  width: 10,
                 ),
-
-                Flexible(
-                  child: Text(
-                    value,
-                    textAlign:
-                        TextAlign.right,
-                    maxLines: 2,
-                    overflow:
-                        TextOverflow
-                            .ellipsis,
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
-                              color:
-                                  colorScheme
-                                      .onSurfaceVariant,
-                              fontWeight:
-                                  FontWeight
-                                      .w500,
-                            ),
-                  ),
-                ),
-
                 if (onClear !=
-                    null) ...[
-                  const SizedBox(
-                    width: 4,
-                  ),
-
-                  IconButton(
+                    null)
+                  _TinyIconAction(
                     tooltip:
                         'Rimuovi',
-                    visualDensity:
-                        VisualDensity
-                            .compact,
-                    onPressed:
-                        onClear,
                     icon:
-                        const Icon(
-                      Icons.close,
-                      size: 18,
-                    ),
-                  ),
-                ] else ...[
-                  const SizedBox(
-                    width: 8,
-                  ),
-
+                        Icons.close,
+                    onTap:
+                        onClear!,
+                  )
+                else
                   Icon(
                     Icons
                         .chevron_right,
@@ -2033,10 +2051,9 @@ class _SettingRow
                         colorScheme
                             .onSurfaceVariant
                             .withValues(
-                      alpha: 0.6,
-                    ),
+                              alpha: 0.52,
+                            ),
                   ),
-                ],
               ],
             ),
           ),
@@ -2069,52 +2086,1888 @@ class _SwitchSettingRow
         Theme.of(context)
             .colorScheme;
 
-    return Padding(
-      padding:
-          const EdgeInsets
-              .symmetric(
-        vertical: 8,
+    return Material(
+      color:
+          Colors.transparent,
+      child: InkWell(
+        onTap:
+            () {
+          onChanged(
+            !value,
+          );
+        },
+        borderRadius:
+            BorderRadius.circular(
+          10,
+        ),
+        child: Padding(
+          padding:
+              const EdgeInsets
+                  .symmetric(
+            vertical: 12,
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 32,
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color:
+                      colorScheme
+                          .onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(
+                width: 10,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style:
+                          Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color:
+                                    colorScheme
+                                        .onSurfaceVariant,
+                                fontWeight:
+                                    FontWeight.w600,
+                              ),
+                    ),
+                    const SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      value
+                          ? 'Attivo'
+                          : 'Disattivo',
+                      style:
+                          Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(
+                                fontWeight:
+                                    FontWeight.w600,
+                              ),
+                    ),
+                  ],
+                ),
+              ),
+              _EditorialToggle(
+                value:
+                    value,
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
 
-      child: Row(
-        children: [
-          SizedBox(
-            width: 32,
-            child: Icon(
-              icon,
-              size: 20,
-              color:
-                  colorScheme
-                      .onSurfaceVariant,
-            ),
+
+class _TinyIconAction
+    extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _TinyIconAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Tooltip(
+      message:
+          tooltip,
+      child: InkResponse(
+        onTap:
+            onTap,
+        radius:
+            20,
+        child: Padding(
+          padding:
+              const EdgeInsets.all(
+            6,
           ),
-
-          const SizedBox(
-            width: 12,
+          child: Icon(
+            icon,
+            size: 17,
+            color:
+                colorScheme
+                    .onSurfaceVariant,
           ),
+        ),
+      ),
+    );
+  }
+}
 
-          Expanded(
+class _EditorialToggle
+    extends StatelessWidget {
+  final bool value;
+
+  const _EditorialToggle({
+    required this.value,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return AnimatedContainer(
+      duration:
+          const Duration(
+        milliseconds: 160,
+      ),
+      curve:
+          Curves.easeOutCubic,
+      width: 42,
+      height: 24,
+      padding:
+          const EdgeInsets.all(
+        3,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            value
+                ? colorScheme.primary
+                    .withValues(
+                      alpha: 0.14,
+                    )
+                : Colors
+                    .transparent,
+        borderRadius:
+            BorderRadius.circular(
+          10,
+        ),
+        border:
+            Border.all(
+          color:
+              value
+                  ? colorScheme.primary
+                  : colorScheme
+                      .outlineVariant,
+          width: 1.2,
+        ),
+      ),
+      child: AnimatedAlign(
+        duration:
+            const Duration(
+          milliseconds: 160,
+        ),
+        curve:
+            Curves.easeOutCubic,
+        alignment:
+            value
+                ? Alignment.centerRight
+                : Alignment.centerLeft,
+        child: Container(
+          width: 16,
+          height: 16,
+          decoration:
+              BoxDecoration(
+            color:
+                value
+                    ? colorScheme.primary
+                    : colorScheme
+                        .onSurfaceVariant
+                        .withValues(
+                          alpha: 0.56,
+                        ),
+            shape:
+                BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FormPrimaryAction
+    extends StatelessWidget {
+  final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+
+  const _FormPrimaryAction({
+    required this.onTap,
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          colorScheme.primary,
+      borderRadius:
+          BorderRadius.circular(
+        14,
+      ),
+      child: InkWell(
+        onTap:
+            onTap,
+        borderRadius:
+            BorderRadius.circular(
+          14,
+        ),
+        child: SizedBox(
+          height: 52,
+          child: Row(
+            mainAxisAlignment:
+                MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 19,
+                color:
+                    colorScheme
+                        .onPrimary,
+              ),
+              const SizedBox(
+                width: 9,
+              ),
+              Text(
+                label,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(
+                          color:
+                              colorScheme
+                                  .onPrimary,
+                          fontWeight:
+                              FontWeight.w700,
+                        ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetPrimaryAction
+    extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _SheetPrimaryAction({
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          colorScheme.primary,
+      borderRadius:
+          BorderRadius.circular(
+        12,
+      ),
+      child: InkWell(
+        onTap:
+            onTap,
+        borderRadius:
+            BorderRadius.circular(
+          12,
+        ),
+        child: SizedBox(
+          width:
+              double.infinity,
+          height: 48,
+          child: Center(
             child: Text(
-              title,
+              label,
               style:
                   Theme.of(context)
                       .textTheme
                       .bodyLarge
                       ?.copyWith(
+                        color:
+                            colorScheme
+                                .onPrimary,
                         fontWeight:
-                            FontWeight
-                                .w600,
+                            FontWeight.w700,
                       ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
 
-          Switch.adaptive(
-            value:
-                value,
-            onChanged:
-                onChanged,
+class _SheetTextAction
+    extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _SheetTextAction({
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final effectiveColor =
+        color ??
+            Theme.of(context)
+                .colorScheme
+                .primary;
+
+    return Material(
+      color:
+          Colors.transparent,
+      child: InkWell(
+        onTap:
+            onTap,
+        borderRadius:
+            BorderRadius.circular(
+          10,
+        ),
+        child: SizedBox(
+          width:
+              double.infinity,
+          height: 42,
+          child: Center(
+            child: Text(
+              label,
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                        color:
+                            effectiveColor,
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+            ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NumberPickerField
+    extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String? helper;
+  final ValueChanged<String>?
+      onSubmitted;
+
+  const _NumberPickerField({
+    required this.controller,
+    required this.label,
+    this.helper,
+    this.onSubmitted,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      mainAxisSize:
+          MainAxisSize.min,
+      children: [
+        Text(
+          helper == null
+              ? label
+              : '$label · $helper',
+          style:
+              Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(
+                    color:
+                        colorScheme
+                            .onSurfaceVariant,
+                    fontWeight:
+                        FontWeight.w700,
+                    letterSpacing:
+                        0.2,
+                  ),
+        ),
+        const SizedBox(
+          height: 3,
+        ),
+        TextField(
+          controller:
+              controller,
+          keyboardType:
+              TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter
+                .digitsOnly,
+          ],
+          onSubmitted:
+              onSubmitted,
+          style:
+              Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(
+                    fontWeight:
+                        FontWeight.w700,
+                  ),
+          decoration:
+              InputDecoration(
+            hintText:
+                '0',
+            hintStyle:
+                TextStyle(
+              color:
+                  colorScheme
+                      .onSurfaceVariant
+                      .withValues(
+                        alpha: 0.45,
+                      ),
+            ),
+            border:
+                InputBorder.none,
+            enabledBorder:
+                InputBorder.none,
+            focusedBorder:
+                InputBorder.none,
+            isDense:
+                true,
+            contentPadding:
+                const EdgeInsets
+                    .symmetric(
+              vertical: 4,
+            ),
+          ),
+        ),
+        Container(
+          height: 1,
+          color:
+              colorScheme
+                  .outlineVariant
+                  .withValues(
+                    alpha: 0.78,
+                  ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DatePickerSheet
+    extends StatefulWidget {
+  final DateTime initialDate;
+
+  const _DatePickerSheet({
+    required this.initialDate,
+  });
+
+  @override
+  State<_DatePickerSheet>
+      createState() =>
+          _DatePickerSheetState();
+}
+
+class _DatePickerSheetState
+    extends State<_DatePickerSheet> {
+  late DateTime _selectedDate;
+  late DateTime _visibleMonth;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _selectedDate =
+        DateTime(
+      widget.initialDate.year,
+      widget.initialDate.month,
+      widget.initialDate.day,
+    );
+
+    _visibleMonth =
+        DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      1,
+    );
+  }
+
+  String _monthLabel(
+    DateTime month,
+  ) {
+    const months = [
+      'Gennaio',
+      'Febbraio',
+      'Marzo',
+      'Aprile',
+      'Maggio',
+      'Giugno',
+      'Luglio',
+      'Agosto',
+      'Settembre',
+      'Ottobre',
+      'Novembre',
+      'Dicembre',
+    ];
+
+    return '${months[month.month - 1]} '
+        '${month.year}';
+  }
+
+  bool _sameDay(
+    DateTime a,
+    DateTime b,
+  ) {
+    return a.year == b.year &&
+        a.month == b.month &&
+        a.day == b.day;
+  }
+
+  void _changeMonth(
+    int delta,
+  ) {
+    setState(() {
+      _visibleMonth =
+          DateTime(
+        _visibleMonth.year,
+        _visibleMonth.month +
+            delta,
+        1,
+      );
+    });
+  }
+
+  void _chooseQuick(
+    DateTime date,
+  ) {
+    setState(() {
+      _selectedDate =
+          DateTime(
+        date.year,
+        date.month,
+        date.day,
+      );
+
+      _visibleMonth =
+          DateTime(
+        date.year,
+        date.month,
+        1,
+      );
+    });
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    final now =
+        DateTime.now();
+
+    final today =
+        DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final tomorrow =
+        today.add(
+      const Duration(
+        days: 1,
+      ),
+    );
+
+    final firstDay =
+        DateTime(
+      _visibleMonth.year,
+      _visibleMonth.month,
+      1,
+    );
+
+    final leading =
+        firstDay.weekday -
+            DateTime.monday;
+
+    final dayCount =
+        DateTime(
+      _visibleMonth.year,
+      _visibleMonth.month +
+          1,
+      0,
+    ).day;
+
+    final usedCells =
+        leading +
+            dayCount;
+
+    final rowCount =
+        (usedCells / 7)
+            .ceil();
+
+    final cellCount =
+        rowCount * 7;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin:
+            const EdgeInsets
+                .fromLTRB(
+          12,
+          0,
+          12,
+          12,
+        ),
+        padding:
+            const EdgeInsets
+                .fromLTRB(
+          20,
+          18,
+          20,
+          16,
+        ),
+        decoration:
+            BoxDecoration(
+          color:
+              colorScheme.surface,
+          borderRadius:
+              BorderRadius.circular(
+            22,
+          ),
+          border:
+              Border.all(
+            color:
+                colorScheme
+                    .outlineVariant
+                    .withValues(
+                      alpha: 0.52,
+                    ),
+          ),
+        ),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Data',
+                    style:
+                        Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(
+                              fontWeight:
+                                  FontWeight.w700,
+                              letterSpacing:
+                                  -0.4,
+                            ),
+                  ),
+                ),
+                _TinyIconAction(
+                  tooltip:
+                      'Mese precedente',
+                  icon:
+                      Icons
+                          .chevron_left,
+                  onTap:
+                      () {
+                    _changeMonth(
+                      -1,
+                    );
+                  },
+                ),
+                const SizedBox(
+                  width: 2,
+                ),
+                _TinyIconAction(
+                  tooltip:
+                      'Mese successivo',
+                  icon:
+                      Icons
+                          .chevron_right,
+                  onTap:
+                      () {
+                    _changeMonth(
+                      1,
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 8,
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _monthLabel(
+                      _visibleMonth,
+                    ),
+                    style:
+                        Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(
+                              fontWeight:
+                                  FontWeight.w700,
+                            ),
+                  ),
+                ),
+                _DateQuickAction(
+                  label:
+                      'Oggi',
+                  selected:
+                      _sameDay(
+                    _selectedDate,
+                    today,
+                  ),
+                  onTap:
+                      () {
+                    _chooseQuick(
+                      today,
+                    );
+                  },
+                ),
+                const SizedBox(
+                  width: 6,
+                ),
+                _DateQuickAction(
+                  label:
+                      'Domani',
+                  selected:
+                      _sameDay(
+                    _selectedDate,
+                    tomorrow,
+                  ),
+                  onTap:
+                      () {
+                    _chooseQuick(
+                      tomorrow,
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 16,
+            ),
+            Row(
+              children: [
+                for (final label
+                    in const [
+                  'L',
+                  'M',
+                  'M',
+                  'G',
+                  'V',
+                  'S',
+                  'D',
+                ])
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        label,
+                        style:
+                            Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color:
+                                      colorScheme
+                                          .onSurfaceVariant,
+                                  fontWeight:
+                                      FontWeight.w700,
+                                ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(
+              height: 6,
+            ),
+            GridView.builder(
+              shrinkWrap:
+                  true,
+              physics:
+                  const NeverScrollableScrollPhysics(),
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                mainAxisExtent: 42,
+              ),
+              itemCount:
+                  cellCount,
+              itemBuilder:
+                  (context, index) {
+                final day =
+                    index -
+                        leading +
+                        1;
+
+                if (day < 1 ||
+                    day > dayCount) {
+                  return const SizedBox
+                      .shrink();
+                }
+
+                final date =
+                    DateTime(
+                  _visibleMonth.year,
+                  _visibleMonth.month,
+                  day,
+                );
+
+                final selected =
+                    _sameDay(
+                  date,
+                  _selectedDate,
+                );
+
+                final isToday =
+                    _sameDay(
+                  date,
+                  today,
+                );
+
+                return _CalendarDayChoice(
+                  day:
+                      day,
+                  selected:
+                      selected,
+                  isToday:
+                      isToday,
+                  onTap:
+                      () {
+                    setState(() {
+                      _selectedDate =
+                          date;
+                    });
+                  },
+                );
+              },
+            ),
+            const SizedBox(
+              height: 14,
+            ),
+            _SheetPrimaryAction(
+              label:
+                  'Conferma ${_selectedDate.day}/${_selectedDate.month}',
+              onTap:
+                  () {
+                Navigator.pop(
+                  context,
+                  _selectedDate,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DateQuickAction
+    extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DateQuickAction({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          selected
+              ? colorScheme.primary
+                  .withValues(
+                    alpha: 0.10,
+                  )
+              : Colors
+                  .transparent,
+      borderRadius:
+          BorderRadius.circular(
+        10,
+      ),
+      child: InkWell(
+        onTap:
+            onTap,
+        borderRadius:
+            BorderRadius.circular(
+          10,
+        ),
+        child: Padding(
+          padding:
+              const EdgeInsets
+                  .symmetric(
+            horizontal: 10,
+            vertical: 6,
+          ),
+          child: Text(
+            label,
+            style:
+                Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(
+                      color:
+                          selected
+                              ? colorScheme.primary
+                              : colorScheme
+                                  .onSurfaceVariant,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CalendarDayChoice
+    extends StatelessWidget {
+  final int day;
+  final bool selected;
+  final bool isToday;
+  final VoidCallback onTap;
+
+  const _CalendarDayChoice({
+    required this.day,
+    required this.selected,
+    required this.isToday,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Center(
+      child: Material(
+        color:
+            Colors.transparent,
+        child: InkWell(
+          onTap:
+              onTap,
+          customBorder:
+              const CircleBorder(),
+          child: AnimatedContainer(
+            duration:
+                const Duration(
+              milliseconds: 140,
+            ),
+            width: 36,
+            height: 36,
+            decoration:
+                BoxDecoration(
+              color:
+                  selected
+                      ? colorScheme.primary
+                          .withValues(
+                            alpha: 0.13,
+                          )
+                      : Colors
+                          .transparent,
+              shape:
+                  BoxShape.circle,
+              border:
+                  selected ||
+                          isToday
+                      ? Border.all(
+                          color:
+                              selected
+                                  ? colorScheme.primary
+                                  : colorScheme
+                                      .outlineVariant,
+                          width:
+                              selected
+                                  ? 1.5
+                                  : 1,
+                        )
+                      : null,
+            ),
+            child: Center(
+              child: Text(
+                '$day',
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(
+                          color:
+                              selected
+                                  ? colorScheme.primary
+                                  : colorScheme
+                                      .onSurface,
+                          fontWeight:
+                              selected ||
+                                      isToday
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                        ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TimePickerSheet
+    extends StatefulWidget {
+  final String title;
+  final TimeOfDay initialTime;
+
+  const _TimePickerSheet({
+    required this.title,
+    required this.initialTime,
+  });
+
+  @override
+  State<_TimePickerSheet>
+      createState() =>
+          _TimePickerSheetState();
+}
+
+class _TimePickerSheetState
+    extends State<_TimePickerSheet> {
+  late int _hour;
+  late int _minute;
+
+  late final FixedExtentScrollController
+      _hourController;
+
+  late final FixedExtentScrollController
+      _minuteController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _hour =
+        widget.initialTime.hour;
+
+    _minute =
+        widget.initialTime.minute;
+
+    _hourController =
+        FixedExtentScrollController(
+      initialItem:
+          _hour,
+    );
+
+    _minuteController =
+        FixedExtentScrollController(
+      initialItem:
+          _minute,
+    );
+  }
+
+  @override
+  void dispose() {
+    _hourController.dispose();
+    _minuteController.dispose();
+    super.dispose();
+  }
+
+  void _setMinute(
+    int minute,
+  ) {
+    setState(() {
+      _minute =
+          minute;
+    });
+
+    _minuteController.animateToItem(
+      minute,
+      duration:
+          const Duration(
+        milliseconds: 180,
+      ),
+      curve:
+          Curves.easeOutCubic,
+    );
+  }
+
+  String _twoDigits(
+    int value,
+  ) {
+    return value
+        .toString()
+        .padLeft(
+          2,
+          '0',
+        );
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin:
+            const EdgeInsets
+                .fromLTRB(
+          12,
+          0,
+          12,
+          12,
+        ),
+        padding:
+            const EdgeInsets
+                .fromLTRB(
+          20,
+          18,
+          20,
+          16,
+        ),
+        decoration:
+            BoxDecoration(
+          color:
+              colorScheme.surface,
+          borderRadius:
+              BorderRadius.circular(
+            22,
+          ),
+          border:
+              Border.all(
+            color:
+                colorScheme
+                    .outlineVariant
+                    .withValues(
+                      alpha: 0.52,
+                    ),
+          ),
+        ),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.title,
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(
+                        fontWeight:
+                            FontWeight.w700,
+                        letterSpacing:
+                            -0.4,
+                      ),
+            ),
+            const SizedBox(
+              height: 4,
+            ),
+            Text(
+              '${_twoDigits(_hour)}:${_twoDigits(_minute)}',
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(
+                        color:
+                            colorScheme
+                                .onSurfaceVariant,
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+            ),
+            const SizedBox(
+              height: 14,
+            ),
+            SizedBox(
+              height: 190,
+              child: Stack(
+                alignment:
+                    Alignment.center,
+                children: [
+                  Container(
+                    height: 44,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          colorScheme
+                              .surfaceContainerHighest
+                              .withValues(
+                                alpha: 0.34,
+                              ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        12,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child:
+                            _TimeWheel(
+                          controller:
+                              _hourController,
+                          itemCount:
+                              24,
+                          selectedValue:
+                              _hour,
+                          labelBuilder:
+                              (value) =>
+                                  _twoDigits(
+                            value,
+                          ),
+                          onChanged:
+                              (value) {
+                            setState(() {
+                              _hour =
+                                  value;
+                            });
+                          },
+                        ),
+                      ),
+                      Text(
+                        ':',
+                        style:
+                            Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                  color:
+                                      colorScheme
+                                          .onSurfaceVariant,
+                                  fontWeight:
+                                      FontWeight.w600,
+                                ),
+                      ),
+                      Expanded(
+                        child:
+                            _TimeWheel(
+                          controller:
+                              _minuteController,
+                          itemCount:
+                              60,
+                          selectedValue:
+                              _minute,
+                          labelBuilder:
+                              (value) =>
+                                  _twoDigits(
+                            value,
+                          ),
+                          onChanged:
+                              (value) {
+                            setState(() {
+                              _minute =
+                                  value;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(
+              height: 10,
+            ),
+            Row(
+              children: [
+                for (final minute
+                    in const [
+                  0,
+                  15,
+                  30,
+                  45,
+                ]) ...[
+                  Expanded(
+                    child:
+                        _MinuteQuickChoice(
+                      minute:
+                          minute,
+                      selected:
+                          _minute ==
+                              minute,
+                      onTap:
+                          () {
+                        _setMinute(
+                          minute,
+                        );
+                      },
+                    ),
+                  ),
+                  if (minute !=
+                      45)
+                    const SizedBox(
+                      width: 7,
+                    ),
+                ],
+              ],
+            ),
+            const SizedBox(
+              height: 18,
+            ),
+            _SheetPrimaryAction(
+              label:
+                  'Conferma',
+              onTap:
+                  () {
+                Navigator.pop(
+                  context,
+                  TimeOfDay(
+                    hour:
+                        _hour,
+                    minute:
+                        _minute,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TimeWheel
+    extends StatelessWidget {
+  final FixedExtentScrollController controller;
+  final int itemCount;
+  final int selectedValue;
+  final String Function(int value)
+      labelBuilder;
+  final ValueChanged<int>
+      onChanged;
+
+  const _TimeWheel({
+    required this.controller,
+    required this.itemCount,
+    required this.selectedValue,
+    required this.labelBuilder,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return ListWheelScrollView.useDelegate(
+      controller:
+          controller,
+      itemExtent:
+          44,
+      perspective:
+          0.0025,
+      diameterRatio:
+          1.7,
+      physics:
+          const FixedExtentScrollPhysics(),
+      onSelectedItemChanged:
+          onChanged,
+      childDelegate:
+          ListWheelChildBuilderDelegate(
+        childCount:
+            itemCount,
+        builder:
+            (context, index) {
+          if (index < 0 ||
+              index >=
+                  itemCount) {
+            return null;
+          }
+
+          final selected =
+              index ==
+                  selectedValue;
+
+          return Center(
+            child: Text(
+              labelBuilder(
+                index,
+              ),
+              style:
+                  Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(
+                        color:
+                            selected
+                                ? colorScheme
+                                    .onSurface
+                                : colorScheme
+                                    .onSurfaceVariant
+                                    .withValues(
+                                      alpha: 0.48,
+                                    ),
+                        fontWeight:
+                            selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                      ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MinuteQuickChoice
+    extends StatelessWidget {
+  final int minute;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _MinuteQuickChoice({
+    required this.minute,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    final label =
+        ':${minute.toString().padLeft(2, '0')}';
+
+    return Material(
+      color:
+          selected
+              ? colorScheme.primary
+                  .withValues(
+                    alpha: 0.1,
+                  )
+              : Colors
+                  .transparent,
+      borderRadius:
+          BorderRadius.circular(
+        10,
+      ),
+      child: InkWell(
+        onTap:
+            onTap,
+        borderRadius:
+            BorderRadius.circular(
+          10,
+        ),
+        child: Container(
+          height: 36,
+          alignment:
+              Alignment.center,
+          decoration:
+              BoxDecoration(
+            borderRadius:
+                BorderRadius.circular(
+              10,
+            ),
+            border:
+                Border.all(
+              color:
+                  selected
+                      ? colorScheme.primary
+                      : colorScheme
+                          .outlineVariant
+                          .withValues(
+                            alpha: 0.72,
+                          ),
+            ),
+          ),
+          child: Text(
+            label,
+            style:
+                Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      color:
+                          selected
+                              ? colorScheme.primary
+                              : colorScheme
+                                  .onSurfaceVariant,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+class _InlineDurationPicker
+    extends StatelessWidget {
+  final int? value;
+  final String Function(
+    int? minutes,
+  ) labelBuilder;
+  final ValueChanged<int?> onChanged;
+  final VoidCallback onCustom;
+
+  const _InlineDurationPicker({
+    required this.value,
+    required this.labelBuilder,
+    required this.onChanged,
+    required this.onCustom,
+  });
+
+  static const _presets = <int>[
+    15,
+    30,
+    45,
+    60,
+    90,
+    120,
+    180,
+  ];
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    final isCustom =
+        value != null &&
+            !_presets.contains(
+              value,
+            );
+
+    return Padding(
+      padding:
+          const EdgeInsets
+              .symmetric(
+        vertical: 12,
+      ),
+      child: Container(
+        padding:
+            const EdgeInsets
+                .fromLTRB(
+          14,
+          13,
+          14,
+          12,
+        ),
+        decoration:
+            BoxDecoration(
+          color:
+              colorScheme
+                  .surfaceContainerHighest
+                  .withValues(
+                    alpha: 0.30,
+                  ),
+          borderRadius:
+              BorderRadius.circular(
+            14,
+          ),
+          border:
+              Border.all(
+            color:
+                colorScheme
+                    .outlineVariant
+                    .withValues(
+                      alpha: 0.42,
+                    ),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 32,
+                child: Icon(
+                  Icons
+                      .timer_outlined,
+                  size: 20,
+                  color:
+                      colorScheme
+                          .onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(
+                width: 12,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Durata',
+                      style:
+                          Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(
+                                fontWeight:
+                                    FontWeight.w600,
+                              ),
+                    ),
+                    const SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      labelBuilder(
+                        value,
+                      ),
+                      style:
+                          Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color:
+                                    colorScheme
+                                        .onSurfaceVariant,
+                                fontWeight:
+                                    FontWeight.w500,
+                              ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(
+            height: 12,
+          ),
+          Padding(
+            padding:
+                const EdgeInsets.only(
+              left: 36,
+            ),
+            child: Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                _InlineDurationChoice(
+                  label:
+                      'Nessuna',
+                  selected:
+                      value == null,
+                  onTap: () {
+                    onChanged(
+                      null,
+                    );
+                  },
+                ),
+                for (final minutes
+                    in _presets)
+                  _InlineDurationChoice(
+                    label:
+                        labelBuilder(
+                      minutes,
+                    ),
+                    selected:
+                        value ==
+                            minutes,
+                    onTap: () {
+                      onChanged(
+                        minutes,
+                      );
+                    },
+                  ),
+                _InlineDurationChoice(
+                  label:
+                      isCustom
+                          ? 'Altro · ${labelBuilder(value)}'
+                          : 'Altro',
+                  selected:
+                      isCustom,
+                  onTap:
+                      onCustom,
+                ),
+              ],
+            ),
+          ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineDurationChoice
+    extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _InlineDurationChoice({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context)
+            .colorScheme;
+
+    return Material(
+      color:
+          Colors.transparent,
+      child: InkWell(
+        onTap:
+            onTap,
+        borderRadius:
+            BorderRadius.circular(
+          6,
+        ),
+        child: Padding(
+          padding:
+              const EdgeInsets
+                  .fromLTRB(
+            7,
+            5,
+            7,
+            4,
+          ),
+          child: Column(
+            mainAxisSize:
+                MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style:
+                    Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(
+                          color:
+                              selected
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurfaceVariant,
+                          fontWeight:
+                              selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                        ),
+              ),
+              const SizedBox(
+                height: 4,
+              ),
+              AnimatedContainer(
+                duration:
+                    const Duration(
+                  milliseconds: 140,
+                ),
+                height: 2,
+                width:
+                    selected
+                        ? 22
+                        : 0,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      colorScheme.primary,
+                  borderRadius:
+                      BorderRadius.circular(
+                    999,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -2434,18 +4287,11 @@ class _RecurrencePickerSheetState
               height: 22,
             ),
 
-            SizedBox(
-              width:
-                  double.infinity,
-              child:
-                  FilledButton(
-                onPressed:
-                    _confirm,
-                child:
-                    const Text(
+            _SheetPrimaryAction(
+              label:
                   'Conferma',
-                ),
-              ),
+              onTap:
+                  _confirm,
             ),
           ],
         ),
@@ -2482,38 +4328,16 @@ class _RecurrenceChoiceRow
             onTap,
         borderRadius:
             BorderRadius.circular(
-          12,
+          10,
         ),
         child: Padding(
           padding:
               const EdgeInsets
                   .symmetric(
-            vertical: 14,
+            vertical: 13,
           ),
           child: Row(
             children: [
-              SizedBox(
-                width: 32,
-                child: Icon(
-                  selected
-                      ? Icons
-                          .radio_button_checked
-                      : Icons
-                          .radio_button_unchecked,
-                  size: 20,
-                  color:
-                      selected
-                          ? colorScheme
-                              .primary
-                          : colorScheme
-                              .onSurfaceVariant,
-                ),
-              ),
-
-              const SizedBox(
-                width: 12,
-              ),
-
               Expanded(
                 child: Text(
                   label,
@@ -2522,13 +4346,32 @@ class _RecurrenceChoiceRow
                           .textTheme
                           .bodyLarge
                           ?.copyWith(
+                            color:
+                                selected
+                                    ? colorScheme.primary
+                                    : colorScheme
+                                        .onSurface,
                             fontWeight:
                                 selected
-                                    ? FontWeight
-                                        .w700
-                                    : FontWeight
-                                        .w500,
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                           ),
+                ),
+              ),
+              AnimatedOpacity(
+                duration:
+                    const Duration(
+                  milliseconds: 140,
+                ),
+                opacity:
+                    selected
+                        ? 1
+                        : 0,
+                child: Icon(
+                  Icons.check_rounded,
+                  size: 19,
+                  color:
+                      colorScheme.primary,
                 ),
               ),
             ],
@@ -2561,18 +4404,46 @@ class _WeekdayChoice
 
     return Material(
       color:
-          selected
-              ? colorScheme.primary
-              : Colors.transparent,
-      shape:
-          const CircleBorder(),
+          Colors.transparent,
       child: InkWell(
         onTap:
             onTap,
-        customBorder:
-            const CircleBorder(),
-        child: AspectRatio(
-          aspectRatio: 1,
+        borderRadius:
+            BorderRadius.circular(
+          9,
+        ),
+        child: AnimatedContainer(
+          duration:
+              const Duration(
+            milliseconds: 140,
+          ),
+          height: 36,
+          decoration:
+              BoxDecoration(
+            color:
+                selected
+                    ? colorScheme.primary
+                        .withValues(
+                          alpha: 0.11,
+                        )
+                    : Colors
+                        .transparent,
+            borderRadius:
+                BorderRadius.circular(
+              9,
+            ),
+            border:
+                Border.all(
+              color:
+                  selected
+                      ? colorScheme.primary
+                      : colorScheme
+                          .outlineVariant
+                          .withValues(
+                            alpha: 0.72,
+                          ),
+            ),
+          ),
           child: Center(
             child: Text(
               label,
@@ -2583,13 +4454,11 @@ class _WeekdayChoice
                       ?.copyWith(
                         color:
                             selected
-                                ? colorScheme
-                                    .onPrimary
+                                ? colorScheme.primary
                                 : colorScheme
                                     .onSurfaceVariant,
                         fontWeight:
-                            FontWeight
-                                .w700,
+                            FontWeight.w700,
                       ),
             ),
           ),
@@ -3738,7 +5607,6 @@ class _DurationPickerSheetState
     extends State<_DurationPickerSheet> {
   late final TextEditingController
       _hoursController;
-
   late final TextEditingController
       _minutesController;
 
@@ -3778,41 +5646,6 @@ class _DurationPickerSheetState
     super.dispose();
   }
 
-  String _durationLabel(
-    int minutes,
-  ) {
-    final hours =
-        minutes ~/ 60;
-
-    final remaining =
-        minutes % 60;
-
-    if (hours == 0) {
-      return '$remaining min';
-    }
-
-    if (remaining == 0) {
-      return hours == 1
-          ? '1 ora'
-          : '$hours ore';
-    }
-
-    return '$hours h '
-        '$remaining min';
-  }
-
-  void _applyQuickDuration(
-    int minutes,
-  ) {
-    FocusScope.of(context)
-        .unfocus();
-
-    Navigator.pop(
-      context,
-      minutes,
-    );
-  }
-
   void _confirmCustomDuration() {
     final hours =
         int.tryParse(
@@ -3829,8 +5662,7 @@ class _DurationPickerSheetState
     if (minutes >= 60) {
       setState(() {
         _errorText =
-            'I minuti devono essere '
-            'compresi tra 0 e 59.';
+            'I minuti devono essere compresi tra 0 e 59.';
       });
       return;
     }
@@ -3841,8 +5673,7 @@ class _DurationPickerSheetState
     if (total <= 0) {
       setState(() {
         _errorText =
-            'Inserisci una durata '
-            'maggiore di zero.';
+            'Inserisci una durata maggiore di zero.';
       });
       return;
     }
@@ -3883,361 +5714,170 @@ class _DurationPickerSheetState
           context,
         ).bottom,
       ),
-
-      child:
-          SingleChildScrollView(
-        keyboardDismissBehavior:
-            ScrollViewKeyboardDismissBehavior
-                .onDrag,
-
-        padding:
-            const EdgeInsets
-                .fromLTRB(
-          22,
-          4,
-          22,
-          24,
-        ),
-
-        child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
-
-          crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
-
-          children: [
-            Text(
-              'Durata',
-              style:
-                  Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(
-                        fontWeight:
-                            FontWeight
-                                .w700,
-                      ),
-            ),
-
-            const SizedBox(
-              height: 5,
-            ),
-
-            Text(
-              'Scelta rapida oppure '
-              'precisione al minuto.',
-              style:
-                  Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(
-                        color:
-                            colorScheme
-                                .onSurfaceVariant,
-                      ),
-            ),
-
-            const SizedBox(
-              height: 20,
-            ),
-
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-
-              children: [
-                for (final minutes
-                    in const [
-                  5,
-                  10,
-                  15,
-                  20,
-                  25,
-                  30,
-                  45,
-                  60,
-                  90,
-                  120,
-                ])
-                  _QuickDuration(
-                    label:
-                        _durationLabel(
-                      minutes,
-                    ),
-                    selected:
-                        widget.initialMinutes ==
-                            minutes,
-                    onTap: () {
-                      _applyQuickDuration(
-                        minutes,
-                      );
-                    },
-                  ),
-              ],
-            ),
-
-            const SizedBox(
-              height: 28,
-            ),
-
-            Text(
-              'Personalizzata',
-              style:
-                  Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(
-                        fontWeight:
-                            FontWeight
-                                .w700,
-                      ),
-            ),
-
-            const SizedBox(
-              height: 12,
-            ),
-
-            Row(
-              children: [
-                Expanded(
-                  child:
-                      TextField(
-                    controller:
-                        _hoursController,
-
-                    onTapOutside:
-                        (_) {
-                      FocusManager
-                          .instance
-                          .primaryFocus
-                          ?.unfocus();
-                    },
-
-                    keyboardType:
-                        TextInputType
-                            .number,
-
-                    inputFormatters: [
-                      FilteringTextInputFormatter
-                          .digitsOnly,
-                    ],
-
-                    decoration:
-                        const InputDecoration(
-                      labelText:
-                          'Ore',
-                      hintText:
-                          '0',
-                      border:
-                          UnderlineInputBorder(),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(
-                  width: 22,
-                ),
-
-                Expanded(
-                  child:
-                      TextField(
-                    controller:
-                        _minutesController,
-
-                    onTapOutside:
-                        (_) {
-                      FocusManager
-                          .instance
-                          .primaryFocus
-                          ?.unfocus();
-                    },
-
-                    keyboardType:
-                        TextInputType
-                            .number,
-
-                    inputFormatters: [
-                      FilteringTextInputFormatter
-                          .digitsOnly,
-                    ],
-
-                    decoration:
-                        const InputDecoration(
-                      labelText:
-                          'Minuti',
-                      hintText:
-                          '0',
-                      helperText:
-                          '0–59',
-                      border:
-                          UnderlineInputBorder(),
-                    ),
-
-                    onSubmitted:
-                        (_) {
-                      _confirmCustomDuration();
-                    },
-                  ),
-                ),
-              ],
-            ),
-
-            if (_errorText !=
-                null) ...[
-              const SizedBox(
-                height: 10,
-              ),
-
-              Text(
-                _errorText!,
-                style:
-                    TextStyle(
-                  color:
-                      colorScheme
-                          .error,
-                ),
-              ),
-            ],
-
-            const SizedBox(
-              height: 20,
-            ),
-
-            SizedBox(
-              width:
-                  double.infinity,
-
-              child:
-                  FilledButton(
-                onPressed:
-                    _confirmCustomDuration,
-                child:
-                    const Text(
-                  'Conferma',
-                ),
-              ),
-            ),
-
-            const SizedBox(
-              height: 6,
-            ),
-
-            SizedBox(
-              width:
-                  double.infinity,
-
-              child:
-                  TextButton(
-                onPressed:
-                    _removeDuration,
-                child:
-                    const Text(
-                  'Rimuovi durata',
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickDuration
-    extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _QuickDuration({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
-
-    return Material(
-      color:
-          selected
-              ? colorScheme.primary
-                  .withValues(
-                    alpha: 0.1,
-                  )
-              : Colors
-                  .transparent,
-
-      borderRadius:
-          BorderRadius.circular(
-        999,
-      ),
-
-      child: InkWell(
-        onTap:
-            onTap,
-
-        borderRadius:
-            BorderRadius.circular(
-          999,
-        ),
-
+      child: SafeArea(
+        top: false,
         child: Container(
+          margin:
+              const EdgeInsets
+                  .fromLTRB(
+            12,
+            0,
+            12,
+            12,
+          ),
           padding:
               const EdgeInsets
-                  .symmetric(
-            horizontal: 13,
-            vertical: 8,
+                  .fromLTRB(
+            20,
+            18,
+            20,
+            16,
           ),
-
           decoration:
               BoxDecoration(
+            color:
+                colorScheme.surface,
+            borderRadius:
+                BorderRadius.circular(
+              22,
+            ),
             border:
                 Border.all(
               color:
-                  selected
-                      ? colorScheme
-                          .primary
-                      : colorScheme
-                          .outlineVariant,
-            ),
-            borderRadius:
-                BorderRadius
-                    .circular(
-              999,
+                  colorScheme
+                      .outlineVariant
+                      .withValues(
+                        alpha: 0.52,
+                      ),
             ),
           ),
-
-          child: Text(
-            label,
-            style:
-                Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(
-                      color:
-                          selected
-                              ? colorScheme
-                                  .primary
-                              : colorScheme
-                                  .onSurface,
-                      fontWeight:
-                          selected
-                              ? FontWeight
-                                  .w700
-                              : FontWeight
-                                  .w500,
+          child:
+              SingleChildScrollView(
+            keyboardDismissBehavior:
+                ScrollViewKeyboardDismissBehavior
+                    .onDrag,
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Durata esatta',
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(
+                            fontWeight:
+                                FontWeight.w700,
+                            letterSpacing:
+                                -0.4,
+                          ),
+                ),
+                const SizedBox(
+                  height: 4,
+                ),
+                Text(
+                  'Usa ore e minuti quando i valori rapidi non bastano.',
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                            color:
+                                colorScheme
+                                    .onSurfaceVariant,
+                            height:
+                                1.35,
+                          ),
+                ),
+                const SizedBox(
+                  height: 14,
+                ),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 112,
+                      child:
+                          _NumberPickerField(
+                        controller:
+                            _hoursController,
+                        label:
+                            'Ore',
+                        onSubmitted:
+                            (_) {
+                          _confirmCustomDuration();
+                        },
+                      ),
                     ),
+                    const SizedBox(
+                      width: 28,
+                    ),
+                    SizedBox(
+                      width: 128,
+                      child:
+                          _NumberPickerField(
+                        controller:
+                            _minutesController,
+                        label:
+                            'Minuti',
+                        helper:
+                            '0–59',
+                        onSubmitted:
+                            (_) {
+                          _confirmCustomDuration();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                if (_errorText !=
+                    null) ...[
+                  const SizedBox(
+                    height: 9,
+                  ),
+                  Text(
+                    _errorText!,
+                    style:
+                        Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              color:
+                                  colorScheme.error,
+                              fontWeight:
+                                  FontWeight.w600,
+                            ),
+                  ),
+                ],
+                const SizedBox(
+                  height: 18,
+                ),
+                _SheetPrimaryAction(
+                  label:
+                      'Conferma',
+                  onTap:
+                      _confirmCustomDuration,
+                ),
+                const SizedBox(
+                  height: 4,
+                ),
+                _SheetTextAction(
+                  label:
+                      'Rimuovi durata',
+                  onTap:
+                      _removeDuration,
+                  color:
+                      colorScheme
+                          .onSurfaceVariant,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
+
