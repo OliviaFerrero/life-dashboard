@@ -1,6 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+
+import '../core/time/app_clock.dart';
 
 import '../models/life_task.dart';
 import '../models/task_category.dart';
@@ -31,33 +31,6 @@ class TodayPage extends StatefulWidget {
 }
 
 class _TodayPageState extends State<TodayPage> {
-  Timer? _clockTimer;
-  DateTime _now = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-
-    _clockTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) {
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          _now = DateTime.now();
-        });
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _clockTimer?.cancel();
-    super.dispose();
-  }
-
   String _dayLabel(
     DateTime date,
   ) {
@@ -375,14 +348,16 @@ class _TodayPageState extends State<TodayPage> {
   Widget build(
     BuildContext context,
   ) {
+    final now =
+        AppClockScope.watch(
+      context,
+    ).now;
+
     return AnimatedBuilder(
       animation:
           widget.daySettingsController,
       builder:
           (context, _) {
-        final now =
-            _now;
-
         final dayWindowStart =
             widget.daySettingsController
                 .personalDayStartFor(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/time/app_clock.dart';
+import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
 import '../../models/task_occurrence.dart';
@@ -303,20 +305,18 @@ class _TaskDetailPageState
     }
 
     final now =
-        DateTime.now();
+        AppClockScope.read(
+      context,
+    ).now;
 
     final today =
-        DateTime(
-      now.year,
-      now.month,
-      now.day,
+        CivilDate.dateOnly(
+      now,
     );
 
     final date =
-        DateTime(
-      dateValue.year,
-      dateValue.month,
-      dateValue.day,
+        CivilDate.dateOnly(
+      dateValue,
     );
 
     if (date.isBefore(today)) {
@@ -1178,6 +1178,10 @@ class _TaskDetailPageState
   Widget build(
     BuildContext context,
   ) {
+    AppClockScope.watch(
+      context,
+    );
+
     final colorScheme =
         Theme.of(context)
             .colorScheme;

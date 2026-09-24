@@ -443,7 +443,9 @@ class _WeekDayHeader extends StatelessWidget {
         Theme.of(context).colorScheme;
 
     final now =
-        DateTime.now();
+        AppClockScope.watch(
+      context,
+    ).now;
 
     final today =
         DateTime(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/time/app_clock.dart';
 import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
@@ -301,10 +302,8 @@ class _TasksPageState
 
   String _groupLabel(
     DateTime date,
+    DateTime now,
   ) {
-    final now =
-        DateTime.now();
-
     final today =
         _dateOnly(now);
 
@@ -565,7 +564,9 @@ class _TasksPageState
     BuildContext context,
   ) {
     final now =
-        DateTime.now();
+        AppClockScope.watch(
+      context,
+    ).now;
 
     return Scaffold(
       appBar: AppBar(
@@ -836,6 +837,7 @@ class _TasksPageState
                                 entry.value
                                     .first
                                     .date,
+                                now,
                               ),
                               occurrences:
                                   entry.value,
@@ -936,7 +938,11 @@ class _TasksPageState
                               });
                             },
                             groupLabelBuilder:
-                                _groupLabel,
+                                (date) =>
+                                    _groupLabel(
+                                  date,
+                                  now,
+                                ),
                             groupKeyBuilder:
                                 _groupKey,
                             timeLabelBuilder:

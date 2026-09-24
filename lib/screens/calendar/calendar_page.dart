@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../core/time/app_clock.dart';
 import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
@@ -85,6 +86,12 @@ class _CalendarPageState extends State<CalendarPage>
 
   late DateTime _selectedDay;
   late DateTime _focusedDay;
+  bool _didInitializeDate = false;
+
+  DateTime get _now =>
+      AppClockScope.read(
+        context,
+      ).now;
 
   CalendarFormat _calendarFormat = CalendarFormat.month;
 
@@ -114,15 +121,31 @@ class _CalendarPageState extends State<CalendarPage>
           0,
     );
 
-    final now = DateTime.now();
+  }
 
-    _selectedDay = DateTime(
-      now.year,
-      now.month,
-      now.day,
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final clock =
+        AppClockScope.watch(
+      context,
     );
 
-    _focusedDay = _selectedDay;
+    if (_didInitializeDate) {
+      return;
+    }
+
+    _selectedDay =
+        CivilDate.dateOnly(
+      clock.now,
+    );
+
+    _focusedDay =
+        _selectedDay;
+
+    _didInitializeDate =
+        true;
   }
 
   @override
@@ -616,11 +639,9 @@ class _CalendarPageState extends State<CalendarPage>
 
 
   void _goToToday() {
-    final now = DateTime.now();
-    final today = DateTime(
-      now.year,
-      now.month,
-      now.day,
+    final today =
+        CivilDate.dateOnly(
+      _now,
     );
 
     setState(() {
@@ -656,6 +677,10 @@ class _CalendarPageState extends State<CalendarPage>
   Widget build(
     BuildContext context,
   ) {
+    AppClockScope.watch(
+      context,
+    );
+
     final rangeStart =
         _rangeStart();
     final rangeEndExclusive =

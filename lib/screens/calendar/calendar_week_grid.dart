@@ -181,7 +181,9 @@ class _WeekHourlyGrid
     };
 
     final now =
-        DateTime.now();
+        AppClockScope.watch(
+      context,
+    ).now;
     final today =
         DateTime(
       now.year,

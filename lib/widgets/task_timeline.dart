@@ -1,8 +1,8 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../core/time/app_clock.dart';
 import '../core/time/civil_date.dart';
 
 import '../models/life_task.dart';
@@ -103,8 +103,10 @@ class _TaskTimelineState extends State<TaskTimeline> {
 
   static const Color _nowColor = Color(0xFFE07A3F);
 
-  Timer? _clockTimer;
-  DateTime _now = DateTime.now();
+  DateTime get _now =>
+      AppClockScope.read(
+        context,
+      ).now;
 
   final GlobalKey _nowMarkerKey = GlobalKey();
   bool _didAutoScrollToNow = false;
@@ -113,24 +115,6 @@ class _TaskTimelineState extends State<TaskTimeline> {
   final Map<String, double> _overlapDragDxByGroup = {};
   final Map<String, bool> _overlapDraggingByGroup = {};
   final Map<String, int> _overlapTransitionDirectionByGroup = {};
-
-  @override
-  void initState() {
-    super.initState();
-
-    _clockTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) {
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          _now = DateTime.now();
-        });
-      },
-    );
-  }
 
   @override
   void didUpdateWidget(
@@ -145,13 +129,11 @@ class _TaskTimelineState extends State<TaskTimeline> {
   }
 
   @override
-  void dispose() {
-    _clockTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    AppClockScope.watch(
+      context,
+    );
+
     final untimed = <TaskOccurrence>[];
     final timed = <_TimedOccurrence>[];
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/time/app_clock.dart';
+import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
 import '../../models/task_recurrence.dart';
@@ -388,6 +390,13 @@ class _TaskFormPageState
   Future<void> _selectDate() async {
     _dismissKeyboard();
 
+    final today =
+        CivilDate.dateOnly(
+      AppClockScope.read(
+        context,
+      ).now,
+    );
+
     final result =
         await showModalBottomSheet<DateTime>(
       context: context,
@@ -405,7 +414,9 @@ class _TaskFormPageState
         return _DatePickerSheet(
           initialDate:
               _selectedDate ??
-                  DateTime.now(),
+                  today,
+          today:
+              today,
         );
       },
     );
@@ -2578,9 +2589,11 @@ class _NumberPickerField
 class _DatePickerSheet
     extends StatefulWidget {
   final DateTime initialDate;
+  final DateTime today;
 
   const _DatePickerSheet({
     required this.initialDate,
+    required this.today,
   });
 
   @override
@@ -2686,21 +2699,12 @@ class _DatePickerSheetState
         Theme.of(context)
             .colorScheme;
 
-    final now =
-        DateTime.now();
-
     final today =
-        DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+        widget.today;
 
     final tomorrow =
-        today.add(
-      const Duration(
-        days: 1,
-      ),
+        CivilDate.nextDay(
+      today,
     );
 
     final firstDay =

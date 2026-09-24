@@ -285,7 +285,7 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
     final colorScheme =
         Theme.of(context).colorScheme;
     final now =
-        DateTime.now();
+        _now;
 
     final selectedOccurrences =
         _occurrencesForDay(

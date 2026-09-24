@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'core/time/app_clock.dart';
 import 'database/app_database.dart';
 import 'repositories/category_repository.dart';
 import 'repositories/task_repository.dart';
@@ -22,11 +23,16 @@ void main() {
   final categoryRepository =
       CategoryRepository(database);
 
+  final appClock =
+      AppClock();
+
   runApp(
     LifeDashboardApp(
       taskRepository: taskRepository,
       categoryRepository:
           categoryRepository,
+      appClock:
+          appClock,
     ),
   );
 }
@@ -35,16 +41,22 @@ class LifeDashboardApp
     extends StatelessWidget {
   final TaskRepository taskRepository;
   final CategoryRepository categoryRepository;
+  final AppClock appClock;
 
   const LifeDashboardApp({
     super.key,
     required this.taskRepository,
     required this.categoryRepository,
+    required this.appClock,
   });
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return AppClockScope(
+      clock:
+          appClock,
+      child:
+          MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Life Dashboard',
 
@@ -102,6 +114,7 @@ class LifeDashboardApp
         categoryRepository:
             categoryRepository,
       ),
+          ),
     );
   }
 }
