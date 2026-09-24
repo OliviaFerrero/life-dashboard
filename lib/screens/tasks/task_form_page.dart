@@ -7,6 +7,7 @@ import '../../models/task_recurrence.dart';
 import '../../models/task_subtask.dart';
 import '../../repositories/category_repository.dart';
 import '../../utils/task_category_icons.dart';
+import '../../widgets/life_confirmation_dialog.dart';
 import 'category_management_page.dart';
 
 class TaskFormResult {
@@ -1172,58 +1173,30 @@ class _TaskFormPageState
   Future<void> _deleteTask() async {
     _dismissKeyboard();
 
+    final recurring =
+        widget.initialTask!
+            .recurrence
+            .isRecurring;
+
     final confirmed =
-        await showDialog<bool>(
-      context: context,
-
-      builder: (context) {
-        final recurring =
-            widget.initialTask!
-                .recurrence
-                .isRecurring;
-
-        return AlertDialog(
-          title:
-              Text(
-            recurring
-                ? 'Eliminare serie?'
-                : 'Eliminare attività?',
-          ),
-          content: Text(
-            recurring
-                ? 'Vuoi eliminare tutta la serie '
-                    '"${widget.initialTask!.title}"?'
-                : 'Vuoi eliminare '
-                    '"${widget.initialTask!.title}"?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  false,
-                );
-              },
-              child:
-                  const Text(
-                'Annulla',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  true,
-                );
-              },
-              child:
-                  const Text(
-                'Elimina',
-              ),
-            ),
-          ],
-        );
-      },
+        await showLifeConfirmationDialog(
+      context,
+      title:
+          recurring
+              ? 'Eliminare serie?'
+              : 'Eliminare attività?',
+      message:
+          recurring
+              ? 'Vuoi eliminare tutta la serie '
+                  '"${widget.initialTask!.title}"?'
+              : 'Vuoi eliminare '
+                  '"${widget.initialTask!.title}"?',
+      confirmLabel:
+          'Elimina',
+      destructive:
+          true,
+      icon:
+          Icons.delete_outline,
     );
 
     if (confirmed != true ||

@@ -8,6 +8,7 @@ import '../../models/task_subtask.dart';
 import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
+import '../../widgets/life_confirmation_dialog.dart';
 import 'task_form_page.dart';
 
 enum _RecurringActionScope {
@@ -366,53 +367,21 @@ class _TaskDetailPageState
       return true;
     }
 
-    final confirmed =
-        await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title:
-              const Text(
-            'Completare attività?',
-          ),
-          content: Text(
-            remaining == 1
-                ? 'C’è ancora 1 sottoattività da completare. '
-                    'Completando l’attività verrà completata anche quella.'
-                : 'Ci sono ancora $remaining sottoattività da completare. '
-                    'Completando l’attività verranno completate tutte.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  false,
-                );
-              },
-              child:
-                  const Text(
-                'Annulla',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  true,
-                );
-              },
-              child:
-                  const Text(
-                'Completa tutto',
-              ),
-            ),
-          ],
-        );
-      },
+    return showLifeConfirmationDialog(
+      context,
+      title:
+          'Completare attività?',
+      message:
+          remaining == 1
+              ? 'C’è ancora 1 sottoattività da completare. '
+                  'Completando l’attività verrà completata anche quella.'
+              : 'Ci sono ancora $remaining sottoattività da completare. '
+                  'Completando l’attività verranno completate tutte.',
+      confirmLabel:
+          'Completa tutto',
+      icon:
+          Icons.check_circle_outline,
     );
-
-    return confirmed == true;
   }
 
   Future<void> _toggleSubtask(
@@ -898,50 +867,24 @@ class _TaskDetailPageState
         _seriesTask.recurrence.isRecurring;
 
     final confirmed =
-        await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            recurring
-                ? 'Eliminare serie?'
-                : 'Eliminare attività?',
-          ),
-          content: Text(
-            recurring
-                ? 'Vuoi eliminare tutta la serie '
-                    '"${_seriesTask.title}"?'
-                : 'Vuoi eliminare '
-                    '"${_seriesTask.title}"?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  false,
-                );
-              },
-              child:
-                  const Text(
-                'Annulla',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  true,
-                );
-              },
-              child:
-                  const Text(
-                'Elimina',
-              ),
-            ),
-          ],
-        );
-      },
+        await showLifeConfirmationDialog(
+      context,
+      title:
+          recurring
+              ? 'Eliminare serie?'
+              : 'Eliminare attività?',
+      message:
+          recurring
+              ? 'Vuoi eliminare tutta la serie '
+                  '"${_seriesTask.title}"?'
+              : 'Vuoi eliminare '
+                  '"${_seriesTask.title}"?',
+      confirmLabel:
+          'Elimina',
+      destructive:
+          true,
+      icon:
+          Icons.delete_outline,
     );
 
     if (confirmed != true) {
@@ -972,47 +915,19 @@ class _TaskDetailPageState
     }
 
     final confirmed =
-        await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title:
-              const Text(
-            'Eliminare questa occorrenza?',
-          ),
-          content:
-              const Text(
-            'Verrà rimossa solo questa data. '
-            'Le altre occorrenze della serie resteranno invariate.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  false,
-                );
-              },
-              child:
-                  const Text(
-                'Annulla',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  true,
-                );
-              },
-              child:
-                  const Text(
-                'Elimina',
-              ),
-            ),
-          ],
-        );
-      },
+        await showLifeConfirmationDialog(
+      context,
+      title:
+          'Eliminare questa occorrenza?',
+      message:
+          'Verrà rimossa solo questa data. '
+          'Le altre occorrenze della serie resteranno invariate.',
+      confirmLabel:
+          'Elimina',
+      destructive:
+          true,
+      icon:
+          Icons.event_busy_outlined,
     );
 
     if (confirmed != true) {
