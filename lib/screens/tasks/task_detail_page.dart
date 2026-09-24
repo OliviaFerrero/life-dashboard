@@ -1258,135 +1258,6 @@ class _TaskDetailPageState
     }
   }
 
-  Future<void> _showTaskActions() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor:
-          Colors.transparent,
-      barrierColor:
-          Colors.black.withValues(
-        alpha: 0.28,
-      ),
-      isScrollControlled:
-          false,
-      builder: (sheetContext) {
-        final colorScheme =
-            Theme.of(sheetContext)
-                .colorScheme;
-
-        return SafeArea(
-          top: false,
-          child: Container(
-            margin:
-                const EdgeInsets
-                    .fromLTRB(
-              12,
-              0,
-              12,
-              12,
-            ),
-            padding:
-                const EdgeInsets
-                    .fromLTRB(
-              20,
-              18,
-              20,
-              10,
-            ),
-            decoration:
-                BoxDecoration(
-              color:
-                  colorScheme.surface,
-              borderRadius:
-                  BorderRadius.circular(
-                24,
-              ),
-              border:
-                  Border.all(
-                color:
-                    colorScheme
-                        .outlineVariant
-                        .withValues(
-                  alpha:
-                      0.55,
-                ),
-              ),
-            ),
-            child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-              children: [
-                Text(
-                  'AZIONI',
-                  style:
-                      Theme.of(
-                    sheetContext,
-                  )
-                          .textTheme
-                          .labelMedium
-                          ?.copyWith(
-                            color:
-                                colorScheme
-                                    .onSurfaceVariant,
-                            fontWeight:
-                                FontWeight
-                                    .w800,
-                            letterSpacing:
-                                1,
-                          ),
-                ),
-                const SizedBox(
-                  height: 8,
-                ),
-                _ActionSheetRow(
-                  icon:
-                      Icons
-                          .edit_outlined,
-                  label:
-                      'Modifica',
-                  onTap: () {
-                    Navigator.pop(
-                      sheetContext,
-                    );
-                    _handleEditAction();
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  indent: 44,
-                  color:
-                      colorScheme
-                          .outlineVariant
-                          .withValues(
-                    alpha:
-                        0.5,
-                  ),
-                ),
-                _ActionSheetRow(
-                  icon:
-                      Icons
-                          .delete_outline,
-                  label:
-                      'Elimina',
-                  isDestructive:
-                      true,
-                  onTap: () {
-                    Navigator.pop(
-                      sheetContext,
-                    );
-                    _handleDeleteAction();
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(
@@ -1416,15 +1287,134 @@ class _TaskDetailPageState
           'Dettaglio',
         ),
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             tooltip:
                 'Azioni attività',
-            onPressed:
-                _showTaskActions,
             icon:
                 const Icon(
               Icons.more_horiz,
             ),
+            offset:
+                const Offset(
+              0,
+              8,
+            ),
+            elevation:
+                3,
+            color:
+                colorScheme.surface,
+            surfaceTintColor:
+                Colors.transparent,
+            shape:
+                RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(
+                14,
+              ),
+              side:
+                  BorderSide(
+                color:
+                    colorScheme
+                        .outlineVariant
+                        .withValues(
+                          alpha:
+                              0.55,
+                        ),
+              ),
+            ),
+            constraints:
+                const BoxConstraints(
+              minWidth:
+                  168,
+            ),
+            onSelected:
+                (value) {
+              switch (value) {
+                case 'edit':
+                  _handleEditAction();
+                  break;
+                case 'delete':
+                  _handleDeleteAction();
+                  break;
+              }
+            },
+            itemBuilder:
+                (menuContext) {
+              return [
+                PopupMenuItem<String>(
+                  value:
+                      'edit',
+                  height:
+                      46,
+                  child:
+                      Row(
+                    children: [
+                      const Icon(
+                        Icons
+                            .edit_outlined,
+                        size:
+                            19,
+                      ),
+                      const SizedBox(
+                        width:
+                            10,
+                      ),
+                      Text(
+                        'Modifica',
+                        style:
+                            Theme.of(
+                          menuContext,
+                        )
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontWeight:
+                                      FontWeight.w600,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value:
+                      'delete',
+                  height:
+                      46,
+                  child:
+                      Row(
+                    children: [
+                      Icon(
+                        Icons
+                            .delete_outline,
+                        size:
+                            19,
+                        color:
+                            colorScheme.error,
+                      ),
+                      const SizedBox(
+                        width:
+                            10,
+                      ),
+                      Text(
+                        'Elimina',
+                        style:
+                            Theme.of(
+                          menuContext,
+                        )
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color:
+                                      colorScheme.error,
+                                  fontWeight:
+                                      FontWeight.w600,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+              ];
+            },
           ),
           const SizedBox(
             width: 8,
@@ -1468,14 +1458,21 @@ class _TaskDetailPageState
                           .colorValue,
                     );
 
+          final hasTimedRange =
+              !_task.allDay &&
+                  _task.startTimeMinutes !=
+                      null &&
+                  _task.durationMinutes !=
+                      null;
+
           return ListView(
             padding:
                 const EdgeInsets
                     .fromLTRB(
               24,
-              10,
+              8,
               24,
-              120,
+              96,
             ),
             children: [
               Text(
@@ -1501,7 +1498,56 @@ class _TaskDetailPageState
               ),
 
               const SizedBox(
-                height: 18,
+                height: 14,
+              ),
+
+              Wrap(
+                spacing: 14,
+                runSpacing: 8,
+                children: [
+                  _TaskIdentityItem(
+                    icon:
+                        category == null
+                            ? Icons
+                                .remove_circle_outline
+                            : taskCategoryIcon(
+                                category
+                                    .iconKey,
+                              ),
+                    label:
+                        category?.name ??
+                            'Nessuna categoria',
+                    color:
+                        categoryColor,
+                  ),
+                  _TaskIdentityItem(
+                    icon:
+                        Icons.flag_outlined,
+                    label:
+                        _priorityLabel(
+                      _task.priority,
+                    ),
+                    color:
+                        priorityColor,
+                  ),
+                  if (_task.recurrence
+                      .isRecurring)
+                    _TaskIdentityItem(
+                      icon:
+                          Icons.repeat,
+                      label:
+                          _recurrenceLabel(
+                        _task.recurrence,
+                      ),
+                      color:
+                          colorScheme
+                              .onSurfaceVariant,
+                    ),
+                ],
+              ),
+
+              const SizedBox(
+                height: 16,
               ),
 
               _CompletionAction(
@@ -1519,7 +1565,7 @@ class _TaskDetailPageState
 
               if (isPast) ...[
                 const SizedBox(
-                  height: 26,
+                  height: 14,
                 ),
                 _OverdueNotice(
                   onReschedule:
@@ -1528,7 +1574,7 @@ class _TaskDetailPageState
               ],
 
               const SizedBox(
-                height: 38,
+                height: 30,
               ),
 
               const _SectionLabel(
@@ -1537,7 +1583,7 @@ class _TaskDetailPageState
               ),
 
               const SizedBox(
-                height: 14,
+                height: 12,
               ),
 
               if (effectiveDate ==
@@ -1552,51 +1598,28 @@ class _TaskDetailPageState
                       'Nessuna data assegnata',
                 )
               else
-                Text(
-                  _dateLabel(
-                    effectiveDate,
-                  ),
-                  style:
-                      Theme.of(
-                    context,
-                  )
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(
-                            fontWeight:
-                                FontWeight
-                                    .w700,
-                            letterSpacing:
-                                -0.25,
-                          ),
-                ),
-
-              if (_task.recurrence
-                  .isRecurring) ...[
-                const SizedBox(
-                  height: 16,
-                ),
                 _InfoLine(
                   icon:
-                      Icons.repeat,
+                      Icons
+                          .calendar_today_outlined,
                   title:
-                      'Ripetizione',
+                      'Data',
                   value:
-                      _recurrenceLabel(
-                    _task.recurrence,
+                      _dateLabel(
+                    effectiveDate,
                   ),
                 ),
-              ],
 
               if (widget.occurrence
                       ?.hasOverride ==
                   true) ...[
                 const SizedBox(
-                  height: 16,
+                  height: 12,
                 ),
                 const _InfoLine(
                   icon:
-                      Icons.tune_outlined,
+                      Icons
+                          .tune_outlined,
                   title:
                       'Eccezione',
                   value:
@@ -1606,7 +1629,7 @@ class _TaskDetailPageState
 
               if (_task.allDay) ...[
                 const SizedBox(
-                  height: 16,
+                  height: 12,
                 ),
                 const _InfoLine(
                   icon:
@@ -1621,7 +1644,7 @@ class _TaskDetailPageState
                       .startTimeMinutes !=
                   null) ...[
                 const SizedBox(
-                  height: 18,
+                  height: 16,
                 ),
                 if (_task
                         .durationMinutes !=
@@ -1656,7 +1679,7 @@ class _TaskDetailPageState
               ] else if (effectiveDate !=
                   null) ...[
                 const SizedBox(
-                  height: 16,
+                  height: 12,
                 ),
                 const _InfoLine(
                   icon:
@@ -1672,14 +1695,16 @@ class _TaskDetailPageState
               if (_task.durationMinutes !=
                   null) ...[
                 const SizedBox(
-                  height: 16,
+                  height: 12,
                 ),
                 _InfoLine(
                   icon:
                       Icons
                           .timer_outlined,
                   title:
-                      'Durata',
+                      hasTimedRange
+                          ? 'Durata'
+                          : 'Durata prevista',
                   value:
                       _durationLabel(
                     _task
@@ -1690,11 +1715,11 @@ class _TaskDetailPageState
 
               if (_subtasks.isNotEmpty) ...[
                 const SizedBox(
-                  height: 34,
+                  height: 28,
                 ),
                 const _SoftDivider(),
                 const SizedBox(
-                  height: 28,
+                  height: 24,
                 ),
 
                 Row(
@@ -1725,7 +1750,7 @@ class _TaskDetailPageState
                 ),
 
                 const SizedBox(
-                  height: 10,
+                  height: 8,
                 ),
 
                 for (var index = 0;
@@ -1754,16 +1779,16 @@ class _TaskDetailPageState
                           colorScheme
                               .outlineVariant
                               .withValues(
-                            alpha:
-                                0.45,
-                          ),
+                                alpha:
+                                    0.45,
+                              ),
                     ),
                 ],
 
                 if (_completedSubtaskCount ==
                     _subtasks.length) ...[
                   const SizedBox(
-                    height: 10,
+                    height: 8,
                   ),
                   Text(
                     'Tutte le sottoattività sono completate.',
@@ -1782,167 +1807,88 @@ class _TaskDetailPageState
                 ],
               ],
 
-              const SizedBox(
-                height: 34,
-              ),
-              const _SoftDivider(),
-              const SizedBox(
-                height: 28,
-              ),
+              if (_task.description
+                  .trim()
+                  .isNotEmpty) ...[
+                const SizedBox(
+                  height: 28,
+                ),
+                const _SoftDivider(),
+                const SizedBox(
+                  height: 24,
+                ),
 
-              const _SectionLabel(
-                text:
-                    'CATEGORIA',
-              ),
-              const SizedBox(
-                height: 13,
-              ),
+                const _SectionLabel(
+                  text:
+                      'NOTE',
+                ),
 
-              Row(
-                children: [
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          categoryColor
-                              .withValues(
-                        alpha:
-                            0.11,
-                      ),
-                      shape:
-                          BoxShape
-                              .circle,
-                    ),
-                    child: Icon(
-                      category == null
-                          ? Icons
-                              .remove_circle_outline
-                          : taskCategoryIcon(
-                              category
-                                  .iconKey,
-                            ),
-                      size: 17,
-                      color:
-                          categoryColor,
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  Text(
-                    category?.name ??
-                        'Nessuna categoria',
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .bodyLarge
-                            ?.copyWith(
-                              color:
-                                  categoryColor,
-                              fontWeight:
-                                  FontWeight
-                                      .w700,
-                            ),
-                  ),
-                ],
-              ),
+                const SizedBox(
+                  height: 10,
+                ),
 
-              const SizedBox(
-                height: 34,
-              ),
-              const _SoftDivider(),
-              const SizedBox(
-                height: 28,
-              ),
-
-              const _SectionLabel(
-                text:
-                    'PRIORITÀ',
-              ),
-              const SizedBox(
-                height: 13,
-              ),
-
-              Row(
-                children: [
-                  Icon(
-                    Icons
-                        .flag_outlined,
-                    size: 19,
-                    color:
-                        priorityColor,
-                  ),
-                  const SizedBox(
-                    width: 9,
-                  ),
-                  Text(
-                    _priorityLabel(
-                      _task
-                          .priority,
-                    ),
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .bodyLarge
-                            ?.copyWith(
-                              color:
-                                  priorityColor,
-                              fontWeight:
-                                  FontWeight
-                                      .w700,
-                            ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 34,
-              ),
-              const _SoftDivider(),
-              const SizedBox(
-                height: 28,
-              ),
-
-              const _SectionLabel(
-                text:
-                    'NOTE',
-              ),
-              const SizedBox(
-                height: 13,
-              ),
-
-              Text(
-                _task.description
-                        .trim()
-                        .isEmpty
-                    ? 'Nessuna nota.'
-                    : _task.description,
-                style:
-                    Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(
-                          height:
-                              1.55,
-                          color:
-                              _task.description
-                                      .trim()
-                                      .isEmpty
-                                  ? colorScheme
-                                      .onSurfaceVariant
-                                  : null,
-                        ),
-              ),
+                Text(
+                  _task.description,
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(
+                            height:
+                                1.5,
+                          ),
+                ),
+              ],
             ],
           );
         },
       ),
+    );
+  }
+}
+
+
+class _TaskIdentityItem
+    extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _TaskIdentityItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Row(
+      mainAxisSize:
+          MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: color,
+        ),
+        const SizedBox(
+          width: 5,
+        ),
+        Text(
+          label,
+          style:
+              Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(
+                    color: color,
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
+        ),
+      ],
     );
   }
 }
@@ -2265,24 +2211,22 @@ class _OverdueNotice
 
     return Container(
       padding:
-          const EdgeInsets
-              .fromLTRB(
-        16,
-        14,
-        12,
-        14,
+          const EdgeInsets.only(
+        left: 12,
       ),
       decoration:
           BoxDecoration(
-        color:
-            colorScheme
-                .errorContainer
-                .withValues(
-          alpha: 0.35,
-        ),
-        borderRadius:
-            BorderRadius.circular(
-          14,
+        border:
+            Border(
+          left:
+              BorderSide(
+            color:
+                colorScheme.error
+                    .withValues(
+                      alpha: 0.72,
+                    ),
+            width: 2,
+          ),
         ),
       ),
       child: Row(
@@ -2290,50 +2234,45 @@ class _OverdueNotice
           Icon(
             Icons
                 .event_repeat_outlined,
+            size: 18,
             color:
-                colorScheme
-                    .error,
+                colorScheme.error,
           ),
           const SizedBox(
-            width: 12,
+            width: 10,
           ),
           Expanded(
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
               children: [
                 Text(
-                  'DA RIPROGRAMMARE',
+                  'Da riprogrammare',
                   style:
-                      Theme.of(
-                    context,
-                  )
+                      Theme.of(context)
                           .textTheme
-                          .labelSmall
+                          .bodyMedium
                           ?.copyWith(
                             color:
-                                colorScheme
-                                    .error,
+                                colorScheme.error,
                             fontWeight:
-                                FontWeight
-                                    .w800,
-                            letterSpacing:
-                                0.7,
+                                FontWeight.w700,
                           ),
                 ),
                 const SizedBox(
-                  height: 2,
+                  height: 1,
                 ),
                 Text(
-                  'Questa attività è passata '
-                  'e non risulta completata.',
+                  'Attività passata non completata',
                   style:
-                      Theme.of(
-                    context,
-                  )
+                      Theme.of(context)
                           .textTheme
-                          .bodyMedium,
+                          .bodySmall
+                          ?.copyWith(
+                            color:
+                                colorScheme
+                                    .onSurfaceVariant,
+                          ),
                 ),
               ],
             ),
@@ -2343,7 +2282,7 @@ class _OverdueNotice
                 onReschedule,
             child:
                 const Text(
-              'Sposta a…',
+              'Sposta',
             ),
           ),
         ],
