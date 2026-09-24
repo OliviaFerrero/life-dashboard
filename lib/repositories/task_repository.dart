@@ -684,208 +684,196 @@ class TaskRepository {
 
   Stream<_TaskDataSnapshot>
       _watchTaskData() {
-    final query =
-        _database.select(
-      _database.taskItems,
-    ).join([
-      leftOuterJoin(
+    // Questa query serve solo come trigger reattivo.
+    //
+    // Osserva tutte le tabelle che compongono lo snapshot task e,
+    // quando una di esse cambia, ricostruisce lo snapshot con query
+    // separate. In questo modo evitiamo il vecchio join tra più
+    // relazioni one-to-many indipendenti, che poteva moltiplicare
+    // enormemente le righe SQL prima della deduplicazione in Dart.
+    final invalidationQuery =
+        _database.customSelect(
+      'SELECT 1',
+      readsFrom: {
+        _database.taskItems,
         _database.taskOccurrenceStates,
-        _database
-            .taskOccurrenceStates
-            .taskId
-            .equalsExp(
-              _database.taskItems.id,
-            ),
-      ),
-      leftOuterJoin(
         _database.taskSubtasks,
         _database
-            .taskSubtasks
-            .taskId
-            .equalsExp(
-              _database.taskItems.id,
-            ),
-      ),
-      leftOuterJoin(
-        _database
             .taskSubtaskOccurrenceStates,
-        _database
-            .taskSubtaskOccurrenceStates
-            .subtaskId
-            .equalsExp(
-              _database.taskSubtasks.id,
-            ),
-      ),
-      leftOuterJoin(
         _database.taskOccurrenceOverrides,
-        _database
-            .taskOccurrenceOverrides
-            .taskId
-            .equalsExp(
-              _database.taskItems.id,
-            ),
-      ),
-    ]);
+      },
+    );
 
-    return query.watch().map((rows) {
-      final taskRowsById =
-          <String, TaskItem>{};
-
-      final subtasksByTaskId =
-          <String, Map<String, TaskSubtask>>{};
-
-      final completedOccurrenceKeys =
-          <String>{};
-
-      final completedSubtaskOccurrenceKeys =
-          <String>{};
-
-      final overridesByTaskId =
-          <String,
-              Map<String, TaskOccurrenceOverrideRow>>{};
-
-      for (final result in rows) {
-        final taskRow =
-            result.readTable(
-          _database.taskItems,
+    return invalidationQuery
+        .watch()
+        .asyncMap(
+          (_) =>
+              _readTaskDataSnapshot(),
         );
+  }
 
-        taskRowsById.putIfAbsent(
-          taskRow.id,
-          () => taskRow,
-        );
+  Future<_TaskDataSnapshot>
+      _readTaskDataSnapshot() {
+    return _database.transaction(
+      () async {
+        final taskRows =
+            await _database
+                .select(
+                  _database.taskItems,
+                )
+                .get();
 
-        final occurrenceState =
-            result.readTableOrNull(
-          _database.taskOccurrenceStates,
-        );
+        final occurrenceStateRows =
+            await _database
+                .select(
+                  _database
+                      .taskOccurrenceStates,
+                )
+                .get();
 
-        if (occurrenceState != null &&
-            occurrenceState.isCompleted) {
-          completedOccurrenceKeys.add(
-            _stateKey(
-              occurrenceState.taskId,
-              occurrenceState.occurrenceDate,
-            ),
-          );
-        }
+        final subtaskRows =
+            await _database
+                .select(
+                  _database.taskSubtasks,
+                )
+                .get();
 
-        final subtaskRow =
-            result.readTableOrNull(
-          _database.taskSubtasks,
-        );
+        final subtaskStateRows =
+            await _database
+                .select(
+                  _database
+                      .taskSubtaskOccurrenceStates,
+                )
+                .get();
 
-        if (subtaskRow != null) {
+        final overrideRows =
+            await _database
+                .select(
+                  _database
+                      .taskOccurrenceOverrides,
+                )
+                .get();
+
+        final subtasksByTaskId =
+            <String,
+                List<TaskSubtask>>{};
+
+        for (final row
+            in subtaskRows) {
           subtasksByTaskId
               .putIfAbsent(
-                taskRow.id,
+                row.taskId,
                 () =>
-                    <String, TaskSubtask>{},
+                    <TaskSubtask>[],
               )
-              .putIfAbsent(
-                subtaskRow.id,
-                () => TaskSubtask(
-                  id: subtaskRow.id,
+              .add(
+                TaskSubtask(
+                  id: row.id,
                   title:
-                      subtaskRow.title,
+                      row.title,
                   sortOrder:
-                      subtaskRow.sortOrder,
+                      row.sortOrder,
                   isCompleted:
-                      subtaskRow
-                          .isCompleted,
+                      row.isCompleted,
                 ),
               );
         }
 
-        final subtaskState =
-            result.readTableOrNull(
-          _database
-              .taskSubtaskOccurrenceStates,
-        );
+        for (final subtasks
+            in subtasksByTaskId.values) {
+          subtasks.sort(
+            (a, b) {
+              final order =
+                  a.sortOrder.compareTo(
+                b.sortOrder,
+              );
 
-        if (subtaskState != null &&
-            subtaskState.isCompleted) {
-          completedSubtaskOccurrenceKeys.add(
-            _subtaskStateKey(
-              subtaskState.subtaskId,
-              subtaskState.occurrenceDate,
-            ),
+              if (order != 0) {
+                return order;
+              }
+
+              return a.title
+                  .toLowerCase()
+                  .compareTo(
+                    b.title
+                        .toLowerCase(),
+                  );
+            },
           );
         }
 
-        final override =
-            result.readTableOrNull(
-          _database.taskOccurrenceOverrides,
-        );
+        final completedOccurrenceKeys =
+            <String>{
+          for (final row
+              in occurrenceStateRows)
+            if (row.isCompleted)
+              _stateKey(
+                row.taskId,
+                row.occurrenceDate,
+              ),
+        };
 
-        if (override != null) {
+        final completedSubtaskOccurrenceKeys =
+            <String>{
+          for (final row
+              in subtaskStateRows)
+            if (row.isCompleted)
+              _subtaskStateKey(
+                row.subtaskId,
+                row.occurrenceDate,
+              ),
+        };
+
+        final overridesByTaskId =
+            <String,
+                Map<
+                    String,
+                    TaskOccurrenceOverrideRow>>{};
+
+        for (final override
+            in overrideRows) {
           overridesByTaskId
               .putIfAbsent(
-                taskRow.id,
+                override.taskId,
                 () => <
                     String,
                     TaskOccurrenceOverrideRow>{},
               )[_stateKey(
-                taskRow.id,
+                override.taskId,
                 override.occurrenceDate,
               )] =
               override;
         }
-      }
 
-      final tasks =
-          <LifeTask>[];
+        final tasks =
+            <LifeTask>[
+          for (final row
+              in taskRows)
+            _taskFromRow(
+              row,
+              subtasks:
+                  subtasksByTaskId[
+                        row.id] ??
+                      const <
+                          TaskSubtask>[],
+            ),
+        ];
 
-      for (final entry
-          in taskRowsById.entries) {
-        final subtasks =
-            subtasksByTaskId[entry.key]
-                    ?.values
-                    .toList() ??
-                <TaskSubtask>[];
-
-        subtasks.sort(
-          (a, b) {
-            final order =
-                a.sortOrder.compareTo(
-              b.sortOrder,
-            );
-
-            if (order != 0) {
-              return order;
-            }
-
-            return a.title
-                .toLowerCase()
-                .compareTo(
-                  b.title.toLowerCase(),
-                );
-          },
+        tasks.sort(
+          _compareTasks,
         );
 
-        tasks.add(
-          _taskFromRow(
-            entry.value,
-            subtasks:
-                subtasks,
-          ),
+        return _TaskDataSnapshot(
+          tasks: tasks,
+          completedOccurrenceKeys:
+              completedOccurrenceKeys,
+          completedSubtaskOccurrenceKeys:
+              completedSubtaskOccurrenceKeys,
+          overridesByTaskId:
+              overridesByTaskId,
         );
-      }
-
-      tasks.sort(
-        _compareTasks,
-      );
-
-      return _TaskDataSnapshot(
-        tasks: tasks,
-        completedOccurrenceKeys:
-            completedOccurrenceKeys,
-        completedSubtaskOccurrenceKeys:
-            completedSubtaskOccurrenceKeys,
-        overridesByTaskId:
-            overridesByTaskId,
-      );
-    });
+      },
+    );
   }
 
   int _maxCrossDayLookback(
