@@ -12,6 +12,7 @@ import '../../repositories/category_repository.dart';
 import '../../utils/task_category_icons.dart';
 import '../../widgets/task_prompts.dart';
 import 'category_management_page.dart';
+import 'task_editor_controller.dart';
 import 'task_editor_mode.dart';
 
 class TaskFormResult {
@@ -70,34 +71,39 @@ class _TaskFormPageState
   final _formKey =
       GlobalKey<FormState>();
 
-  final _titleController =
-      TextEditingController();
-
-  final _descriptionController =
-      TextEditingController();
-
   late IdGenerator _idGenerator;
-  bool _didInitializeIdGenerator = false;
+  late TaskEditorController _editorController;
+  bool _didInitializeEditorController = false;
 
-  DateTime? _selectedDate;
-  TimeOfDay? _startTime;
+  TextEditingController get _titleController =>
+      _editorController.titleController;
 
-  int? _durationMinutes;
+  TextEditingController get _descriptionController =>
+      _editorController.descriptionController;
 
-  String? _selectedCategoryId;
+  DateTime? get _selectedDate =>
+      _editorController.selectedDate;
 
-  TaskRecurrence _recurrence =
-      const TaskRecurrence.none();
+  TimeOfDay? get _startTime =>
+      _editorController.startTime;
 
-  List<TaskSubtask> _subtasks =
-      <TaskSubtask>[];
+  int? get _durationMinutes =>
+      _editorController.durationMinutes;
 
-  bool _allDay = false;
+  String? get _selectedCategoryId =>
+      _editorController.selectedCategoryId;
 
-  TaskPriority _priority =
-      TaskPriority.normal;
+  TaskRecurrence get _recurrence =>
+      _editorController.recurrence;
 
-  bool _centerPlacementActive = false;
+  List<TaskSubtask> get _subtasks =>
+      _editorController.subtasks;
+
+  bool get _allDay =>
+      _editorController.allDay;
+
+  TaskPriority get _priority =>
+      _editorController.priority;
 
   bool get _isDuplicateMode =>
       widget.mode ==
@@ -112,94 +118,10 @@ class _TaskFormPageState
       TaskEditorMode.reschedule;
 
   @override
-  void initState() {
-    super.initState();
-
-    final task =
-        widget.initialTask;
-
-    if (task != null) {
-      _titleController.text =
-          task.title;
-
-      _descriptionController.text =
-          task.description;
-
-      _selectedDate =
-          task.scheduledDate;
-
-      _durationMinutes =
-          task.durationMinutes;
-
-      _selectedCategoryId =
-          task.categoryId;
-
-      _recurrence =
-          _isDuplicateMode
-              ? const TaskRecurrence.none()
-              : task.recurrence;
-
-      final sourceSubtasks =
-          task.subtasks
-              .toList()
-            ..sort(
-              (a, b) =>
-                  a.sortOrder.compareTo(
-                b.sortOrder,
-              ),
-            );
-
-      _subtasks =
-          sourceSubtasks;
-
-      _allDay =
-          task.allDay;
-
-      _priority =
-          task.priority;
-
-      if (task.startTimeMinutes !=
-          null) {
-        _startTime =
-            _timeOfDayFromMinutes(
-          task.startTimeMinutes!,
-        );
-      }
-    } else {
-      if (widget.initialDate !=
-          null) {
-        _selectedDate =
-            DateTime(
-          widget.initialDate!.year,
-          widget.initialDate!.month,
-          widget.initialDate!.day,
-        );
-      }
-
-      if (widget.initialCenterTimeMinutes !=
-          null) {
-        _centerPlacementActive = true;
-        _startTime =
-            _timeOfDayFromMinutes(
-          _centeredWeekStartMinutes(
-            _durationMinutes,
-          ),
-        );
-      } else if (widget.initialStartTimeMinutes !=
-          null) {
-        _startTime =
-            _timeOfDayFromMinutes(
-          widget.initialStartTimeMinutes!,
-        );
-      }
-    }
-  }
-
-  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    if (_didInitializeIdGenerator) {
+    if (_didInitializeEditorController) {
       return;
     }
 
@@ -208,36 +130,29 @@ class _TaskFormPageState
       context,
     );
 
-    if (_isDuplicateMode) {
-      final duplicateSeed =
-          _idGenerator.next();
+    _editorController =
+        TaskEditorController(
+      mode:
+          widget.mode,
+      idGenerator:
+          _idGenerator,
+      initialTask:
+          widget.initialTask,
+      initialDate:
+          widget.initialDate,
+      initialStartTimeMinutes:
+          widget.initialStartTimeMinutes,
+      initialCenterTimeMinutes:
+          widget.initialCenterTimeMinutes,
+    );
 
-      _subtasks = [
-        for (var index = 0;
-            index < _subtasks.length;
-            index++)
-          TaskSubtask(
-            id:
-                'subtask_${duplicateSeed}_$index',
-            title:
-                _subtasks[index].title,
-            sortOrder:
-                index,
-            isCompleted:
-                false,
-          ),
-      ];
-    }
-
-    _didInitializeIdGenerator =
+    _didInitializeEditorController =
         true;
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-
+    _editorController.dispose();
     super.dispose();
   }
 
@@ -277,54 +192,6 @@ class _TaskFormPageState
           normalized ~/ 60,
       minute:
           normalized % 60,
-    );
-  }
-
-  int _preferredWeekStartMinutes(
-    double rawMinutes,
-  ) {
-    final nearestQuarter =
-        (rawMinutes / 15).round() * 15;
-
-    final nearestHalfHour =
-        (rawMinutes / 30).round() * 30;
-
-    // Piccolo effetto magnetico verso :00 / :30. Non lo forziamo se
-    // servirebbe spostare troppo il blocco rispetto al punto premuto.
-    final preferred =
-        (rawMinutes - nearestHalfHour).abs() <= 8
-            ? nearestHalfHour
-            : nearestQuarter;
-
-    return preferred
-        .clamp(
-          0,
-          24 * 60 - 15,
-        )
-        .toInt();
-  }
-
-  int _centeredWeekStartMinutes(
-    int? durationMinutes,
-  ) {
-    final center =
-        widget.initialCenterTimeMinutes;
-
-    if (center == null) {
-      return widget.initialStartTimeMinutes ?? 0;
-    }
-
-    // La Week visualizza una task senza durata come blocco provvisorio
-    // di 30 minuti: usiamo la stessa regola anche nel posizionamento.
-    final effectiveDuration =
-        durationMinutes != null &&
-                durationMinutes > 0
-            ? durationMinutes
-            : 30;
-
-    return _preferredWeekStartMinutes(
-      center -
-          effectiveDuration / 2,
     );
   }
 
@@ -454,25 +321,15 @@ class _TaskFormPageState
       return;
     }
 
-    setState(() {
-      _selectedDate =
-          DateTime(
-        result.year,
-        result.month,
-        result.day,
-      );
-    });
+    _editorController.setDate(
+      result,
+    );
   }
 
   void _clearDate() {
     _dismissKeyboard();
 
-    setState(() {
-      _selectedDate = null;
-      _allDay = false;
-      _recurrence =
-          const TaskRecurrence.none();
-    });
+    _editorController.clearDate();
   }
 
   Future<void> _selectStartTime() async {
@@ -510,22 +367,16 @@ class _TaskFormPageState
       return;
     }
 
-    setState(() {
-      _startTime =
-          result;
-      _centerPlacementActive =
-          false;
-    });
+    _editorController.setStartTime(
+      result,
+    );
   }
 
   void _clearStartTime() {
     _dismissKeyboard();
 
-    setState(() {
-      _startTime = null;
-      _centerPlacementActive =
-          false;
-    });
+    _editorController
+        .clearStartTime();
   }
 
   Future<void> _selectEndTime() async {
@@ -607,32 +458,18 @@ class _TaskFormPageState
       end += 24 * 60;
     }
 
-    setState(() {
-      _durationMinutes =
-          end - start;
-      _centerPlacementActive =
-          false;
-    });
+    _editorController
+        .setDurationFromManualEnd(
+      end - start,
+    );
   }
 
   void _setDurationValue(
     int? minutes,
   ) {
-    setState(() {
-      _durationMinutes =
-          minutes;
-
-      if (_centerPlacementActive &&
-          widget.initialCenterTimeMinutes !=
-              null) {
-        _startTime =
-            _timeOfDayFromMinutes(
-          _centeredWeekStartMinutes(
-            _durationMinutes,
-          ),
-        );
-      }
-    });
+    _editorController.setDuration(
+      minutes,
+    );
   }
 
   Future<void> _selectDuration() async {
@@ -822,23 +659,15 @@ class _TaskFormPageState
       return;
     }
 
-    setState(() {
-      _recurrence =
-          result;
-    });
+    _editorController.setRecurrence(
+      result,
+    );
   }
 
   List<TaskSubtask>
       _normalizedSubtasks() {
-    return [
-      for (var index = 0;
-          index < _subtasks.length;
-          index++)
-        _subtasks[index].copyWith(
-          sortOrder:
-              index,
-        ),
-    ];
+    return _editorController
+        .normalizedSubtasks;
   }
 
   Future<String?> _editSubtaskTitle({
@@ -894,18 +723,9 @@ class _TaskFormPageState
       return;
     }
 
-    setState(() {
-      _subtasks.add(
-        TaskSubtask(
-          id:
-              'subtask_${_idGenerator.next()}',
-          title:
-              trimmed,
-          sortOrder:
-              _subtasks.length,
-        ),
-      );
-    });
+    _editorController.addSubtask(
+      trimmed,
+    );
   }
 
   Future<void> _renameSubtask(
@@ -933,23 +753,10 @@ class _TaskFormPageState
       return;
     }
 
-    setState(() {
-      final index =
-          _subtasks.indexWhere(
-        (item) =>
-            item.id == subtask.id,
-      );
-
-      if (index < 0) {
-        return;
-      }
-
-      _subtasks[index] =
-          _subtasks[index].copyWith(
-        title:
-            trimmed,
-      );
-    });
+    _editorController.renameSubtask(
+      subtask.id,
+      trimmed,
+    );
   }
 
   void _removeSubtask(
@@ -957,35 +764,19 @@ class _TaskFormPageState
   ) {
     _dismissKeyboard();
 
-    setState(() {
-      _subtasks.removeWhere(
-        (item) =>
-            item.id == subtask.id,
-      );
-
-      _subtasks =
-          _normalizedSubtasks();
-    });
+    _editorController.removeSubtask(
+      subtask.id,
+    );
   }
 
   void _reorderSubtasks(
     int oldIndex,
     int newIndex,
   ) {
-    setState(() {
-      final item =
-          _subtasks.removeAt(
-        oldIndex,
-      );
-
-      _subtasks.insert(
-        newIndex,
-        item,
-      );
-
-      _subtasks =
-          _normalizedSubtasks();
-    });
+    _editorController.reorderSubtasks(
+      oldIndex,
+      newIndex,
+    );
   }
 
   TaskCategory? _findCategory(
@@ -1037,10 +828,10 @@ class _TaskFormPageState
     }
 
     if (result != null) {
-      setState(() {
-        _selectedCategoryId =
-            result.categoryId;
-      });
+      _editorController
+          .setSelectedCategoryId(
+        result.categoryId,
+      );
 
       return;
     }
@@ -1064,10 +855,10 @@ class _TaskFormPageState
     }
 
     if (stillExists == null) {
-      setState(() {
-        _selectedCategoryId =
-            null;
-      });
+      _editorController
+          .setSelectedCategoryId(
+        null,
+      );
     }
   }
 
@@ -1231,6 +1022,20 @@ class _TaskFormPageState
 
   @override
   Widget build(
+    BuildContext context,
+  ) {
+    return AnimatedBuilder(
+      animation:
+          _editorController,
+      builder:
+          (context, _) =>
+              _buildEditor(
+        context,
+      ),
+    );
+  }
+
+  Widget _buildEditor(
     BuildContext context,
   ) {
     final colorScheme =
@@ -1481,12 +1286,8 @@ class _TaskFormPageState
                   value:
                       _allDay,
                   onChanged:
-                      (value) {
-                    setState(() {
-                      _allDay =
-                          value;
-                    });
-                  },
+                      _editorController
+                          .setAllDay,
                 ),
               ],
 
@@ -1653,12 +1454,8 @@ class _TaskFormPageState
                     priority,
                   ),
                   onChanged:
-                      (priority) {
-                    setState(() {
-                      _priority =
-                          priority;
-                    });
-                  },
+                      _editorController
+                          .setPriority,
                 ),
 
                 if (!_isOccurrenceMode) ...[
