@@ -955,4 +955,47 @@ void main() {
       );
     },
   );
+  test(
+    'priority uses the explicit stable storage code',
+    () async {
+      final task =
+          LifeTask(
+        id: 'priority-storage',
+        title: 'Priority storage',
+        priority:
+            TaskPriority.high,
+      );
+
+      await repository.addTask(
+        task,
+      );
+
+      final rawRow =
+          await (database.select(
+        database.taskItems,
+      )..where(
+                (row) =>
+                    row.id.equals(
+                  task.id,
+                ),
+              ))
+              .getSingle();
+
+      expect(
+        rawRow.priority,
+        TaskPriority.high.storageValue,
+      );
+
+      final stored =
+          (await readTasks())
+              .single;
+
+      expect(
+        stored.priority,
+        TaskPriority.high,
+      );
+    },
+  );
+
+
 }

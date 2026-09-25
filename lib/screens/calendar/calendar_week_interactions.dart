@@ -354,25 +354,9 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     final effective =
         occurrence.displayTask;
 
-    return LifeTask(
-      id:
-          occurrence.task.id,
-      title:
-          effective.title,
-      description:
-          effective.description,
+    return effective.copyWith(
       scheduledDate:
           occurrence.date,
-      startTimeMinutes:
-          effective.startTimeMinutes,
-      durationMinutes:
-          effective.durationMinutes,
-      categoryId:
-          effective.categoryId,
-      allDay:
-          effective.allDay,
-      priority:
-          effective.priority,
       recurrence:
           occurrence.task.recurrence,
       subtasks:
@@ -609,21 +593,15 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     // Copia/Duplica lavorano sull'occorrenza concreta visibile.
     // Se l'originale appartiene a una serie, il duplicato nasce come
     // attività singola: evita di creare accidentalmente una seconda serie.
-    return LifeTask(
-      id: effective.id,
-      title: effective.title,
-      description: effective.description,
-      scheduledDate: occurrence.date,
-      startTimeMinutes: effective.allDay
-          ? null
-          : effective.startTimeMinutes,
-      durationMinutes: effective.durationMinutes,
-      categoryId: effective.categoryId,
-      allDay: effective.allDay,
-      priority: effective.priority,
-      recurrence: const TaskRecurrence.none(),
-      subtasks: occurrence.subtasks,
-      isCompleted: false,
+    return effective.copyWith(
+      scheduledDate:
+          occurrence.date,
+      recurrence:
+          const TaskRecurrence.none(),
+      subtasks:
+          occurrence.subtasks,
+      isCompleted:
+          false,
     );
   }
 
@@ -719,25 +697,15 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
         ),
     ];
 
-    return LifeTask(
+    return source.copyWith(
       id:
           seed.toString(),
-      title:
-          source.title,
-      description:
-          source.description,
       scheduledDate:
           _dateOnly(date),
       startTimeMinutes:
           startTimeMinutes,
-      durationMinutes:
-          source.durationMinutes,
-      categoryId:
-          source.categoryId,
       allDay:
           false,
-      priority:
-          source.priority,
       recurrence:
           const TaskRecurrence.none(),
       subtasks:
@@ -1366,33 +1334,17 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     int? durationMinutes,
     TaskRecurrence? recurrence,
   }) {
-    return LifeTask(
-      id:
-          source.id,
-      title:
-          source.title,
-      description:
-          source.description,
+    return source.copyWith(
       scheduledDate:
           _dateOnly(date),
       startTimeMinutes:
           startTimeMinutes,
       durationMinutes:
-          durationMinutes ??
-          source.durationMinutes,
-      categoryId:
-          source.categoryId,
+          durationMinutes,
       allDay:
           false,
-      priority:
-          source.priority,
       recurrence:
-          recurrence ??
-          source.recurrence,
-      subtasks:
-          source.subtasks,
-      isCompleted:
-          source.isCompleted,
+          recurrence,
     );
   }
 

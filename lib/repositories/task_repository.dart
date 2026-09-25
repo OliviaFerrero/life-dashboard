@@ -187,7 +187,7 @@ class TaskRepository {
           allDay:
               Value(task.allDay),
           priority:
-              Value(task.priority.index),
+              Value(task.priority.storageValue),
 
           // Per una serie ricorrente lo stato vive
           // nelle singole occorrenze.
@@ -247,7 +247,7 @@ class TaskRepository {
           allDay:
               Value(task.allDay),
           priority:
-              Value(task.priority.index),
+              Value(task.priority.storageValue),
           isCompleted: Value(
             task.recurrence.isRecurring
                 ? false
@@ -432,7 +432,7 @@ class TaskRepository {
         allDay:
             Value(editedTask.allDay),
         priority:
-            Value(editedTask.priority.index),
+            Value(editedTask.priority.storageValue),
         isDeleted:
             const Value(false),
       ),
@@ -516,7 +516,7 @@ class TaskRepository {
         allDay:
             Value(effective.allDay),
         priority:
-            Value(effective.priority.index),
+            Value(effective.priority.storageValue),
         isDeleted:
             const Value(true),
       ),
@@ -1316,7 +1316,7 @@ class TaskRepository {
       allDay:
           override.allDay,
       priority:
-          _priorityFromInt(
+          TaskPriority.fromStorage(
         override.priority,
       ),
       recurrence:
@@ -1766,7 +1766,7 @@ class TaskRepository {
       allDay:
           row.allDay,
       priority:
-          _priorityFromInt(
+          TaskPriority.fromStorage(
         row.priority,
       ),
       recurrence:
@@ -1779,21 +1779,6 @@ class TaskRepository {
       isCompleted:
           row.isCompleted,
     );
-  }
-
-  TaskPriority _priorityFromInt(
-    int value,
-  ) {
-    switch (value) {
-      case 0:
-        return TaskPriority.low;
-
-      case 2:
-        return TaskPriority.high;
-
-      default:
-        return TaskPriority.normal;
-    }
   }
 
   DateTime _dateOnly(

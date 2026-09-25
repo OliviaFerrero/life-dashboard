@@ -2,9 +2,30 @@ import 'task_recurrence.dart';
 import 'task_subtask.dart';
 
 enum TaskPriority {
-  low,
-  normal,
-  high,
+  low(0),
+  normal(1),
+  high(2);
+
+  final int storageValue;
+
+  const TaskPriority(
+    this.storageValue,
+  );
+
+  static TaskPriority fromStorage(
+    int value,
+  ) {
+    switch (value) {
+      case 0:
+        return TaskPriority.low;
+
+      case 2:
+        return TaskPriority.high;
+
+      default:
+        return TaskPriority.normal;
+    }
+  }
 }
 
 class LifeTask {
@@ -48,7 +69,7 @@ class LifeTask {
   ///
   /// Per le task ricorrenti lo stato effettivo viene salvato per singola
   /// occorrenza e questo valore non viene usato come stato della serie.
-  bool isCompleted;
+  final bool isCompleted;
 
   LifeTask({
     required this.id,
@@ -73,6 +94,89 @@ class LifeTask {
         subtasks = List.unmodifiable(
           subtasks,
         );
+
+  LifeTask copyWith({
+    String? id,
+    String? title,
+    String? description,
+    DateTime? scheduledDate,
+    bool clearScheduledDate = false,
+    int? startTimeMinutes,
+    bool clearStartTimeMinutes = false,
+    int? durationMinutes,
+    bool clearDurationMinutes = false,
+    String? categoryId,
+    bool clearCategoryId = false,
+    bool? allDay,
+    TaskPriority? priority,
+    TaskRecurrence? recurrence,
+    List<TaskSubtask>? subtasks,
+    bool? isCompleted,
+  }) {
+    assert(
+      !clearScheduledDate ||
+          scheduledDate == null,
+    );
+    assert(
+      !clearStartTimeMinutes ||
+          startTimeMinutes == null,
+    );
+    assert(
+      !clearDurationMinutes ||
+          durationMinutes == null,
+    );
+    assert(
+      !clearCategoryId ||
+          categoryId == null,
+    );
+
+    return LifeTask(
+      id:
+          id ??
+          this.id,
+      title:
+          title ??
+          this.title,
+      description:
+          description ??
+          this.description,
+      scheduledDate:
+          clearScheduledDate
+              ? null
+              : scheduledDate ??
+                  this.scheduledDate,
+      startTimeMinutes:
+          clearStartTimeMinutes
+              ? null
+              : startTimeMinutes ??
+                  this.startTimeMinutes,
+      durationMinutes:
+          clearDurationMinutes
+              ? null
+              : durationMinutes ??
+                  this.durationMinutes,
+      categoryId:
+          clearCategoryId
+              ? null
+              : categoryId ??
+                  this.categoryId,
+      allDay:
+          allDay ??
+          this.allDay,
+      priority:
+          priority ??
+          this.priority,
+      recurrence:
+          recurrence ??
+          this.recurrence,
+      subtasks:
+          subtasks ??
+          this.subtasks,
+      isCompleted:
+          isCompleted ??
+          this.isCompleted,
+    );
+  }
 
   int get subtaskCount =>
       subtasks.length;

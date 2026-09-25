@@ -408,10 +408,16 @@ class _TaskDetailPageState
 
         if (!_seriesTask.recurrence
             .isRecurring) {
-          _task.isCompleted =
-              false;
-          _seriesTask.isCompleted =
-              false;
+          final reopenedTask =
+              _task.copyWith(
+            isCompleted:
+                false,
+          );
+
+          _task =
+              reopenedTask;
+          _seriesTask =
+              reopenedTask;
         }
       }
     });
@@ -466,10 +472,16 @@ class _TaskDetailPageState
 
       if (!_seriesTask.recurrence
           .isRecurring) {
-        _task.isCompleted =
-            completed;
-        _seriesTask.isCompleted =
-            completed;
+        final updatedTask =
+            _task.copyWith(
+          isCompleted:
+              completed,
+        );
+
+        _task =
+            updatedTask;
+        _seriesTask =
+            updatedTask;
       }
     });
   }

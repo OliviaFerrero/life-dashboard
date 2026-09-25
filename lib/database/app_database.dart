@@ -60,6 +60,10 @@ class TaskItems extends Table {
   BoolColumn get allDay =>
       boolean().withDefault(const Constant(false))();
 
+  /// Valori persistiti stabili:
+  /// 0 = low, 1 = normal, 2 = high.
+  ///
+  /// Non dipende dall'ordine dichiarativo dell'enum Dart.
   IntColumn get priority =>
       integer().withDefault(const Constant(1))();
 
@@ -191,6 +195,10 @@ class TaskOccurrenceOverrides extends Table {
   BoolColumn get allDay =>
       boolean().withDefault(const Constant(false))();
 
+  /// Valori persistiti stabili:
+  /// 0 = low, 1 = normal, 2 = high.
+  ///
+  /// Non dipende dall'ordine dichiarativo dell'enum Dart.
   IntColumn get priority =>
       integer().withDefault(const Constant(1))();
 
