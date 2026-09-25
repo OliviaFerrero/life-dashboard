@@ -7,7 +7,6 @@ import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
 import '../../models/task_recurrence.dart';
-import '../../models/task_subtask.dart';
 import '../../repositories/category_repository.dart';
 import '../../utils/task_category_icons.dart';
 import '../../widgets/editorial_time_picker.dart';
@@ -104,9 +103,6 @@ class _TaskFormPageState
 
   TaskRecurrence get _recurrence =>
       _editorController.recurrence;
-
-  List<TaskSubtask> get _subtasks =>
-      _editorController.subtasks;
 
   bool get _allDay =>
       _editorController.allDay;
@@ -635,115 +631,6 @@ class _TaskFormPageState
 
     _editorController.setRecurrence(
       result,
-    );
-  }
-
-  Future<String?> _editSubtaskTitle({
-    String initialTitle = '',
-    required String title,
-    required String actionLabel,
-  }) async {
-    _dismissKeyboard();
-
-    return showModalBottomSheet<String>(
-      context: context,
-      backgroundColor:
-          Colors.transparent,
-      barrierColor:
-          Colors.black.withValues(
-        alpha: 0.28,
-      ),
-      isScrollControlled:
-          true,
-      useSafeArea:
-          true,
-      builder: (context) {
-        return TaskSubtaskTitleSheet(
-          title:
-              title,
-          actionLabel:
-              actionLabel,
-          initialTitle:
-              initialTitle,
-        );
-      },
-    );
-  }
-
-  Future<void> _addSubtask() async {
-    final title =
-        await _editSubtaskTitle(
-      title:
-          'Nuova sottoattività',
-      actionLabel:
-          'Aggiungi',
-    );
-
-    if (!mounted ||
-        title == null) {
-      return;
-    }
-
-    final trimmed =
-        title.trim();
-
-    if (trimmed.isEmpty) {
-      return;
-    }
-
-    _editorController.addSubtask(
-      trimmed,
-    );
-  }
-
-  Future<void> _renameSubtask(
-    TaskSubtask subtask,
-  ) async {
-    final title =
-        await _editSubtaskTitle(
-      initialTitle:
-          subtask.title,
-      title:
-          'Modifica sottoattività',
-      actionLabel:
-          'Salva',
-    );
-
-    if (!mounted ||
-        title == null) {
-      return;
-    }
-
-    final trimmed =
-        title.trim();
-
-    if (trimmed.isEmpty) {
-      return;
-    }
-
-    _editorController.renameSubtask(
-      subtask.id,
-      trimmed,
-    );
-  }
-
-  void _removeSubtask(
-    TaskSubtask subtask,
-  ) {
-    _dismissKeyboard();
-
-    _editorController.removeSubtask(
-      subtask.id,
-    );
-  }
-
-  void _reorderSubtasks(
-    int oldIndex,
-    int newIndex,
-  ) {
-    _editorController.reorderSubtasks(
-      oldIndex,
-      newIndex,
     );
   }
 
@@ -1349,84 +1236,26 @@ class _TaskFormPageState
                   const SizedBox(
                     height: 8,
                   ),
-
-                  if (_subtasks.isEmpty)
-                    Padding(
-                      padding:
-                          const EdgeInsets
-                              .symmetric(
-                        vertical: 8,
-                      ),
-                      child: Text(
-                        'Nessuna sottoattività.',
-                        style:
-                            Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color:
-                                      colorScheme
-                                          .onSurfaceVariant,
-                                ),
-                      ),
-                    )
-                  else
-                    ReorderableListView.builder(
-                      shrinkWrap:
-                          true,
-                      physics:
-                          const NeverScrollableScrollPhysics(),
-                      buildDefaultDragHandles:
-                          false,
-                      itemCount:
-                          _subtasks.length,
-                      onReorderItem:
-                          _reorderSubtasks,
-                      itemBuilder:
-                          (context, index) {
-                        final subtask =
-                            _subtasks[index];
-
-                        return TaskSubtaskFormRow(
-                          key:
-                              ValueKey(
-                            subtask.id,
-                          ),
-                          subtask:
-                              subtask,
-                          index:
-                              index,
-                          onTap: () {
-                            _renameSubtask(
-                              subtask,
-                            );
-                          },
-                          onDelete: () {
-                            _removeSubtask(
-                              subtask,
-                            );
-                          },
-                        );
-                      },
-                    ),
-
-                  Align(
-                    alignment:
-                        Alignment.centerLeft,
-                    child:
-                        TextButton.icon(
-                      onPressed:
-                          _addSubtask,
-                      icon:
-                          const Icon(
-                        Icons.add,
-                        size: 18,
-                      ),
-                      label:
-                          const Text(
-                        'Aggiungi sottoattività',
-                      ),
-                    ),
+                  TaskSubtaskEditor(
+                    subtasks:
+                        _editorController
+                            .subtasks,
+                    onAdd:
+                        _editorController
+                            .addSubtask,
+                    onRename:
+                        _editorController
+                            .renameSubtask,
+                    onDelete: (subtaskId) {
+                      _dismissKeyboard();
+                      _editorController
+                          .removeSubtask(
+                        subtaskId,
+                      );
+                    },
+                    onReorder:
+                        _editorController
+                            .reorderSubtasks,
                   ),
                 ],
 
