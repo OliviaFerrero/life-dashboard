@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/time/clock_format.dart';
 import '../services/day_settings_controller.dart';
+import '../widgets/editorial_time_picker.dart';
 
 class MorePage extends StatelessWidget {
   final DaySettingsController daySettingsController;
@@ -19,27 +20,16 @@ class MorePage extends StatelessWidget {
         ? daySettingsController.startMinutes
         : daySettingsController.endMinutes;
 
-    final picked = await showTimePicker(
+    final picked =
+        await showEditorialTimePicker(
       context: context,
+      title: start
+          ? 'Inizio giornata'
+          : 'Fine giornata',
       initialTime: TimeOfDay(
         hour: currentMinutes ~/ 60,
         minute: currentMinutes % 60,
       ),
-      helpText: start
-          ? 'Inizio giornata'
-          : 'Fine giornata',
-      cancelText: 'Annulla',
-      confirmText: 'Salva',
-      builder: (context, child) {
-        final mediaQuery = MediaQuery.of(context);
-
-        return MediaQuery(
-          data: mediaQuery.copyWith(
-            alwaysUse24HourFormat: true,
-          ),
-          child: child!,
-        );
-      },
     );
 
     if (picked == null) {
@@ -61,7 +51,9 @@ class MorePage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final colorScheme =
         Theme.of(context).colorScheme;
 
@@ -81,7 +73,8 @@ class MorePage extends StatelessWidget {
           );
 
           final endSuffix =
-              daySettingsController.endsOnNextCivilDay
+              daySettingsController
+                      .endsOnNextCivilDay
                   ? ' · giorno dopo'
                   : '';
 
@@ -111,34 +104,46 @@ class MorePage extends StatelessWidget {
                       letterSpacing: -1.2,
                     ),
               ),
-
-              const SizedBox(
-                height: 34,
-              ),
-
-              Text(
-                'GIORNATA',
-                style: Theme.of(context)
-                    .textTheme
-                    .labelMedium
-                    ?.copyWith(
-                      color:
-                          colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.9,
-                    ),
-              ),
-
               const SizedBox(
                 height: 8,
               ),
-
+              Text(
+                'Preferenze che definiscono il ritmo '
+                'della tua giornata.',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(
+                      color:
+                          colorScheme.onSurfaceVariant,
+                      height: 1.35,
+                    ),
+              ),
+              const SizedBox(
+                height: 32,
+              ),
+              const _SectionLabel(
+                text: 'GIORNATA PERSONALE',
+              ),
+              const SizedBox(
+                height: 12,
+              ),
+              _DayWindowSummary(
+                startLabel: startLabel,
+                endLabel: endLabel,
+                nextDay:
+                    daySettingsController
+                        .endsOnNextCivilDay,
+              ),
+              const SizedBox(
+                height: 18,
+              ),
               _SettingRow(
                 icon: Icons.wb_sunny_outlined,
                 title: 'Inizio giornata',
                 value: startLabel,
                 subtitle:
-                    'Da questo orario inizia una nuova giornata in Oggi.',
+                    'Da questo orario comincia una nuova giornata in Oggi.',
                 onTap: () {
                   _pickTime(
                     context,
@@ -146,20 +151,16 @@ class MorePage extends StatelessWidget {
                   );
                 },
               ),
-
-              Divider(
-                color: colorScheme.outlineVariant
-                    .withValues(
-                  alpha: 0.55,
-                ),
+              _EditorialDivider(
+                colorScheme: colorScheme,
               ),
-
               _SettingRow(
                 icon: Icons.nightlight_outlined,
                 title: 'Fine giornata',
-                value: '$endLabel$endSuffix',
+                value:
+                    '$endLabel$endSuffix',
                 subtitle:
-                    'È il limite normale. Se un’attività termina più tardi, la timeline si estende automaticamente.',
+                    'Limite normale della timeline. Le attività che finiscono più tardi la estendono automaticamente.',
                 onTap: () {
                   _pickTime(
                     context,
@@ -167,40 +168,26 @@ class MorePage extends StatelessWidget {
                   );
                 },
               ),
-
               const SizedBox(
-                height: 18,
+                height: 22,
               ),
-
-              Text(
-                'La giornata cambia all’orario di inizio, non a mezzanotte. '
-                'Con 06:00 → 03:00, per esempio, le attività delle 01:30 '
-                'appartengono ancora alla giornata iniziata il giorno prima.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(
-                      color:
-                          colorScheme.onSurfaceVariant,
-                      height: 1.35,
-                    ),
+              _InfoNote(
+                text:
+                    'La giornata cambia all’orario di inizio, non a mezzanotte. '
+                    'Con 06:00 → 03:00, per esempio, un’attività delle 01:30 '
+                    'appartiene ancora alla giornata iniziata il giorno prima.',
               ),
-
               if (!defaultsActive) ...[
                 const SizedBox(
-                  height: 12,
+                  height: 18,
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: () {
-                      daySettingsController
-                          .resetDefaults();
-                    },
-                    child: const Text(
+                _TextAction(
+                  label:
                       'Ripristina 06:00 → 03:00',
-                    ),
-                  ),
+                  onTap: () {
+                    daySettingsController
+                        .resetDefaults();
+                  },
                 ),
               ],
             ],
@@ -211,7 +198,124 @@ class MorePage extends StatelessWidget {
   }
 }
 
-class _SettingRow extends StatelessWidget {
+class _SectionLabel
+    extends StatelessWidget {
+  final String text;
+
+  const _SectionLabel({
+    required this.text,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Text(
+      text,
+      style: Theme.of(context)
+          .textTheme
+          .labelMedium
+          ?.copyWith(
+            color: Theme.of(context)
+                .colorScheme
+                .onSurfaceVariant,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.0,
+          ),
+    );
+  }
+}
+
+class _DayWindowSummary
+    extends StatelessWidget {
+  final String startLabel;
+  final String endLabel;
+  final bool nextDay;
+
+  const _DayWindowSummary({
+    required this.startLabel,
+    required this.endLabel,
+    required this.nextDay,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 4,
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.end,
+        children: [
+          Text(
+            startLabel,
+            style: Theme.of(context)
+                .textTheme
+                .headlineMedium
+                ?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.6,
+                ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              12,
+              0,
+              12,
+              4,
+            ),
+            child: Icon(
+              Icons.arrow_forward,
+              size: 18,
+              color:
+                  colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            endLabel,
+            style: Theme.of(context)
+                .textTheme
+                .headlineMedium
+                ?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.6,
+                ),
+          ),
+          if (nextDay) ...[
+            const SizedBox(
+              width: 8,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(
+                bottom: 4,
+              ),
+              child: Text(
+                '+1',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelMedium
+                    ?.copyWith(
+                      color:
+                          colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingRow
+    extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
@@ -227,7 +331,9 @@ class _SettingRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final colorScheme =
         Theme.of(context).colorScheme;
 
@@ -235,7 +341,9 @@ class _SettingRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          10,
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             vertical: 14,
@@ -244,21 +352,23 @@ class _SettingRow extends StatelessWidget {
             crossAxisAlignment:
                 CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(
-                  top: 2,
-                ),
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: colorScheme.primary,
+              SizedBox(
+                width: 30,
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    top: 2,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: colorScheme
+                        .onSurfaceVariant,
+                  ),
                 ),
               ),
-
               const SizedBox(
-                width: 14,
+                width: 12,
               ),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -295,11 +405,9 @@ class _SettingRow extends StatelessWidget {
                         ),
                       ],
                     ),
-
                     const SizedBox(
-                      height: 4,
+                      height: 5,
                     ),
-
                     Text(
                       subtitle,
                       style: Theme.of(context)
@@ -308,32 +416,154 @@ class _SettingRow extends StatelessWidget {
                           ?.copyWith(
                             color: colorScheme
                                 .onSurfaceVariant,
-                            height: 1.25,
+                            height: 1.3,
                           ),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(
                 width: 6,
               ),
-
               Padding(
                 padding: const EdgeInsets.only(
                   top: 2,
                 ),
                 child: Icon(
                   Icons.chevron_right,
-                  size: 19,
+                  size: 18,
                   color: colorScheme
                       .onSurfaceVariant
                       .withValues(
-                    alpha: 0.65,
+                    alpha: 0.55,
                   ),
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditorialDivider
+    extends StatelessWidget {
+  final ColorScheme colorScheme;
+
+  const _EditorialDivider({
+    required this.colorScheme,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Divider(
+      height: 1,
+      indent: 42,
+      color: colorScheme.outlineVariant
+          .withValues(
+        alpha: 0.5,
+      ),
+    );
+  }
+}
+
+class _InfoNote extends StatelessWidget {
+  final String text;
+
+  const _InfoNote({
+    required this.text,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(
+            top: 2,
+          ),
+          child: Icon(
+            Icons.info_outline,
+            size: 17,
+            color: colorScheme
+                .onSurfaceVariant
+                .withValues(
+              alpha: 0.78,
+            ),
+          ),
+        ),
+        const SizedBox(
+          width: 10,
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(
+                  color:
+                      colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TextAction
+    extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _TextAction({
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final color =
+        Theme.of(context).colorScheme.primary;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(
+            8,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 2,
+              vertical: 8,
+            ),
+            child: Text(
+              label,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
           ),
         ),
       ),

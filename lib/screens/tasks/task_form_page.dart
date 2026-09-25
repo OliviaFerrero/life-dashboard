@@ -10,6 +10,7 @@ import '../../models/task_recurrence.dart';
 import '../../models/task_subtask.dart';
 import '../../repositories/category_repository.dart';
 import '../../utils/task_category_icons.dart';
+import '../../widgets/editorial_time_picker.dart';
 import '../../widgets/task_prompts.dart';
 import 'category_management_page.dart';
 import 'task_editor_controller.dart';
@@ -345,26 +346,10 @@ class _TaskFormPageState
             TimeOfDay.now();
 
     final result =
-        await showModalBottomSheet<TimeOfDay>(
+        await showEditorialTimePicker(
       context: context,
-      backgroundColor:
-          Colors.transparent,
-      barrierColor:
-          Colors.black.withValues(
-        alpha: 0.24,
-      ),
-      isScrollControlled:
-          true,
-      useSafeArea:
-          true,
-      builder: (context) {
-        return _TimePickerSheet(
-          title:
-              'Ora inizio',
-          initialTime:
-              initialTime,
-        );
-      },
+      title: 'Ora inizio',
+      initialTime: initialTime,
     );
 
     if (!mounted ||
@@ -407,26 +392,10 @@ class _TaskFormPageState
               );
 
     final result =
-        await showModalBottomSheet<TimeOfDay>(
+        await showEditorialTimePicker(
       context: context,
-      backgroundColor:
-          Colors.transparent,
-      barrierColor:
-          Colors.black.withValues(
-        alpha: 0.24,
-      ),
-      isScrollControlled:
-          true,
-      useSafeArea:
-          true,
-      builder: (context) {
-        return _TimePickerSheet(
-          title:
-              'Ora fine',
-          initialTime:
-              initialTime,
-        );
-      },
+      title: 'Ora fine',
+      initialTime: initialTime,
     );
 
     if (!mounted ||
