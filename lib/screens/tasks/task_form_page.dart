@@ -14,11 +14,13 @@ import '../../widgets/task_prompts.dart';
 import 'category_management_page.dart';
 import 'task_editor_controller.dart';
 import 'task_editor_mode.dart';
+import 'task_form_subtask_widgets.dart';
+import 'task_category_setting_row.dart';
+import 'task_priority_selector.dart';
 
 part 'task_form_shared_widgets.dart';
 part 'task_form_date_time_widgets.dart';
 part 'task_form_duration_recurrence_widgets.dart';
-part 'task_form_subtask_widgets.dart';
 part 'task_form_metadata_widgets.dart';
 
 class TaskFormResult {
@@ -687,7 +689,7 @@ class _TaskFormPageState
       useSafeArea:
           true,
       builder: (context) {
-        return _SubtaskTitleSheet(
+        return TaskSubtaskTitleSheet(
           title:
               title,
           actionLabel:
@@ -1300,14 +1302,14 @@ class _TaskFormPageState
                   builder:
                       (context, snapshot) {
                     if (snapshot.hasError) {
-                      return const _CategorySettingRow(
+                      return const TaskCategorySettingRow(
                         statusLabel:
                             'Categorie non disponibili',
                       );
                     }
 
                     if (!snapshot.hasData) {
-                      return const _CategorySettingRow(
+                      return const TaskCategorySettingRow(
                         statusLabel:
                             'Caricamento…',
                       );
@@ -1322,7 +1324,7 @@ class _TaskFormPageState
                       _selectedCategoryId,
                     );
 
-                    return _CategorySettingRow(
+                    return TaskCategorySettingRow(
                       category:
                           selectedCategory,
                       onTap:
@@ -1351,7 +1353,7 @@ class _TaskFormPageState
                 const SizedBox(
                   height: 7,
                 ),
-                _PrioritySelector(
+                TaskPrioritySelector(
                   value:
                       _priority,
                   labelBuilder:
@@ -1416,7 +1418,7 @@ class _TaskFormPageState
                         final subtask =
                             _subtasks[index];
 
-                        return _SubtaskFormRow(
+                        return TaskSubtaskFormRow(
                           key:
                               ValueKey(
                             subtask.id,

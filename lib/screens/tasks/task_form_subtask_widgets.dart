@@ -1,13 +1,15 @@
-part of 'task_form_page.dart';
+import 'package:flutter/material.dart';
 
-class _SubtaskFormRow
+import '../../models/task_subtask.dart';
+
+class TaskSubtaskFormRow
     extends StatelessWidget {
   final TaskSubtask subtask;
   final int index;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
-  const _SubtaskFormRow({
+  const TaskSubtaskFormRow({
     super.key,
     required this.subtask,
     required this.index,
@@ -104,26 +106,27 @@ class _SubtaskFormRow
   }
 }
 
-class _SubtaskTitleSheet
+class TaskSubtaskTitleSheet
     extends StatefulWidget {
   final String title;
   final String actionLabel;
   final String initialTitle;
 
-  const _SubtaskTitleSheet({
+  const TaskSubtaskTitleSheet({
+    super.key,
     required this.title,
     required this.actionLabel,
     required this.initialTitle,
   });
 
   @override
-  State<_SubtaskTitleSheet>
+  State<TaskSubtaskTitleSheet>
       createState() =>
           _SubtaskTitleSheetState();
 }
 
 class _SubtaskTitleSheetState
-    extends State<_SubtaskTitleSheet> {
+    extends State<TaskSubtaskTitleSheet> {
   late final TextEditingController
       _controller;
 
