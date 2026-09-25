@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/id/id_generator.dart';
 import '../../core/time/app_clock.dart';
 import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
@@ -75,6 +76,9 @@ class _TaskFormPageState
   final _descriptionController =
       TextEditingController();
 
+  late IdGenerator _idGenerator;
+  bool _didInitializeIdGenerator = false;
+
   DateTime? _selectedDate;
   TimeOfDay? _startTime;
 
@@ -137,30 +141,8 @@ class _TaskFormPageState
               ),
             );
 
-      if (widget.duplicateMode) {
-        final duplicateSeed =
-            DateTime.now()
-                .microsecondsSinceEpoch;
-
-        _subtasks = [
-          for (var index = 0;
-              index < sourceSubtasks.length;
-              index++)
-            TaskSubtask(
-              id:
-                  'subtask_${duplicateSeed}_$index',
-              title:
-                  sourceSubtasks[index].title,
-              sortOrder:
-                  index,
-              isCompleted:
-                  false,
-            ),
-        ];
-      } else {
-        _subtasks =
-            sourceSubtasks;
-      }
+      _subtasks =
+          sourceSubtasks;
 
       _allDay =
           task.allDay;
@@ -203,6 +185,44 @@ class _TaskFormPageState
         );
       }
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_didInitializeIdGenerator) {
+      return;
+    }
+
+    _idGenerator =
+        IdGeneratorScope.read(
+      context,
+    );
+
+    if (widget.duplicateMode) {
+      final duplicateSeed =
+          _idGenerator.next();
+
+      _subtasks = [
+        for (var index = 0;
+            index < _subtasks.length;
+            index++)
+          TaskSubtask(
+            id:
+                'subtask_${duplicateSeed}_$index',
+            title:
+                _subtasks[index].title,
+            sortOrder:
+                index,
+            isCompleted:
+                false,
+          ),
+      ];
+    }
+
+    _didInitializeIdGenerator =
+        true;
   }
 
   @override
@@ -870,7 +890,7 @@ class _TaskFormPageState
       _subtasks.add(
         TaskSubtask(
           id:
-              'subtask_${DateTime.now().microsecondsSinceEpoch}',
+              'subtask_${_idGenerator.next()}',
           title:
               trimmed,
           sortOrder:
@@ -1124,9 +1144,7 @@ class _TaskFormPageState
         LifeTask(
       id:
           oldTask?.id ??
-              DateTime.now()
-                  .microsecondsSinceEpoch
-                  .toString(),
+              _idGenerator.next(),
 
       title:
           title,

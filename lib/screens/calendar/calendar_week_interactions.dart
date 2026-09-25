@@ -677,8 +677,9 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     required int startTimeMinutes,
   }) {
     final seed =
-        DateTime.now()
-            .microsecondsSinceEpoch;
+        IdGeneratorScope.read(
+      context,
+    ).next();
 
     final copiedSubtasks =
         <TaskSubtask>[
@@ -699,7 +700,7 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
 
     return source.copyWith(
       id:
-          seed.toString(),
+          seed,
       scheduledDate:
           _dateOnly(date),
       startTimeMinutes:

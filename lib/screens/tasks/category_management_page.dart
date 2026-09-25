@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/id/id_generator.dart';
 import '../../models/task_category.dart';
 import '../../repositories/category_repository.dart';
 import '../../utils/task_category_icons.dart';
@@ -558,6 +559,11 @@ class _CategoryEditPageState
         .primaryFocus
         ?.unfocus();
 
+    final idGenerator =
+        IdGeneratorScope.read(
+      context,
+    );
+
     final name =
         _nameController.text
             .trim();
@@ -641,7 +647,7 @@ class _CategoryEditPageState
           TaskCategory(
         id:
             'category_'
-            '${DateTime.now().microsecondsSinceEpoch}',
+            '${idGenerator.next()}',
         name:
             name,
         colorValue:

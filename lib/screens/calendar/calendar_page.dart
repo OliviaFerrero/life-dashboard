@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../application/task_actions.dart';
+import '../../core/id/id_generator.dart';
 import '../../core/time/app_clock.dart';
 import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';

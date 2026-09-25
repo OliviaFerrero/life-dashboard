@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'core/id/id_generator.dart';
 import 'core/time/app_clock.dart';
 import 'database/app_database.dart';
 import 'repositories/category_repository.dart';
@@ -26,13 +27,22 @@ void main() {
   final appClock =
       AppClock();
 
+  final idGenerator =
+      IdGenerator();
+
   runApp(
-    LifeDashboardApp(
-      taskRepository: taskRepository,
-      categoryRepository:
-          categoryRepository,
-      appClock:
-          appClock,
+    IdGeneratorScope(
+      generator:
+          idGenerator,
+      child:
+          LifeDashboardApp(
+        taskRepository:
+            taskRepository,
+        categoryRepository:
+            categoryRepository,
+        appClock:
+            appClock,
+      ),
     ),
   );
 }
