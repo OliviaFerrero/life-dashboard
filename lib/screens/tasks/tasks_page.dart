@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../application/task_actions.dart';
 import '../../core/time/app_clock.dart';
 import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
@@ -9,6 +10,7 @@ import '../../models/task_recurrence.dart';
 import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
+import '../../widgets/task_prompts.dart';
 import 'task_detail_page.dart';
 import 'task_form_page.dart';
 
@@ -36,6 +38,11 @@ class TasksPage extends StatefulWidget {
 
 class _TasksPageState
     extends State<TasksPage> {
+  TaskActions get _taskActions =>
+      TaskActions(
+        widget.taskRepository,
+      );
+
   late _TaskListMode _mode;
   bool _pastExpanded = false;
 
@@ -508,56 +515,6 @@ class _TasksPageState
     return groups;
   }
 
-  Future<bool> _confirmCompleteAll(
-    int remainingSubtasks,
-  ) async {
-    final confirmed =
-        await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title:
-              const Text(
-            'Completare attività?',
-          ),
-          content:
-              Text(
-            remainingSubtasks == 1
-                ? 'C’è ancora 1 sottoattività da completare. Vuoi completare tutto?'
-                : 'Ci sono ancora $remainingSubtasks sottoattività da completare. Vuoi completare tutto?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
-              },
-              child:
-                  const Text(
-                'Annulla',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
-              },
-              child:
-                  const Text(
-                'Completa tutto',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    return confirmed == true;
-  }
 
   @override
   Widget build(
@@ -781,32 +738,25 @@ class _TasksPageState
                               completed,
                             ) async {
                               if (completed) {
-                                final remaining =
-                                    task.subtasks
-                                        .where(
-                                          (subtask) =>
-                                              !subtask
-                                                  .isCompleted,
-                                        )
-                                        .length;
+                                final confirmed =
+                                    await TaskPrompts
+                                        .confirmCompletionIfNeeded(
+                                  context,
+                                  subtasks:
+                                      task.subtasks,
+                                );
 
-                                if (remaining > 0) {
-                                  final confirmed =
-                                      await _confirmCompleteAll(
-                                    remaining,
-                                  );
-
-                                  if (!confirmed) {
-                                    return;
-                                  }
+                                if (!confirmed) {
+                                  return;
                                 }
                               }
 
-                              await widget
-                                  .taskRepository
+                              await _taskActions
                                   .setCompleted(
-                                task.id,
-                                completed,
+                                task:
+                                    task,
+                                completed:
+                                    completed,
                               );
                             },
                             onTaskTap:
@@ -874,33 +824,29 @@ class _TasksPageState
                                 completed,
                               ) async {
                                 if (completed) {
-                                  final remaining =
-                                      occurrence
-                                          .subtasks
-                                          .where(
-                                            (subtask) =>
-                                                !subtask
-                                                    .isCompleted,
-                                          )
-                                          .length;
+                                  final confirmed =
+                                      await TaskPrompts
+                                          .confirmCompletionIfNeeded(
+                                    context,
+                                    subtasks:
+                                        occurrence
+                                            .subtasks,
+                                  );
 
-                                  if (remaining > 0) {
-                                    final confirmed =
-                                        await _confirmCompleteAll(
-                                      remaining,
-                                    );
-
-                                    if (!confirmed) {
-                                      return;
-                                    }
+                                  if (!confirmed) {
+                                    return;
                                   }
                                 }
 
-                                await widget
-                                    .taskRepository
-                                    .setOccurrenceCompleted(
-                                  occurrence,
-                                  completed,
+                                await _taskActions
+                                    .setCompleted(
+                                  task:
+                                      occurrence
+                                          .task,
+                                  occurrence:
+                                      occurrence,
+                                  completed:
+                                      completed,
                                 );
                               },
                               onTaskTap:
@@ -978,33 +924,29 @@ class _TasksPageState
                               completed,
                             ) async {
                               if (completed) {
-                                final remaining =
-                                    occurrence
-                                        .subtasks
-                                        .where(
-                                          (subtask) =>
-                                              !subtask
-                                                  .isCompleted,
-                                        )
-                                        .length;
+                                final confirmed =
+                                    await TaskPrompts
+                                        .confirmCompletionIfNeeded(
+                                  context,
+                                  subtasks:
+                                      occurrence
+                                          .subtasks,
+                                );
 
-                                if (remaining > 0) {
-                                  final confirmed =
-                                      await _confirmCompleteAll(
-                                    remaining,
-                                  );
-
-                                  if (!confirmed) {
-                                    return;
-                                  }
+                                if (!confirmed) {
+                                  return;
                                 }
                               }
 
-                              await widget
-                                  .taskRepository
-                                  .setOccurrenceCompleted(
-                                occurrence,
-                                completed,
+                              await _taskActions
+                                  .setCompleted(
+                                task:
+                                    occurrence
+                                        .task,
+                                occurrence:
+                                    occurrence,
+                                completed:
+                                    completed,
                               );
                             },
                             onTaskTap:

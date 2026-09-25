@@ -612,6 +612,9 @@ class TaskRepository {
   /// Per le task ricorrenti lo stato è legato alla data
   /// dell'occorrenza. Per le task singole viene salvato direttamente
   /// sulla definizione della sottoattività.
+  ///
+  /// Invariante: riaprire una sottoattività riapre anche il parent
+  /// corrispondente (la task singola oppure quella sola occorrenza).
   Future<void> setSubtaskCompleted({
     required LifeTask task,
     required TaskSubtask subtask,
@@ -619,18 +622,50 @@ class TaskRepository {
     DateTime? occurrenceDate,
   }) async {
     if (!task.recurrence.isRecurring) {
-      await (_database.update(
-        _database.taskSubtasks,
-      )..where(
-            (row) =>
-                row.id.equals(subtask.id) &
-                row.taskId.equals(task.id),
-          ))
-          .write(
-        TaskSubtasksCompanion(
-          isCompleted:
-              Value(completed),
-        ),
+      await _database.transaction(
+        () async {
+          await (_database.update(
+            _database.taskSubtasks,
+          )..where(
+                (row) =>
+                    row.id.equals(
+                      subtask.id,
+                    ) &
+                    row.taskId.equals(
+                      task.id,
+                    ),
+              ))
+              .write(
+            TaskSubtasksCompanion(
+              isCompleted:
+                  Value(
+                completed,
+              ),
+            ),
+          );
+
+          // Invariante centrale:
+          // una sottoattività aperta non può appartenere a un parent
+          // che resta marcato come completato.
+          if (!completed) {
+            await (_database.update(
+              _database.taskItems,
+            )..where(
+                  (row) =>
+                      row.id.equals(
+                    task.id,
+                  ),
+                ))
+                .write(
+              const TaskItemsCompanion(
+                isCompleted:
+                    Value(
+                  false,
+                ),
+              ),
+            );
+          }
+        },
       );
 
       return;
@@ -643,42 +678,64 @@ class TaskRepository {
     }
 
     final date =
-        _dateOnly(occurrenceDate);
+        _dateOnly(
+      occurrenceDate,
+    );
 
-    if (completed) {
-      await _database
-          .into(
-            _database
-                .taskSubtaskOccurrenceStates,
-          )
-          .insertOnConflictUpdate(
-        TaskSubtaskOccurrenceStatesCompanion
-            .insert(
-          subtaskId:
-              subtask.id,
-          occurrenceDate:
-              date,
-          isCompleted:
-              const Value(true),
-        ),
-      );
-
-      return;
-    }
-
-    await (_database.delete(
-      _database
-          .taskSubtaskOccurrenceStates,
-    )..where(
-          (row) =>
-              row.subtaskId.equals(
-                subtask.id,
-              ) &
-              row.occurrenceDate.equals(
-                date,
+    await _database.transaction(
+      () async {
+        if (completed) {
+          await _database
+              .into(
+                _database
+                    .taskSubtaskOccurrenceStates,
+              )
+              .insertOnConflictUpdate(
+            TaskSubtaskOccurrenceStatesCompanion
+                .insert(
+              subtaskId:
+                  subtask.id,
+              occurrenceDate:
+                  date,
+              isCompleted:
+                  const Value(
+                true,
               ),
-        ))
-        .go();
+            ),
+          );
+
+          return;
+        }
+
+        await (_database.delete(
+          _database
+              .taskSubtaskOccurrenceStates,
+        )..where(
+              (row) =>
+                  row.subtaskId.equals(
+                    subtask.id,
+                  ) &
+                  row.occurrenceDate.equals(
+                    date,
+                  ),
+            ))
+            .go();
+
+        // Stessa invariante, ma limitata alla singola occorrenza.
+        await (_database.delete(
+          _database.taskOccurrenceStates,
+        )..where(
+              (row) =>
+                  row.taskId.equals(
+                    task.id,
+                  ) &
+                  row.occurrenceDate.equals(
+                    date,
+                  ),
+            ))
+            .go();
+      },
+    );
   }
 
   Stream<_TaskDataSnapshot>

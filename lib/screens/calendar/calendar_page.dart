@@ -3,16 +3,19 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../application/task_actions.dart';
 import '../../core/time/app_clock.dart';
 import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
 import '../../models/task_occurrence.dart';
 import '../../models/task_recurrence.dart';
+import '../../models/task_series_scope.dart';
 import '../../models/task_subtask.dart';
 import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
+import '../../widgets/task_prompts.dart';
 import '../tasks/task_detail_page.dart';
 import '../tasks/task_form_page.dart';
 
@@ -39,6 +42,11 @@ class CalendarPage extends StatefulWidget {
 
 class _CalendarPageState extends State<CalendarPage>
     with SingleTickerProviderStateMixin {
+  TaskActions get _taskActions =>
+      TaskActions(
+        widget.taskRepository,
+      );
+
   static const double _weekDefaultHourHeight = 68;
   static const double _weekMinHourHeight = 40;
   static const double _weekMaxHourHeight = 110;

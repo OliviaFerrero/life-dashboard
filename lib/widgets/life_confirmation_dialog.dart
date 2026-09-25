@@ -109,33 +109,63 @@ class _LifeConfirmationDialog extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (icon != null) ...[
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.09),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 18,
-                      color: accent,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-                Text(
-                  title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
+                Row(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.center,
+                  children: [
+                    if (icon != null) ...[
+                      Container(
+                        width:
+                            34,
+                        height:
+                            34,
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              accent.withValues(
+                            alpha:
+                                0.09,
+                          ),
+                          borderRadius:
+                              BorderRadius.circular(
+                            10,
+                          ),
+                        ),
+                        child:
+                            Icon(
+                          icon,
+                          size:
+                              18,
+                          color:
+                              accent,
+                        ),
                       ),
+                      const SizedBox(
+                        width:
+                            12,
+                      ),
+                    ],
+                    Expanded(
+                      child:
+                          Text(
+                        title,
+                        style:
+                            Theme.of(
+                          context,
+                        )
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight:
+                                      FontWeight.w700,
+                                  letterSpacing:
+                                      -0.3,
+                                ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   message,
                   style: Theme.of(context)
@@ -154,25 +184,48 @@ class _LifeConfirmationDialog extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    _LifeDialogAction(
-                      label: cancelLabel,
-                      onTap: () {
-                        Navigator.pop(context, false);
-                      },
-                    ),
-                    const SizedBox(width: 6),
-                    _LifeDialogAction(
-                      label: confirmLabel,
-                      accent: accent,
-                      emphasized: true,
-                      onTap: () {
-                        Navigator.pop(context, true);
-                      },
-                    ),
-                  ],
+                Align(
+                  alignment:
+                      Alignment.center,
+                  child:
+                      Wrap(
+                    alignment:
+                        WrapAlignment.center,
+                    crossAxisAlignment:
+                        WrapCrossAlignment.center,
+                    spacing:
+                        6,
+                    runSpacing:
+                        6,
+                    children: [
+                      _LifeDialogAction(
+                        label:
+                            cancelLabel,
+                        onTap:
+                            () {
+                          Navigator.pop(
+                            context,
+                            false,
+                          );
+                        },
+                      ),
+                      _LifeDialogAction(
+                        label:
+                            confirmLabel,
+                        accent:
+                            accent,
+                        emphasized:
+                            true,
+                        onTap:
+                            () {
+                          Navigator.pop(
+                            context,
+                            true,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

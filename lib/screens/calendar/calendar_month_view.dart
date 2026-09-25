@@ -229,53 +229,6 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
     );
   }
 
-  Future<bool> _confirmCompleteAll(
-    int remainingSubtasks,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text(
-            'Completare attività?',
-          ),
-          content: Text(
-            remainingSubtasks == 1
-                ? 'C’è ancora 1 sottoattività da completare. '
-                    'Vuoi completare tutto?'
-                : 'Ci sono ancora $remainingSubtasks sottoattività '
-                    'da completare. Vuoi completare tutto?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
-              },
-              child: const Text(
-                'Annulla',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
-              },
-              child: const Text(
-                'Completa tutto',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    return confirmed == true;
-  }
 
   Widget _buildMonthView(
     BuildContext context,
@@ -924,33 +877,28 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
                         selectedOccurrences[i];
 
                     if (completed) {
-                      final remaining =
-                          occurrence
-                              .subtasks
-                              .where(
-                                (subtask) =>
-                                    !subtask
-                                        .isCompleted,
-                              )
-                              .length;
+                      final confirmed =
+                          await TaskPrompts
+                              .confirmCompletionIfNeeded(
+                        context,
+                        subtasks:
+                            occurrence
+                                .subtasks,
+                      );
 
-                      if (remaining > 0) {
-                        final confirmed =
-                            await _confirmCompleteAll(
-                          remaining,
-                        );
-
-                        if (!confirmed) {
-                          return;
-                        }
+                      if (!confirmed) {
+                        return;
                       }
                     }
 
-                    await widget
-                        .taskRepository
-                        .setOccurrenceCompleted(
-                      occurrence,
-                      completed,
+                    await _taskActions
+                        .setCompleted(
+                      task:
+                          occurrence.task,
+                      occurrence:
+                          occurrence,
+                      completed:
+                          completed,
                     );
                   },
                   onTap:

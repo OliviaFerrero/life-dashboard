@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../application/task_actions.dart';
 import '../core/time/app_clock.dart';
 
 import '../models/life_task.dart';
@@ -9,6 +10,7 @@ import '../repositories/category_repository.dart';
 import '../repositories/task_repository.dart';
 import '../services/day_settings_controller.dart';
 import '../utils/task_category_icons.dart';
+import '../widgets/task_prompts.dart';
 import '../widgets/task_timeline.dart';
 import 'tasks/task_detail_page.dart';
 import 'tasks/tasks_page.dart';
@@ -31,6 +33,11 @@ class TodayPage extends StatefulWidget {
 }
 
 class _TodayPageState extends State<TodayPage> {
+  TaskActions get _taskActions =>
+      TaskActions(
+        widget.taskRepository,
+      );
+
   String _dayLabel(
     DateTime date,
   ) {
@@ -292,57 +299,6 @@ class _TodayPageState extends State<TodayPage> {
     );
   }
 
-  Future<bool> _confirmCompleteAll(
-    BuildContext context,
-    int remainingSubtasks,
-  ) async {
-    final confirmed =
-        await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title:
-              const Text(
-            'Completare attività?',
-          ),
-          content:
-              Text(
-            remainingSubtasks == 1
-                ? 'C’è ancora 1 sottoattività da completare. Vuoi completare tutto?'
-                : 'Ci sono ancora $remainingSubtasks sottoattività da completare. Vuoi completare tutto?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
-              },
-              child:
-                  const Text(
-                'Annulla',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
-              },
-              child:
-                  const Text(
-                'Completa tutto',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    return confirmed == true;
-  }
 
   @override
   Widget build(
@@ -764,34 +720,29 @@ class _TodayPageState extends State<TodayPage> {
                                           completed,
                                         ) async {
                                           if (completed) {
-                                            final remaining =
-                                                occurrence
-                                                    .subtasks
-                                                    .where(
-                                                      (subtask) =>
-                                                          !subtask
-                                                              .isCompleted,
-                                                    )
-                                                    .length;
+                                            final confirmed =
+                                                await TaskPrompts
+                                                    .confirmCompletionIfNeeded(
+                                              context,
+                                              subtasks:
+                                                  occurrence
+                                                      .subtasks,
+                                            );
 
-                                            if (remaining > 0) {
-                                              final confirmed =
-                                                  await _confirmCompleteAll(
-                                                context,
-                                                remaining,
-                                              );
-
-                                              if (!confirmed) {
-                                                return;
-                                              }
+                                            if (!confirmed) {
+                                              return;
                                             }
                                           }
 
-                                          await widget
-                                              .taskRepository
-                                              .setOccurrenceCompleted(
-                                            occurrence,
-                                            completed,
+                                          await _taskActions
+                                              .setCompleted(
+                                            task:
+                                                occurrence
+                                                    .task,
+                                            occurrence:
+                                                occurrence,
+                                            completed:
+                                                completed,
                                           );
                                         },
                                         onTaskTap:

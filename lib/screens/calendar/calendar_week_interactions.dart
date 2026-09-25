@@ -3,16 +3,6 @@ part of 'calendar_page.dart';
 // Vista settimanale del Calendario: interazioni, drag, resize, zoom e widget
 // dedicati alla griglia Week. È un part della stessa libreria per mantenere
 // invariata la visibilità dei membri privati durante questo refactor.
-enum _RecurringMoveScope {
-  occurrence,
-  series,
-}
-
-enum _RecurringActionScope {
-  occurrence,
-  series,
-}
-
 enum _WeekOccurrenceAction {
   edit,
   duplicate,
@@ -392,206 +382,6 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     );
   }
 
-  Future<_RecurringActionScope?>
-      _showRecurringActionScope({
-    required String title,
-    bool destructive = false,
-  }) {
-    return showModalBottomSheet<
-        _RecurringActionScope>(
-      context:
-          context,
-      backgroundColor:
-          Colors.transparent,
-      barrierColor:
-          Colors.black.withValues(
-        alpha:
-            0.28,
-      ),
-      useSafeArea:
-          true,
-      builder:
-          (sheetContext) {
-        final colorScheme =
-            Theme.of(
-          sheetContext,
-        ).colorScheme;
-
-        return SafeArea(
-          top:
-              false,
-          child:
-              Container(
-            margin:
-                const EdgeInsets.fromLTRB(
-              12,
-              0,
-              12,
-              12,
-            ),
-            padding:
-                const EdgeInsets.fromLTRB(
-              20,
-              18,
-              20,
-              10,
-            ),
-            decoration:
-                BoxDecoration(
-              color:
-                  colorScheme.surface,
-              borderRadius:
-                  BorderRadius.circular(
-                24,
-              ),
-              border:
-                  Border.all(
-                color:
-                    colorScheme
-                        .outlineVariant
-                        .withValues(
-                  alpha:
-                      0.55,
-                ),
-              ),
-            ),
-            child:
-                Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title.toUpperCase(),
-                  style:
-                      Theme.of(
-                    sheetContext,
-                  )
-                          .textTheme
-                          .labelMedium
-                          ?.copyWith(
-                            color:
-                                colorScheme
-                                    .onSurfaceVariant,
-                            fontWeight:
-                                FontWeight.w800,
-                            letterSpacing:
-                                1,
-                          ),
-                ),
-                const SizedBox(
-                  height:
-                      8,
-                ),
-                _WeekActionSheetRow(
-                  icon:
-                      Icons
-                          .event_outlined,
-                  label:
-                      'Solo questa occorrenza',
-                  isDestructive:
-                      destructive,
-                  onTap:
-                      () {
-                    Navigator.pop(
-                      sheetContext,
-                      _RecurringActionScope
-                          .occurrence,
-                    );
-                  },
-                ),
-                Divider(
-                  height:
-                      1,
-                  indent:
-                      44,
-                  color:
-                      colorScheme
-                          .outlineVariant
-                          .withValues(
-                    alpha:
-                        0.5,
-                  ),
-                ),
-                _WeekActionSheetRow(
-                  icon:
-                      Icons.repeat,
-                  label:
-                      'Tutta la serie',
-                  isDestructive:
-                      destructive,
-                  onTap:
-                      () {
-                    Navigator.pop(
-                      sheetContext,
-                      _RecurringActionScope
-                          .series,
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<bool> _confirmWeekDelete({
-    required String title,
-    required String message,
-  }) async {
-    final confirmed =
-        await showDialog<bool>(
-      context:
-          context,
-      builder:
-          (dialogContext) {
-        return AlertDialog(
-          title:
-              Text(
-            title,
-          ),
-          content:
-              Text(
-            message,
-          ),
-          actions: [
-            TextButton(
-              onPressed:
-                  () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
-              },
-              child:
-                  const Text(
-                'Annulla',
-              ),
-            ),
-            FilledButton(
-              onPressed:
-                  () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
-              },
-              child:
-                  const Text(
-                'Elimina',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    return confirmed ==
-        true;
-  }
 
   Future<void> _editOccurrenceFromWeek(
     TaskOccurrence occurrence,
@@ -620,9 +410,11 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
       }
 
       if (result.shouldDelete) {
-        await widget.taskRepository
-            .deleteTask(
-          occurrence.task.id,
+        await _taskActions.delete(
+          task:
+              occurrence.task,
+          scope:
+              TaskSeriesScope.series,
         );
         return;
       }
@@ -638,9 +430,11 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     }
 
     final scope =
-        await _showRecurringActionScope(
-      title:
-          'Modifica',
+        await TaskPrompts
+            .chooseSeriesScope(
+      context,
+      action:
+          TaskSeriesPromptAction.edit,
     );
 
     if (!mounted ||
@@ -649,7 +443,7 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     }
 
     if (scope ==
-        _RecurringActionScope.occurrence) {
+        TaskSeriesScope.occurrence) {
       final result =
           await Navigator.push<
               TaskFormResult>(
@@ -709,9 +503,11 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     }
 
     if (result.shouldDelete) {
-      await widget.taskRepository
-          .deleteTask(
-        occurrence.task.id,
+      await _taskActions.delete(
+        task:
+            occurrence.task,
+        scope:
+            TaskSeriesScope.series,
       );
       return;
     }
@@ -729,30 +525,32 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
   ) async {
     if (!occurrence.isRecurring) {
       final confirmed =
-          await _confirmWeekDelete(
-        title:
-            'Eliminare attività?',
-        message:
-            'Vuoi eliminare "${occurrence.displayTask.title}"?',
+          await TaskPrompts
+              .confirmDeleteTask(
+        context,
+        task:
+            occurrence.task,
       );
 
       if (!confirmed) {
         return;
       }
 
-      await widget.taskRepository
-          .deleteTask(
-        occurrence.task.id,
+      await _taskActions.delete(
+        task:
+            occurrence.task,
+        scope:
+            TaskSeriesScope.series,
       );
       return;
     }
 
     final scope =
-        await _showRecurringActionScope(
-      title:
-          'Elimina',
-      destructive:
-          true,
+        await TaskPrompts
+            .chooseSeriesScope(
+      context,
+      action:
+          TaskSeriesPromptAction.delete,
     );
 
     if (!mounted ||
@@ -761,43 +559,45 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     }
 
     if (scope ==
-        _RecurringActionScope.occurrence) {
+        TaskSeriesScope.occurrence) {
       final confirmed =
-          await _confirmWeekDelete(
-        title:
-            'Eliminare questa occorrenza?',
-        message:
-            'Verrà rimossa solo questa data. '
-            'Le altre occorrenze della serie resteranno invariate.',
+          await TaskPrompts
+              .confirmDeleteOccurrence(
+        context,
       );
 
       if (!confirmed) {
         return;
       }
 
-      await widget.taskRepository
-          .deleteOccurrence(
-        occurrence,
+      await _taskActions.delete(
+        task:
+            occurrence.task,
+        occurrence:
+            occurrence,
+        scope:
+            TaskSeriesScope.occurrence,
       );
       return;
     }
 
     final confirmed =
-        await _confirmWeekDelete(
-      title:
-          'Eliminare serie?',
-      message:
-          'Vuoi eliminare tutta la serie '
-          '"${occurrence.task.title}"?',
+        await TaskPrompts
+            .confirmDeleteTask(
+      context,
+      task:
+          occurrence.task,
     );
 
     if (!confirmed) {
       return;
     }
 
-    await widget.taskRepository
-        .deleteTask(
-      occurrence.task.id,
+    await _taskActions.delete(
+      task:
+          occurrence.task,
+      scope:
+          TaskSeriesScope.series,
     );
   }
 
@@ -1596,169 +1396,6 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     );
   }
 
-  Future<_RecurringMoveScope?>
-      _showRecurringMoveScope() {
-    return showModalBottomSheet<
-        _RecurringMoveScope>(
-      context:
-          context,
-      backgroundColor:
-          Colors.transparent,
-      barrierColor:
-          Colors.black.withValues(
-        alpha: 0.28,
-      ),
-      useSafeArea:
-          true,
-      builder:
-          (sheetContext) {
-        final colorScheme =
-            Theme.of(
-          sheetContext,
-        ).colorScheme;
-
-        return SafeArea(
-          top:
-              false,
-          child:
-              Container(
-            margin:
-                const EdgeInsets.fromLTRB(
-              12,
-              0,
-              12,
-              12,
-            ),
-            padding:
-                const EdgeInsets.fromLTRB(
-              20,
-              18,
-              20,
-              10,
-            ),
-            decoration:
-                BoxDecoration(
-              color:
-                  colorScheme.surface,
-              borderRadius:
-                  BorderRadius.circular(
-                24,
-              ),
-              border:
-                  Border.all(
-                color:
-                    colorScheme
-                        .outlineVariant
-                        .withValues(
-                  alpha:
-                      0.55,
-                ),
-              ),
-            ),
-            child:
-                Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'SPOSTA ATTIVITÀ',
-                  style:
-                      Theme.of(
-                    sheetContext,
-                  )
-                          .textTheme
-                          .labelMedium
-                          ?.copyWith(
-                            color:
-                                colorScheme
-                                    .onSurfaceVariant,
-                            fontWeight:
-                                FontWeight.w800,
-                            letterSpacing:
-                                1,
-                          ),
-                ),
-                const SizedBox(
-                  height:
-                      8,
-                ),
-                _MoveScopeRow(
-                  icon:
-                      Icons
-                          .event_outlined,
-                  title:
-                      'Solo questa occorrenza',
-                  subtitle:
-                      'Sposta soltanto questo evento.',
-                  onTap:
-                      () {
-                    Navigator.pop(
-                      sheetContext,
-                      _RecurringMoveScope
-                          .occurrence,
-                    );
-                  },
-                ),
-                Divider(
-                  height:
-                      1,
-                  indent:
-                      44,
-                  color:
-                      colorScheme
-                          .outlineVariant
-                          .withValues(
-                    alpha:
-                        0.5,
-                  ),
-                ),
-                _MoveScopeRow(
-                  icon:
-                      Icons
-                          .repeat,
-                  title:
-                      'Tutta la serie',
-                  subtitle:
-                      'Sposta orario e giorni della serie.',
-                  onTap:
-                      () {
-                    Navigator.pop(
-                      sheetContext,
-                      _RecurringMoveScope
-                          .series,
-                    );
-                  },
-                ),
-                const SizedBox(
-                  height:
-                      4,
-                ),
-                SizedBox(
-                  width:
-                      double.infinity,
-                  child:
-                      TextButton(
-                    onPressed:
-                        () {
-                      Navigator.pop(
-                        sheetContext,
-                      );
-                    },
-                    child:
-                        const Text(
-                      'Annulla',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Future<void> _moveOccurrenceInWeek(
     TaskOccurrence occurrence,
@@ -1830,7 +1467,12 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     }
 
     final scope =
-        await _showRecurringMoveScope();
+        await TaskPrompts
+            .chooseSeriesScope(
+      context,
+      action:
+          TaskSeriesPromptAction.move,
+    );
 
     if (!mounted ||
         scope == null) {
@@ -1838,7 +1480,7 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     }
 
     if (scope ==
-        _RecurringMoveScope.occurrence) {
+        TaskSeriesScope.occurrence) {
       final editedOccurrence =
           _copyTaskForMove(
         source:
@@ -1985,9 +1627,11 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     }
 
     final scope =
-        await _showRecurringActionScope(
-      title:
-          'Modifica durata',
+        await TaskPrompts
+            .chooseSeriesScope(
+      context,
+      action:
+          TaskSeriesPromptAction.resize,
     );
 
     if (!mounted ||
@@ -1996,7 +1640,7 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
     }
 
     if (scope ==
-        _RecurringActionScope.occurrence) {
+        TaskSeriesScope.occurrence) {
       final editedOccurrence =
           _copyTaskForMove(
         source:

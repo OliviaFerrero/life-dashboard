@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../application/task_actions.dart';
 import '../../core/time/app_clock.dart';
 import '../../core/time/civil_date.dart';
 import '../../models/life_task.dart';
 import '../../models/task_category.dart';
 import '../../models/task_occurrence.dart';
 import '../../models/task_recurrence.dart';
+import '../../models/task_series_scope.dart';
 import '../../models/task_subtask.dart';
 import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
-import '../../widgets/life_confirmation_dialog.dart';
+import '../../widgets/task_prompts.dart';
 import 'task_form_page.dart';
-
-enum _RecurringActionScope {
-  occurrence,
-  series,
-}
 
 class TaskDetailPage extends StatefulWidget {
   final LifeTask task;
@@ -39,6 +36,11 @@ class TaskDetailPage extends StatefulWidget {
 
 class _TaskDetailPageState
     extends State<TaskDetailPage> {
+  TaskActions get _taskActions =>
+      TaskActions(
+        widget.taskRepository,
+      );
+
   late LifeTask _seriesTask;
   late LifeTask _task;
   late bool _isCompleted;
@@ -358,31 +360,6 @@ class _TaskDetailPageState
           )
           .length;
 
-  Future<bool> _confirmCompleteWithOpenSubtasks() async {
-    final remaining =
-        _subtasks.length -
-            _completedSubtaskCount;
-
-    if (remaining <= 0) {
-      return true;
-    }
-
-    return showLifeConfirmationDialog(
-      context,
-      title:
-          'Completare attività?',
-      message:
-          remaining == 1
-              ? 'C’è ancora 1 sottoattività da completare. '
-                  'Completando l’attività verrà completata anche quella.'
-              : 'Ci sono ancora $remaining sottoattività da completare. '
-                  'Completando l’attività verranno completate tutte.',
-      confirmLabel:
-          'Completa tutto',
-      icon:
-          Icons.check_circle_outline,
-    );
-  }
 
   Future<void> _toggleSubtask(
     TaskSubtask subtask,
@@ -390,13 +367,11 @@ class _TaskDetailPageState
     final completed =
         !subtask.isCompleted;
 
-    final occurrenceDate =
-        _seriesTask.recurrence.isRecurring
-            ? (_seriesDate ??
-                _seriesTask.scheduledDate)
-            : null;
+    final parentBecameIncomplete =
+        !completed &&
+            _isCompleted;
 
-    await widget.taskRepository
+    await _taskActions
         .setSubtaskCompleted(
       task:
           _seriesTask,
@@ -404,59 +379,9 @@ class _TaskDetailPageState
           subtask,
       completed:
           completed,
-      occurrenceDate:
-          occurrenceDate,
+      occurrence:
+          _currentOccurrence(),
     );
-
-    if (!mounted) {
-      return;
-    }
-
-    var parentBecameIncomplete =
-        false;
-
-    if (!completed &&
-        _isCompleted) {
-      final date =
-          _occurrenceDate ??
-              _task.scheduledDate;
-
-      final seriesDate =
-          _seriesDate ??
-              _seriesTask.scheduledDate;
-
-      if (_seriesTask.recurrence.isRecurring &&
-          date != null &&
-          seriesDate != null) {
-        await widget.taskRepository
-            .setOccurrenceCompleted(
-          TaskOccurrence(
-            task:
-                _seriesTask,
-            date:
-                date,
-            seriesDate:
-                seriesDate,
-            isCompleted:
-                true,
-            subtasks:
-                _subtasks,
-            effectiveTask:
-                _task,
-          ),
-          false,
-        );
-      } else {
-        await widget.taskRepository
-            .setCompleted(
-          _task.id,
-          false,
-        );
-      }
-
-      parentBecameIncomplete =
-          true;
-    }
 
     if (!mounted) {
       return;
@@ -495,13 +420,14 @@ class _TaskDetailPageState
   Future<void> _setCompleted(
     bool completed,
   ) async {
-    if (completed &&
-        _subtasks.any(
-          (subtask) =>
-              !subtask.isCompleted,
-        )) {
+    if (completed) {
       final confirmed =
-          await _confirmCompleteWithOpenSubtasks();
+          await TaskPrompts
+              .confirmCompletionIfNeeded(
+        context,
+        subtasks:
+            _subtasks,
+      );
 
       if (!confirmed ||
           !mounted) {
@@ -509,42 +435,15 @@ class _TaskDetailPageState
       }
     }
 
-    final date =
-        _occurrenceDate ??
-            _task.scheduledDate;
-
-    final seriesDate =
-        _seriesDate ??
-            _seriesTask.scheduledDate;
-
-    if (_seriesTask.recurrence.isRecurring &&
-        date != null &&
-        seriesDate != null) {
-      await widget.taskRepository
-          .setOccurrenceCompleted(
-        TaskOccurrence(
-          task:
-              _seriesTask,
-          date:
-              date,
-          seriesDate:
-              seriesDate,
-          isCompleted:
-              _isCompleted,
-          subtasks:
-              _subtasks,
-          effectiveTask:
-              _task,
-        ),
-        completed,
-      );
-    } else {
-      await widget.taskRepository
-          .setCompleted(
-        _task.id,
-        completed,
-      );
-    }
+    await _taskActions
+        .setCompleted(
+      task:
+          _seriesTask,
+      occurrence:
+          _currentOccurrence(),
+      completed:
+          completed,
+    );
 
     if (!mounted) {
       return;
@@ -685,9 +584,11 @@ class _TaskDetailPageState
     }
 
     if (result.shouldDelete) {
-      await widget.taskRepository
-          .deleteTask(
-        _seriesTask.id,
+      await _taskActions.delete(
+        task:
+            _seriesTask,
+        scope:
+            TaskSeriesScope.series,
       );
 
       if (!mounted) {
@@ -863,37 +764,23 @@ class _TaskDetailPageState
   }
 
   Future<void> _deleteSeries() async {
-    final recurring =
-        _seriesTask.recurrence.isRecurring;
-
     final confirmed =
-        await showLifeConfirmationDialog(
+        await TaskPrompts
+            .confirmDeleteTask(
       context,
-      title:
-          recurring
-              ? 'Eliminare serie?'
-              : 'Eliminare attività?',
-      message:
-          recurring
-              ? 'Vuoi eliminare tutta la serie '
-                  '"${_seriesTask.title}"?'
-              : 'Vuoi eliminare '
-                  '"${_seriesTask.title}"?',
-      confirmLabel:
-          'Elimina',
-      destructive:
-          true,
-      icon:
-          Icons.delete_outline,
+      task:
+          _seriesTask,
     );
 
-    if (confirmed != true) {
+    if (!confirmed) {
       return;
     }
 
-    await widget.taskRepository
-        .deleteTask(
-      _seriesTask.id,
+    await _taskActions.delete(
+      task:
+          _seriesTask,
+      scope:
+          TaskSeriesScope.series,
     );
 
     if (!mounted) {
@@ -915,28 +802,22 @@ class _TaskDetailPageState
     }
 
     final confirmed =
-        await showLifeConfirmationDialog(
+        await TaskPrompts
+            .confirmDeleteOccurrence(
       context,
-      title:
-          'Eliminare questa occorrenza?',
-      message:
-          'Verrà rimossa solo questa data. '
-          'Le altre occorrenze della serie resteranno invariate.',
-      confirmLabel:
-          'Elimina',
-      destructive:
-          true,
-      icon:
-          Icons.event_busy_outlined,
     );
 
-    if (confirmed != true) {
+    if (!confirmed) {
       return;
     }
 
-    await widget.taskRepository
-        .deleteOccurrence(
-      occurrence,
+    await _taskActions.delete(
+      task:
+          _seriesTask,
+      occurrence:
+          occurrence,
+      scope:
+          TaskSeriesScope.occurrence,
     );
 
     if (!mounted) {
@@ -945,143 +826,6 @@ class _TaskDetailPageState
 
     Navigator.pop(
       context,
-    );
-  }
-
-  Future<_RecurringActionScope?>
-      _chooseRecurringScope({
-    required String title,
-    required IconData occurrenceIcon,
-    required IconData seriesIcon,
-    bool destructive = false,
-  }) {
-    return showModalBottomSheet<
-        _RecurringActionScope>(
-      context: context,
-      backgroundColor:
-          Colors.transparent,
-      barrierColor:
-          Colors.black.withValues(
-        alpha: 0.28,
-      ),
-      builder: (sheetContext) {
-        final colorScheme =
-            Theme.of(sheetContext)
-                .colorScheme;
-
-        return SafeArea(
-          top: false,
-          child: Container(
-            margin:
-                const EdgeInsets
-                    .fromLTRB(
-              12,
-              0,
-              12,
-              12,
-            ),
-            padding:
-                const EdgeInsets
-                    .fromLTRB(
-              20,
-              18,
-              20,
-              10,
-            ),
-            decoration:
-                BoxDecoration(
-              color:
-                  colorScheme.surface,
-              borderRadius:
-                  BorderRadius.circular(
-                24,
-              ),
-              border:
-                  Border.all(
-                color:
-                    colorScheme
-                        .outlineVariant
-                        .withValues(
-                  alpha:
-                      0.55,
-                ),
-              ),
-            ),
-            child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-              children: [
-                Text(
-                  title.toUpperCase(),
-                  style:
-                      Theme.of(
-                    sheetContext,
-                  )
-                          .textTheme
-                          .labelMedium
-                          ?.copyWith(
-                            color:
-                                colorScheme
-                                    .onSurfaceVariant,
-                            fontWeight:
-                                FontWeight
-                                    .w800,
-                            letterSpacing:
-                                1,
-                          ),
-                ),
-                const SizedBox(
-                  height: 8,
-                ),
-                _ActionSheetRow(
-                  icon:
-                      occurrenceIcon,
-                  label:
-                      'Solo questa occorrenza',
-                  isDestructive:
-                      destructive,
-                  onTap: () {
-                    Navigator.pop(
-                      sheetContext,
-                      _RecurringActionScope
-                          .occurrence,
-                    );
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  indent: 44,
-                  color:
-                      colorScheme
-                          .outlineVariant
-                          .withValues(
-                    alpha:
-                        0.5,
-                  ),
-                ),
-                _ActionSheetRow(
-                  icon:
-                      seriesIcon,
-                  label:
-                      'Tutta la serie',
-                  isDestructive:
-                      destructive,
-                  onTap: () {
-                    Navigator.pop(
-                      sheetContext,
-                      _RecurringActionScope
-                          .series,
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -1101,13 +845,11 @@ class _TaskDetailPageState
     }
 
     final scope =
-        await _chooseRecurringScope(
-      title:
-          'Modifica',
-      occurrenceIcon:
-          Icons.event_outlined,
-      seriesIcon:
-          Icons.repeat,
+        await TaskPrompts
+            .chooseSeriesScope(
+      context,
+      action:
+          TaskSeriesPromptAction.edit,
     );
 
     if (!mounted ||
@@ -1116,13 +858,11 @@ class _TaskDetailPageState
     }
 
     switch (scope) {
-      case _RecurringActionScope
-            .occurrence:
+      case TaskSeriesScope.occurrence:
         await _editOccurrence();
         break;
 
-      case _RecurringActionScope
-            .series:
+      case TaskSeriesScope.series:
         await _editSeries();
         break;
     }
@@ -1144,15 +884,11 @@ class _TaskDetailPageState
     }
 
     final scope =
-        await _chooseRecurringScope(
-      title:
-          'Elimina',
-      occurrenceIcon:
-          Icons.event_busy_outlined,
-      seriesIcon:
-          Icons.delete_sweep_outlined,
-      destructive:
-          true,
+        await TaskPrompts
+            .chooseSeriesScope(
+      context,
+      action:
+          TaskSeriesPromptAction.delete,
     );
 
     if (!mounted ||
@@ -1161,13 +897,11 @@ class _TaskDetailPageState
     }
 
     switch (scope) {
-      case _RecurringActionScope
-            .occurrence:
+      case TaskSeriesScope.occurrence:
         await _deleteOccurrence();
         break;
 
-      case _RecurringActionScope
-            .series:
+      case TaskSeriesScope.series:
         await _deleteSeries();
         break;
     }
@@ -1908,89 +1642,6 @@ class _SubtaskDetailRow
                                     ? colorScheme
                                         .onSurfaceVariant
                                     : null,
-                          ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionSheetRow
-    extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isDestructive;
-  final VoidCallback onTap;
-
-  const _ActionSheetRow({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.isDestructive = false,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
-
-    final color =
-        isDestructive
-            ? colorScheme.error
-            : colorScheme.onSurface;
-
-    return Material(
-      color:
-          Colors.transparent,
-      child: InkWell(
-        onTap:
-            onTap,
-        borderRadius:
-            BorderRadius.circular(
-          12,
-        ),
-        child: Padding(
-          padding:
-              const EdgeInsets
-                  .symmetric(
-            vertical: 15,
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 32,
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color:
-                      color,
-                ),
-              ),
-              const SizedBox(
-                width: 12,
-              ),
-              Expanded(
-                child: Text(
-                  label,
-                  style:
-                      Theme.of(
-                    context,
-                  )
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(
-                            color:
-                                color,
-                            fontWeight:
-                                FontWeight
-                                    .w600,
                           ),
                 ),
               ),
