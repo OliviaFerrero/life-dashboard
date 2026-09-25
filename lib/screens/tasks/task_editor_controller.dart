@@ -446,6 +446,132 @@ class TaskEditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Categoria che la UI deve verificare nel repository prima del salvataggio.
+  ///
+  /// In modalità reschedule la categoria non è modificabile e quindi deriva
+  /// sempre dalla task sorgente; nelle altre modalità deriva dal draft.
+  String? get categoryIdForValidation {
+    if (mode ==
+        TaskEditorMode.reschedule) {
+      return initialTask!.categoryId;
+    }
+
+    return _selectedCategoryId;
+  }
+
+  /// Costruisce il LifeTask finale applicando tutte le semantiche della
+  /// modalità editor corrente.
+  ///
+  /// [validatedCategoryId] deve essere il risultato della verifica effettuata
+  /// dal livello UI/applicativo tramite CategoryRepository. Null rappresenta
+  /// "Nessuna categoria" o una categoria non più esistente.
+  LifeTask buildTask({
+    required String? validatedCategoryId,
+  }) {
+    final sourceTask =
+        initialTask;
+
+    final oldTask =
+        mode.createsNewTask
+            ? null
+            : sourceTask;
+
+    final enteredTitle =
+        titleController.text
+            .trim();
+
+    final isReschedule =
+        mode ==
+        TaskEditorMode.reschedule;
+
+    final isOccurrence =
+        mode ==
+        TaskEditorMode.editOccurrence;
+
+    final isDuplicate =
+        mode ==
+        TaskEditorMode.duplicate;
+
+    final title =
+        isReschedule
+            ? sourceTask!.title
+            : enteredTitle.isEmpty
+                ? 'Senza titolo'
+                : enteredTitle;
+
+    final description =
+        isReschedule
+            ? sourceTask!.description
+            : descriptionController.text
+                .trim();
+
+    final priority =
+        isReschedule
+            ? sourceTask!.priority
+            : _priority;
+
+    final recurrence =
+        isOccurrence
+            ? sourceTask!.recurrence
+            : isReschedule
+                ? _selectedDate == null
+                    ? const TaskRecurrence.none()
+                    : sourceTask!.recurrence
+                : _selectedDate == null
+                    ? const TaskRecurrence.none()
+                    : _recurrence;
+
+    final effectiveAllDay =
+        _selectedDate != null &&
+        _allDay;
+
+    return LifeTask(
+      id:
+          oldTask?.id ??
+              _idGenerator.next(),
+      title:
+          title,
+      description:
+          description,
+      scheduledDate:
+          _selectedDate,
+      startTimeMinutes:
+          effectiveAllDay ||
+                  _startTime == null
+              ? null
+              : _minutesFromTimeOfDay(
+                  _startTime!,
+                ),
+      durationMinutes:
+          _durationMinutes,
+      categoryId:
+          validatedCategoryId,
+      allDay:
+          effectiveAllDay,
+      priority:
+          priority,
+      recurrence:
+          recurrence,
+      subtasks:
+          isReschedule ||
+                  isOccurrence
+              ? sourceTask!.subtasks
+              : normalizedSubtasks,
+      isCompleted:
+          isDuplicate
+              ? false
+              : oldTask?.isCompleted ??
+                  false,
+    );
+  }
+
+  static int _minutesFromTimeOfDay(
+    TimeOfDay time,
+  ) {
+    return time.hour * 60 +
+        time.minute;
+  }
+
   static bool _sameTime(
     TimeOfDay? a,
     TimeOfDay? b,

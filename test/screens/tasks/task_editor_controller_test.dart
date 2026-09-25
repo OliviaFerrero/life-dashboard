@@ -177,4 +177,493 @@ void main() {
       expect(controller.subtasks.single.sortOrder, 0);
     },
   );
+
+  test(
+    'buildTask create creates a fresh task and normalizes undated recurrence',
+    () {
+      final controller =
+          TaskEditorController(
+        mode:
+            TaskEditorMode.create,
+        idGenerator:
+            fixedGenerator(
+          3000,
+        ),
+      );
+
+      addTearDown(
+        controller.dispose,
+      );
+
+      controller.titleController.text =
+          '  Nuova attività  ';
+      controller.descriptionController.text =
+          '  Nota  ';
+      controller.setRecurrence(
+        const TaskRecurrence.daily(),
+      );
+      controller.setPriority(
+        TaskPriority.high,
+      );
+      controller.addSubtask(
+        'Uno',
+      );
+
+      final task =
+          controller.buildTask(
+        validatedCategoryId:
+            'cat-1',
+      );
+
+      expect(
+        task.id,
+        '3001',
+      );
+      expect(
+        task.title,
+        'Nuova attività',
+      );
+      expect(
+        task.description,
+        'Nota',
+      );
+      expect(
+        task.categoryId,
+        'cat-1',
+      );
+      expect(
+        task.priority,
+        TaskPriority.high,
+      );
+      expect(
+        task.recurrence.type,
+        TaskRecurrenceType.none,
+      );
+      expect(
+        task.isCompleted,
+        isFalse,
+      );
+      expect(
+        task.subtasks.single.title,
+        'Uno',
+      );
+    },
+  );
+
+  test(
+    'buildTask edit preserves identity and completion while applying draft changes',
+    () {
+      final source =
+          LifeTask(
+        id:
+            'task-edit',
+        title:
+            'Prima',
+        description:
+            'Vecchia',
+        scheduledDate:
+            DateTime(
+          2026,
+          9,
+          25,
+        ),
+        priority:
+            TaskPriority.low,
+        subtasks:
+            const [
+          TaskSubtask(
+            id:
+                's1',
+            title:
+                'Uno',
+            sortOrder:
+                0,
+          ),
+        ],
+        isCompleted:
+            true,
+      );
+
+      final controller =
+          TaskEditorController(
+        mode:
+            TaskEditorMode.edit,
+        idGenerator:
+            fixedGenerator(
+          4000,
+        ),
+        initialTask:
+            source,
+      );
+
+      addTearDown(
+        controller.dispose,
+      );
+
+      controller.titleController.text =
+          'Dopo';
+      controller.setPriority(
+        TaskPriority.high,
+      );
+
+      final task =
+          controller.buildTask(
+        validatedCategoryId:
+            null,
+      );
+
+      expect(
+        task.id,
+        'task-edit',
+      );
+      expect(
+        task.title,
+        'Dopo',
+      );
+      expect(
+        task.priority,
+        TaskPriority.high,
+      );
+      expect(
+        task.isCompleted,
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'buildTask duplicate creates a new incomplete non-recurring copy',
+    () {
+      final source =
+          LifeTask(
+        id:
+            'task-source',
+        title:
+            'Da duplicare',
+        scheduledDate:
+            DateTime(
+          2026,
+          9,
+          25,
+        ),
+        recurrence:
+            const TaskRecurrence.daily(),
+        subtasks:
+            const [
+          TaskSubtask(
+            id:
+                'old-sub',
+            title:
+                'Uno',
+            sortOrder:
+                0,
+            isCompleted:
+                true,
+          ),
+        ],
+        isCompleted:
+            true,
+      );
+
+      final controller =
+          TaskEditorController(
+        mode:
+            TaskEditorMode.duplicate,
+        idGenerator:
+            fixedGenerator(
+          5000,
+        ),
+        initialTask:
+            source,
+      );
+
+      addTearDown(
+        controller.dispose,
+      );
+
+      final task =
+          controller.buildTask(
+        validatedCategoryId:
+            null,
+      );
+
+      expect(
+        task.id,
+        '5001',
+      );
+      expect(
+        task.id,
+        isNot(
+          source.id,
+        ),
+      );
+      expect(
+        task.isCompleted,
+        isFalse,
+      );
+      expect(
+        task.recurrence.type,
+        TaskRecurrenceType.none,
+      );
+      expect(
+        task.subtasks.single.id,
+        'subtask_5000_0',
+      );
+      expect(
+        task.subtasks.single.isCompleted,
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'buildTask editOccurrence preserves series recurrence and source subtasks',
+    () {
+      final source =
+          LifeTask(
+        id:
+            'series-1',
+        title:
+            'Occorrenza',
+        scheduledDate:
+            DateTime(
+          2026,
+          9,
+          25,
+        ),
+        recurrence:
+            const TaskRecurrence.daily(),
+        subtasks:
+            const [
+          TaskSubtask(
+            id:
+                'series-sub',
+            title:
+                'Serie',
+            sortOrder:
+                0,
+            isCompleted:
+                true,
+          ),
+        ],
+        isCompleted:
+            true,
+      );
+
+      final controller =
+          TaskEditorController(
+        mode:
+            TaskEditorMode.editOccurrence,
+        idGenerator:
+            fixedGenerator(),
+        initialTask:
+            source,
+      );
+
+      addTearDown(
+        controller.dispose,
+      );
+
+      controller.setRecurrence(
+        const TaskRecurrence.none(),
+      );
+      controller.addSubtask(
+        'Da ignorare nel salvataggio occorrenza',
+      );
+
+      final task =
+          controller.buildTask(
+        validatedCategoryId:
+            null,
+      );
+
+      expect(
+        task.id,
+        'series-1',
+      );
+      expect(
+        task.recurrence.type,
+        TaskRecurrenceType.daily,
+      );
+      expect(
+        task.subtasks,
+        source.subtasks,
+      );
+      expect(
+        task.isCompleted,
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'buildTask reschedule preserves metadata and clears recurrence when date is removed',
+    () {
+      final source =
+          LifeTask(
+        id:
+            'task-reschedule',
+        title:
+            'Originale',
+        description:
+            'Descrizione',
+        scheduledDate:
+            DateTime(
+          2026,
+          9,
+          20,
+        ),
+        categoryId:
+            'cat-original',
+        priority:
+            TaskPriority.high,
+        recurrence:
+            const TaskRecurrence.daily(),
+        subtasks:
+            const [
+          TaskSubtask(
+            id:
+                'sub-original',
+            title:
+                'Originale',
+            sortOrder:
+                0,
+            isCompleted:
+                true,
+          ),
+        ],
+        isCompleted:
+            true,
+      );
+
+      final controller =
+          TaskEditorController(
+        mode:
+            TaskEditorMode.reschedule,
+        idGenerator:
+            fixedGenerator(),
+        initialTask:
+            source,
+      );
+
+      addTearDown(
+        controller.dispose,
+      );
+
+      controller.titleController.text =
+          'Non deve cambiare';
+      controller.descriptionController.text =
+          'Non deve cambiare';
+      controller.setPriority(
+        TaskPriority.low,
+      );
+      controller.clearDate();
+
+      expect(
+        controller.categoryIdForValidation,
+        'cat-original',
+      );
+
+      final task =
+          controller.buildTask(
+        validatedCategoryId:
+            'cat-original',
+      );
+
+      expect(
+        task.id,
+        'task-reschedule',
+      );
+      expect(
+        task.title,
+        'Originale',
+      );
+      expect(
+        task.description,
+        'Descrizione',
+      );
+      expect(
+        task.priority,
+        TaskPriority.high,
+      );
+      expect(
+        task.categoryId,
+        'cat-original',
+      );
+      expect(
+        task.scheduledDate,
+        isNull,
+      );
+      expect(
+        task.recurrence.type,
+        TaskRecurrenceType.none,
+      );
+      expect(
+        task.subtasks,
+        source.subtasks,
+      );
+      expect(
+        task.isCompleted,
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'buildTask uses validated category result and all-day suppresses start time',
+    () {
+      final controller =
+          TaskEditorController(
+        mode:
+            TaskEditorMode.create,
+        idGenerator:
+            fixedGenerator(
+          6000,
+        ),
+        initialDate:
+            DateTime(
+          2026,
+          9,
+          25,
+        ),
+        initialStartTimeMinutes:
+            10 * 60,
+      );
+
+      addTearDown(
+        controller.dispose,
+      );
+
+      controller.setSelectedCategoryId(
+        'deleted-category',
+      );
+      controller.setAllDay(
+        true,
+      );
+
+      expect(
+        controller.categoryIdForValidation,
+        'deleted-category',
+      );
+
+      final task =
+          controller.buildTask(
+        validatedCategoryId:
+            null,
+      );
+
+      expect(
+        task.categoryId,
+        isNull,
+      );
+      expect(
+        task.allDay,
+        isTrue,
+      );
+      expect(
+        task.startTimeMinutes,
+        isNull,
+      );
+    },
+  );
 }

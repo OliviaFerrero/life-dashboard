@@ -105,9 +105,6 @@ class _TaskFormPageState
   TaskPriority get _priority =>
       _editorController.priority;
 
-  bool get _isDuplicateMode =>
-      widget.mode ==
-      TaskEditorMode.duplicate;
 
   bool get _isOccurrenceMode =>
       widget.mode ==
@@ -664,12 +661,6 @@ class _TaskFormPageState
     );
   }
 
-  List<TaskSubtask>
-      _normalizedSubtasks() {
-    return _editorController
-        .normalizedSubtasks;
-  }
-
   Future<String?> _editSubtaskTitle({
     String initialTitle = '',
     required String title,
@@ -871,41 +862,12 @@ class _TaskFormPageState
       return;
     }
 
-    final sourceTask =
-        widget.initialTask;
+    final categoryId =
+        _editorController
+            .categoryIdForValidation;
 
-    final oldTask =
-        widget.mode.createsNewTask
-            ? null
-            : sourceTask;
-
-    final enteredTitle =
-        _titleController.text
-            .trim();
-
-    final title =
-        _isRescheduleMode
-            ? sourceTask!.title
-            : enteredTitle.isEmpty
-                ? 'Senza titolo'
-                : enteredTitle;
-
-    final description =
-        _isRescheduleMode
-            ? sourceTask!.description
-            : _descriptionController
-                .text
-                .trim();
-
-    final priority =
-        _isRescheduleMode
-            ? sourceTask!.priority
-            : _priority;
-
-    String? categoryId =
-        _isRescheduleMode
-            ? sourceTask!.categoryId
-            : _selectedCategoryId;
+    String? validatedCategoryId =
+        categoryId;
 
     if (categoryId != null) {
       final category =
@@ -916,7 +878,8 @@ class _TaskFormPageState
           );
 
       if (category == null) {
-        categoryId = null;
+        validatedCategoryId =
+            null;
       }
     }
 
@@ -924,70 +887,10 @@ class _TaskFormPageState
       return;
     }
 
-    final recurrence =
-        _isOccurrenceMode
-            ? sourceTask!.recurrence
-            : _isRescheduleMode
-                ? _selectedDate == null
-                    ? const TaskRecurrence.none()
-                    : sourceTask!.recurrence
-                : _selectedDate == null
-                    ? const TaskRecurrence.none()
-                    : _recurrence;
-
-    final effectiveAllDay =
-        _selectedDate != null &&
-        _allDay;
-
     final task =
-        LifeTask(
-      id:
-          oldTask?.id ??
-              _idGenerator.next(),
-
-      title:
-          title,
-
-      description:
-          description,
-
-      scheduledDate:
-          _selectedDate,
-
-      startTimeMinutes:
-          effectiveAllDay ||
-                  _startTime == null
-              ? null
-              : _minutesFromTimeOfDay(
-                  _startTime!,
-                ),
-
-      durationMinutes:
-          _durationMinutes,
-
-      categoryId:
-          categoryId,
-
-      allDay:
-          effectiveAllDay,
-
-      priority:
-          priority,
-
-      recurrence:
-          recurrence,
-
-      subtasks:
-          _isRescheduleMode ||
-                  _isOccurrenceMode
-              ? sourceTask!.subtasks
-              : _normalizedSubtasks(),
-
-      isCompleted:
-          _isDuplicateMode
-              ? false
-              : oldTask?.isCompleted ??
-                  false,
+        _editorController.buildTask(
+      validatedCategoryId:
+          validatedCategoryId,
     );
 
     Navigator.pop(
