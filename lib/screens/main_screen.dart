@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../repositories/category_repository.dart';
 import '../repositories/task_repository.dart';
 import '../services/day_settings_controller.dart';
+import '../services/day_settings_store.dart';
 import 'calendar/calendar_page.dart';
 import 'more_page.dart';
 import 'placeholder_page.dart';
@@ -37,7 +38,10 @@ class _MainScreenState
     super.initState();
 
     _daySettingsController =
-        DaySettingsController();
+        DaySettingsController(
+      store:
+          const JsonDaySettingsStore(),
+    );
 
     _daySettingsController.load();
 

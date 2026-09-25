@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/time/clock_format.dart';
 import '../services/day_settings_controller.dart';
 
 class MorePage extends StatelessWidget {
@@ -70,12 +71,12 @@ class MorePage extends StatelessWidget {
         animation: daySettingsController,
         builder: (context, _) {
           final startLabel =
-              daySettingsController.formatMinutes(
+              formatClockMinutes(
             daySettingsController.startMinutes,
           );
 
           final endLabel =
-              daySettingsController.formatMinutes(
+              formatClockMinutes(
             daySettingsController.endMinutes,
           );
 

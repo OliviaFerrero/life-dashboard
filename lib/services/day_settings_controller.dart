@@ -1,13 +1,23 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 import '../core/time/civil_date.dart';
+import 'day_settings_store.dart';
 
 class DaySettingsController extends ChangeNotifier {
+  final DaySettingsStore _store;
+
+  factory DaySettingsController({
+    required DaySettingsStore store,
+  }) {
+    return DaySettingsController._(
+      store,
+    );
+  }
+
+  DaySettingsController._(
+    this._store,
+  );
+
   static const int defaultStartMinutes = 6 * 60;
   static const int defaultEndMinutes = 3 * 60;
 
@@ -29,24 +39,26 @@ class DaySettingsController extends ChangeNotifier {
     }
 
     try {
-      final file = await _settingsFile();
+      final stored =
+          await _store.load();
 
-      if (await file.exists()) {
-        final raw = await file.readAsString();
-        final decoded = jsonDecode(raw);
+      final storedStart =
+          stored?.startMinutes;
+      final storedEnd =
+          stored?.endMinutes;
 
-        if (decoded is Map<String, dynamic>) {
-          final storedStart = decoded['dayStartMinutes'];
-          final storedEnd = decoded['dayEndMinutes'];
+      if (storedStart != null) {
+        _startMinutes =
+            _normalizeMinutes(
+          storedStart,
+        );
+      }
 
-          if (storedStart is int) {
-            _startMinutes = _normalizeMinutes(storedStart);
-          }
-
-          if (storedEnd is int) {
-            _endMinutes = _normalizeMinutes(storedEnd);
-          }
-        }
+      if (storedEnd != null) {
+        _endMinutes =
+            _normalizeMinutes(
+          storedEnd,
+        );
       }
     } catch (_) {
       // Se il file è mancante/corrotto, manteniamo i default locali.
@@ -168,18 +180,6 @@ class DaySettingsController extends ChangeNotifier {
     );
   }
 
-  String formatMinutes(
-    int minutes,
-  ) {
-    final normalized = _normalizeMinutes(minutes);
-    final hour =
-        (normalized ~/ 60).toString().padLeft(2, '0');
-    final minute =
-        (normalized % 60).toString().padLeft(2, '0');
-
-    return '$hour:$minute';
-  }
-
   int _normalizeMinutes(
     int value,
   ) {
@@ -190,30 +190,13 @@ class DaySettingsController extends ChangeNotifier {
         : normalized;
   }
 
-  Future<File> _settingsFile() async {
-    final directory =
-        await getApplicationSupportDirectory();
-
-    return File(
-      path.join(
-        directory.path,
-        'life_dashboard_settings.json',
-      ),
-    );
-  }
-
   Future<void> _save() async {
     try {
-      final file = await _settingsFile();
-
-      await file.writeAsString(
-        jsonEncode(
-          {
-            'dayStartMinutes': _startMinutes,
-            'dayEndMinutes': _endMinutes,
-          },
-        ),
-        flush: true,
+      await _store.save(
+        startMinutes:
+            _startMinutes,
+        endMinutes:
+            _endMinutes,
       );
     } catch (_) {
       // Le impostazioni restano valide per la sessione corrente anche
