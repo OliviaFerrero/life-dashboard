@@ -12,6 +12,7 @@ import '../../repositories/category_repository.dart';
 import '../../utils/task_category_icons.dart';
 import '../../widgets/task_prompts.dart';
 import 'category_management_page.dart';
+import 'task_editor_mode.dart';
 
 class TaskFormResult {
   final LifeTask? task;
@@ -37,28 +38,27 @@ class TaskFormPage extends StatefulWidget {
   /// finché l'utente non modifica manualmente l'ora di inizio/fine.
   final int? initialCenterTimeMinutes;
 
-  final bool rescheduleOnly;
-
-  /// true quando il form viene aperto da "Duplica": i dati iniziali
-  /// vengono usati come modello, ma al salvataggio nasce una nuova task.
-  final bool duplicateMode;
-
-  /// true quando il form modifica soltanto una singola occorrenza
-  /// di una serie ricorrente. Ricorrenza e subtasks restano proprietà
-  /// della serie e non sono modificabili da questo form.
-  final bool occurrenceOnly;
+  /// Modalità unica dell'editor.
+  ///
+  /// Sostituisce le precedenti combinazioni di flag booleani, così il form
+  /// può trovarsi in un solo stato valido alla volta.
+  final TaskEditorMode mode;
 
   const TaskFormPage({
     super.key,
     required this.categoryRepository,
+    required this.mode,
     this.initialTask,
     this.initialDate,
     this.initialStartTimeMinutes,
     this.initialCenterTimeMinutes,
-    this.rescheduleOnly = false,
-    this.duplicateMode = false,
-    this.occurrenceOnly = false,
-  });
+  }) : assert(
+          mode == TaskEditorMode.create
+              ? initialTask == null
+              : initialTask != null,
+          'TaskEditorMode.create non accetta initialTask; '
+          'le altre modalità richiedono initialTask.',
+        );
 
   @override
   State<TaskFormPage> createState() =>
@@ -99,9 +99,17 @@ class _TaskFormPageState
 
   bool _centerPlacementActive = false;
 
-  bool get _isEditing =>
-      widget.initialTask != null &&
-      !widget.duplicateMode;
+  bool get _isDuplicateMode =>
+      widget.mode ==
+      TaskEditorMode.duplicate;
+
+  bool get _isOccurrenceMode =>
+      widget.mode ==
+      TaskEditorMode.editOccurrence;
+
+  bool get _isRescheduleMode =>
+      widget.mode ==
+      TaskEditorMode.reschedule;
 
   @override
   void initState() {
@@ -127,7 +135,7 @@ class _TaskFormPageState
           task.categoryId;
 
       _recurrence =
-          widget.duplicateMode
+          _isDuplicateMode
               ? const TaskRecurrence.none()
               : task.recurrence;
 
@@ -200,7 +208,7 @@ class _TaskFormPageState
       context,
     );
 
-    if (widget.duplicateMode) {
+    if (_isDuplicateMode) {
       final duplicateSeed =
           _idGenerator.next();
 
@@ -1076,7 +1084,7 @@ class _TaskFormPageState
         widget.initialTask;
 
     final oldTask =
-        widget.duplicateMode
+        widget.mode.createsNewTask
             ? null
             : sourceTask;
 
@@ -1085,26 +1093,26 @@ class _TaskFormPageState
             .trim();
 
     final title =
-        widget.rescheduleOnly
+        _isRescheduleMode
             ? sourceTask!.title
             : enteredTitle.isEmpty
                 ? 'Senza titolo'
                 : enteredTitle;
 
     final description =
-        widget.rescheduleOnly
+        _isRescheduleMode
             ? sourceTask!.description
             : _descriptionController
                 .text
                 .trim();
 
     final priority =
-        widget.rescheduleOnly
+        _isRescheduleMode
             ? sourceTask!.priority
             : _priority;
 
     String? categoryId =
-        widget.rescheduleOnly
+        _isRescheduleMode
             ? sourceTask!.categoryId
             : _selectedCategoryId;
 
@@ -1126,9 +1134,9 @@ class _TaskFormPageState
     }
 
     final recurrence =
-        widget.occurrenceOnly
+        _isOccurrenceMode
             ? sourceTask!.recurrence
-            : widget.rescheduleOnly
+            : _isRescheduleMode
                 ? _selectedDate == null
                     ? const TaskRecurrence.none()
                     : sourceTask!.recurrence
@@ -1179,13 +1187,13 @@ class _TaskFormPageState
           recurrence,
 
       subtasks:
-          widget.rescheduleOnly ||
-                  widget.occurrenceOnly
+          _isRescheduleMode ||
+                  _isOccurrenceMode
               ? sourceTask!.subtasks
               : _normalizedSubtasks(),
 
       isCompleted:
-          widget.duplicateMode
+          _isDuplicateMode
               ? false
               : oldTask?.isCompleted ??
                   false,
@@ -1230,15 +1238,18 @@ class _TaskFormPageState
             .colorScheme;
 
     final screenTitle =
-        widget.occurrenceOnly
-            ? 'Modifica occorrenza'
-            : widget.rescheduleOnly
-                ? 'Sposta attività'
-                : widget.duplicateMode
-                    ? 'Duplica attività'
-                    : _isEditing
-                        ? 'Modifica attività'
-                        : 'Nuova attività';
+        switch (widget.mode) {
+      TaskEditorMode.create =>
+        'Nuova attività',
+      TaskEditorMode.edit =>
+        'Modifica attività',
+      TaskEditorMode.editOccurrence =>
+        'Modifica occorrenza',
+      TaskEditorMode.duplicate =>
+        'Duplica attività',
+      TaskEditorMode.reschedule =>
+        'Sposta attività',
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -1246,9 +1257,8 @@ class _TaskFormPageState
             const SizedBox
                 .shrink(),
         actions: [
-          if (_isEditing &&
-              !widget.rescheduleOnly &&
-              !widget.occurrenceOnly)
+          if (widget.mode ==
+              TaskEditorMode.edit)
             IconButton(
               tooltip:
                   'Elimina attività',
@@ -1302,7 +1312,7 @@ class _TaskFormPageState
                         ),
               ),
 
-              if (widget.occurrenceOnly) ...[
+              if (_isOccurrenceMode) ...[
                 const SizedBox(
                   height: 8,
                 ),
@@ -1323,7 +1333,7 @@ class _TaskFormPageState
                 ),
               ],
 
-              if (widget.rescheduleOnly) ...[
+              if (_isRescheduleMode) ...[
                 const SizedBox(
                   height: 8,
                 ),
@@ -1436,7 +1446,7 @@ class _TaskFormPageState
                     Icons
                         .calendar_today_outlined,
                 title:
-                    widget.occurrenceOnly
+                    _isOccurrenceMode
                         ? 'Data'
                         : _recurrence
                                 .isRecurring
@@ -1454,7 +1464,7 @@ class _TaskFormPageState
                 onClear:
                     _selectedDate ==
                                 null ||
-                            widget.occurrenceOnly
+                            _isOccurrenceMode
                         ? null
                         : _clearDate,
               ),
@@ -1542,10 +1552,8 @@ class _TaskFormPageState
 
               if (_selectedDate !=
                       null &&
-                  !widget
-                      .rescheduleOnly &&
-                  !widget
-                      .occurrenceOnly) ...[
+                  !_isRescheduleMode &&
+                  !_isOccurrenceMode) ...[
                 const _FormDivider(),
                 _SettingRow(
                   icon:
@@ -1561,8 +1569,7 @@ class _TaskFormPageState
                 ),
               ],
 
-              if (!widget
-                  .rescheduleOnly) ...[
+              if (!_isRescheduleMode) ...[
                 const SizedBox(
                   height: 30,
                 ),
@@ -1654,8 +1661,7 @@ class _TaskFormPageState
                   },
                 ),
 
-                if (!widget
-                    .occurrenceOnly) ...[
+                if (!_isOccurrenceMode) ...[
                   const SizedBox(
                     height: 30,
                   ),
@@ -1827,25 +1833,31 @@ class _TaskFormPageState
           onTap:
               _saveTask,
           icon:
-              widget.rescheduleOnly
-                  ? Icons
-                      .event_repeat_outlined
-                  : widget.duplicateMode
-                      ? Icons
-                          .library_add_outlined
-                      : _isEditing
-                          ? Icons.check
-                          : Icons.add,
+              switch (widget.mode) {
+            TaskEditorMode.create =>
+              Icons.add,
+            TaskEditorMode.edit =>
+              Icons.check,
+            TaskEditorMode.editOccurrence =>
+              Icons.check,
+            TaskEditorMode.duplicate =>
+              Icons.library_add_outlined,
+            TaskEditorMode.reschedule =>
+              Icons.event_repeat_outlined,
+          },
           label:
-              widget.occurrenceOnly
-                  ? 'Salva occorrenza'
-                  : widget.rescheduleOnly
-                      ? 'Sposta attività'
-                      : widget.duplicateMode
-                          ? 'Crea duplicato'
-                          : _isEditing
-                              ? 'Salva'
-                              : 'Crea attività',
+              switch (widget.mode) {
+            TaskEditorMode.create =>
+              'Crea attività',
+            TaskEditorMode.edit =>
+              'Salva',
+            TaskEditorMode.editOccurrence =>
+              'Salva occorrenza',
+            TaskEditorMode.duplicate =>
+              'Crea duplicato',
+            TaskEditorMode.reschedule =>
+              'Sposta attività',
+          },
         ),
       ),
     );

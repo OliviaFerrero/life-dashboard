@@ -18,6 +18,7 @@ import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
 import '../../widgets/task_prompts.dart';
 import '../tasks/task_detail_page.dart';
+import '../tasks/task_editor_mode.dart';
 import '../tasks/task_form_page.dart';
 
 part 'calendar_month_view.dart';
@@ -171,6 +172,7 @@ class _CalendarPageState extends State<CalendarPage>
       MaterialPageRoute(
         builder: (_) => TaskFormPage(
           categoryRepository: widget.categoryRepository,
+          mode: TaskEditorMode.create,
           initialDate: _selectedDay,
         ),
       ),

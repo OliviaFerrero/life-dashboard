@@ -12,6 +12,7 @@ import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
 import '../../widgets/task_prompts.dart';
 import 'task_detail_page.dart';
+import 'task_editor_mode.dart';
 import 'task_form_page.dart';
 
 enum _TaskListMode {
@@ -65,6 +66,8 @@ class _TasksPageState
             TaskFormPage(
           categoryRepository:
               widget.categoryRepository,
+          mode:
+              TaskEditorMode.create,
         ),
       ),
     );

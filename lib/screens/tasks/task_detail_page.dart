@@ -13,6 +13,7 @@ import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
 import '../../widgets/task_prompts.dart';
+import 'task_editor_mode.dart';
 import 'task_form_page.dart';
 
 class TaskDetailPage extends StatefulWidget {
@@ -585,6 +586,8 @@ class _TaskDetailPageState
             TaskFormPage(
           categoryRepository:
               widget.categoryRepository,
+          mode:
+              TaskEditorMode.edit,
           initialTask:
               _seriesTaskForEditing(),
         ),
@@ -680,10 +683,10 @@ class _TaskDetailPageState
             TaskFormPage(
           categoryRepository:
               widget.categoryRepository,
+          mode:
+              TaskEditorMode.editOccurrence,
           initialTask:
               _occurrenceTaskForEditing(),
-          occurrenceOnly:
-              true,
         ),
       ),
     );
@@ -728,10 +731,10 @@ class _TaskDetailPageState
             TaskFormPage(
           categoryRepository:
               widget.categoryRepository,
+          mode:
+              TaskEditorMode.reschedule,
           initialTask:
               _seriesTaskForEditing(),
-          rescheduleOnly:
-              true,
         ),
       ),
     );

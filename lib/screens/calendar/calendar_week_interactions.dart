@@ -381,6 +381,8 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
                   TaskFormPage(
             categoryRepository:
                 widget.categoryRepository,
+            mode:
+                TaskEditorMode.edit,
             initialTask:
                 _taskForOccurrenceEditing(
               occurrence,
@@ -438,12 +440,12 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
                   TaskFormPage(
             categoryRepository:
                 widget.categoryRepository,
+            mode:
+                TaskEditorMode.editOccurrence,
             initialTask:
                 _taskForOccurrenceEditing(
               occurrence,
             ),
-            occurrenceOnly:
-                true,
           ),
         ),
       );
@@ -476,6 +478,8 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
                 TaskFormPage(
           categoryRepository:
               widget.categoryRepository,
+          mode:
+              TaskEditorMode.edit,
           initialTask:
               occurrence.task,
         ),
@@ -617,8 +621,8 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
       MaterialPageRoute(
         builder: (_) => TaskFormPage(
           categoryRepository: widget.categoryRepository,
+          mode: TaskEditorMode.duplicate,
           initialTask: draft,
-          duplicateMode: true,
         ),
       ),
     );
@@ -728,6 +732,8 @@ extension _CalendarWeekInteractionsExtension on _CalendarPageState {
             TaskFormPage(
           categoryRepository:
               widget.categoryRepository,
+          mode:
+              TaskEditorMode.create,
           initialDate:
               _dateOnly(date),
           initialCenterTimeMinutes:
