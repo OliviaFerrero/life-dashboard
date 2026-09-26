@@ -20,6 +20,7 @@ import '../../widgets/task_prompts.dart';
 import '../tasks/task_detail_page.dart';
 import '../tasks/task_editor_mode.dart';
 import '../tasks/task_form_page.dart';
+import '../tasks/task_quick_actions.dart';
 
 part 'calendar_month_view.dart';
 part 'calendar_week_interactions.dart';
@@ -117,6 +118,10 @@ class _CalendarPageState extends State<CalendarPage>
   final ScrollController _weekVerticalController = ScrollController();
   final ScrollController _weekHorizontalController = ScrollController();
 
+  Stream<List<TaskOccurrence>>? _calendarOccurrencesStream;
+  DateTime? _calendarOccurrencesStreamStart;
+  DateTime? _calendarOccurrencesStreamEnd;
+
   @override
   void initState() {
     super.initState();
@@ -156,6 +161,27 @@ class _CalendarPageState extends State<CalendarPage>
 
     _didInitializeDate =
         true;
+  }
+
+  @override
+  void didUpdateWidget(
+    CalendarPage oldWidget,
+  ) {
+    super.didUpdateWidget(
+      oldWidget,
+    );
+
+    if (!identical(
+      oldWidget.taskRepository,
+      widget.taskRepository,
+    )) {
+      _calendarOccurrencesStream =
+          null;
+      _calendarOccurrencesStreamStart =
+          null;
+      _calendarOccurrencesStreamEnd =
+          null;
+    }
   }
 
   @override
@@ -246,18 +272,28 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
 
+  int _monthDataBucketStartMonth() {
+    return ((_focusedDay.month - 1) ~/ 3) * 3 + 1;
+  }
+
   DateTime _rangeStart() {
     if (_calendarFormat == CalendarFormat.week) {
       return _weekStartFor(_focusedDay);
     }
 
-    return CivilDate.addDays(
-      DateTime(
-        _focusedDay.year,
-        _focusedDay.month,
-        1,
-      ),
-      -7,
+    final bucketStartMonth =
+        _monthDataBucketStartMonth();
+
+    // La vista Mese tiene in memoria un piccolo buffer stabile:
+    // il trimestre corrente + un mese completo prima e dopo.
+    //
+    // In questo modo lo swipe tra mesi vicini non crea una nuova
+    // sottoscrizione Drift a ogni pagina, e TableCalendar ha già i dati
+    // anche mentre entra il mese adiacente.
+    return DateTime(
+      _focusedDay.year,
+      bucketStartMonth - 1,
+      1,
     );
   }
 
@@ -269,14 +305,44 @@ class _CalendarPageState extends State<CalendarPage>
       );
     }
 
-    return CivilDate.addDays(
-      DateTime(
-        _focusedDay.year,
-        _focusedDay.month + 1,
-        0,
-      ),
-      7,
+    final bucketStartMonth =
+        _monthDataBucketStartMonth();
+
+    // Ultimo giorno del mese successivo al trimestre.
+    return DateTime(
+      _focusedDay.year,
+      bucketStartMonth + 4,
+      0,
     );
+  }
+
+  Stream<List<TaskOccurrence>>
+      _occurrencesStreamForWindow(
+    DateTime rangeStart,
+    DateTime rangeEndExclusive,
+  ) {
+    final sameWindow =
+        _calendarOccurrencesStream !=
+                null &&
+            _calendarOccurrencesStreamStart ==
+                rangeStart &&
+            _calendarOccurrencesStreamEnd ==
+                rangeEndExclusive;
+
+    if (!sameWindow) {
+      _calendarOccurrencesStreamStart =
+          rangeStart;
+      _calendarOccurrencesStreamEnd =
+          rangeEndExclusive;
+      _calendarOccurrencesStream =
+          widget.taskRepository
+              .watchOccurrencesOverlappingWindow(
+        rangeStart,
+        rangeEndExclusive,
+      );
+    }
+
+    return _calendarOccurrencesStream!;
   }
 
 
@@ -741,8 +807,7 @@ class _CalendarPageState extends State<CalendarPage>
       body: StreamBuilder<
           List<TaskOccurrence>>(
         stream:
-            widget.taskRepository
-                .watchOccurrencesOverlappingWindow(
+            _occurrencesStreamForWindow(
           rangeStart,
           rangeEndExclusive,
         ),

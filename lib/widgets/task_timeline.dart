@@ -55,6 +55,10 @@ class TaskTimeline extends StatefulWidget {
     TaskOccurrence occurrence,
   ) onTaskTap;
 
+  final void Function(
+    TaskOccurrence occurrence,
+  ) onTaskLongPress;
+
   const TaskTimeline({
     super.key,
     required this.occurrences,
@@ -67,6 +71,7 @@ class TaskTimeline extends StatefulWidget {
     required this.categoryIconBuilder,
     required this.onCompletedChanged,
     required this.onTaskTap,
+    required this.onTaskLongPress,
   });
 
   @override
@@ -224,6 +229,8 @@ class _TaskTimelineState extends State<TaskTimeline> {
             priorityColorBuilder: widget.priorityColorBuilder,
             onCompletedChanged: widget.onCompletedChanged,
             onTaskTap: widget.onTaskTap,
+            onTaskLongPress:
+                widget.onTaskLongPress,
           ),
         ],
       ],
@@ -1711,6 +1718,11 @@ class _TaskTimelineState extends State<TaskTimeline> {
             !occurrence.isCompleted,
           );
         },
+        onLongPress: () {
+          widget.onTaskLongPress(
+            occurrence,
+          );
+        },
         onHorizontalDragStart:
             group.isOverlap
                 ? (_) {
@@ -2097,6 +2109,11 @@ class _TaskTimelineState extends State<TaskTimeline> {
             occurrence,
           );
         },
+        onLongPress: () {
+          widget.onTaskLongPress(
+            occurrence,
+          );
+        },
       ),
     );
 
@@ -2280,6 +2297,10 @@ class _UntimedSection extends StatelessWidget {
     TaskOccurrence occurrence,
   ) onTaskTap;
 
+  final void Function(
+    TaskOccurrence occurrence,
+  ) onTaskLongPress;
+
   const _UntimedSection({
     required this.occurrences,
     required this.subtaskProgressBuilder,
@@ -2287,6 +2308,7 @@ class _UntimedSection extends StatelessWidget {
     required this.priorityColorBuilder,
     required this.onCompletedChanged,
     required this.onTaskTap,
+    required this.onTaskLongPress,
   });
 
   @override
@@ -2324,6 +2346,8 @@ class _UntimedSection extends StatelessWidget {
             ),
             onCompletedChanged: onCompletedChanged,
             onTaskTap: onTaskTap,
+            onTaskLongPress:
+                onTaskLongPress,
           ),
           if (i != occurrences.length - 1)
             Divider(
@@ -2353,6 +2377,10 @@ class _UntimedTaskRow extends StatelessWidget {
     TaskOccurrence occurrence,
   ) onTaskTap;
 
+  final void Function(
+    TaskOccurrence occurrence,
+  ) onTaskLongPress;
+
   const _UntimedTaskRow({
     required this.occurrence,
     required this.accentColor,
@@ -2360,6 +2388,7 @@ class _UntimedTaskRow extends StatelessWidget {
     required this.subtaskProgress,
     required this.onCompletedChanged,
     required this.onTaskTap,
+    required this.onTaskLongPress,
   });
 
   @override
@@ -2411,6 +2440,11 @@ class _UntimedTaskRow extends StatelessWidget {
             child: InkWell(
               onTap: () {
                 onTaskTap(occurrence);
+              },
+              onLongPress: () {
+                onTaskLongPress(
+                  occurrence,
+                );
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -2523,6 +2557,7 @@ class _TimedTaskContent extends StatelessWidget {
   final bool isNext;
   final String? overlapLabel;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   const _TimedTaskContent({
     super.key,
@@ -2535,6 +2570,7 @@ class _TimedTaskContent extends StatelessWidget {
     required this.isNext,
     required this.overlapLabel,
     required this.onTap,
+    required this.onLongPress,
   });
 
   @override
@@ -2551,6 +2587,8 @@ class _TimedTaskContent extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
+            onLongPress:
+                onLongPress,
             borderRadius: BorderRadius.circular(8),
             child: Padding(
               padding: EdgeInsets.fromLTRB(

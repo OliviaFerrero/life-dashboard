@@ -13,6 +13,7 @@ import '../utils/task_category_icons.dart';
 import '../widgets/task_prompts.dart';
 import '../widgets/task_timeline.dart';
 import 'tasks/task_detail_page.dart';
+import 'tasks/task_quick_actions.dart';
 import 'tasks/tasks_page.dart';
 
 class TodayPage extends StatefulWidget {
@@ -133,14 +134,6 @@ class _TodayPageState extends State<TodayPage> {
     if (duration != null) {
       parts.add(
         _durationLabel(duration),
-      );
-    }
-
-    if (task.description
-        .trim()
-        .isNotEmpty) {
-      parts.add(
-        task.description.trim(),
       );
     }
 
@@ -750,6 +743,24 @@ class _TodayPageState extends State<TodayPage> {
                                           _openTaskDetail(
                                             context,
                                             occurrence,
+                                          );
+                                        },
+                                        onTaskLongPress:
+                                            (occurrence) {
+                                          TaskQuickActions.show(
+                                            context:
+                                                context,
+                                            task:
+                                                occurrence
+                                                    .task,
+                                            occurrence:
+                                                occurrence,
+                                            taskRepository:
+                                                widget
+                                                    .taskRepository,
+                                            categoryRepository:
+                                                widget
+                                                    .categoryRepository,
                                           );
                                         },
                                       ),

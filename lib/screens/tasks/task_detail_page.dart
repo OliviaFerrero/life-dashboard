@@ -13,6 +13,7 @@ import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
 import '../../widgets/task_prompts.dart';
+import 'task_detail_notes.dart';
 import 'task_detail_subtasks.dart';
 import 'task_editor_mode.dart';
 import 'task_form_page.dart';
@@ -1402,25 +1403,11 @@ class _TaskDetailPageState
                   height: 24,
                 ),
 
-                const _SectionLabel(
+                TaskDetailNotesSection(
                   text:
-                      'NOTE',
-                ),
-
-                const SizedBox(
-                  height: 10,
-                ),
-
-                Text(
-                  _task.description,
-                  style:
-                      Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(
-                            height:
-                                1.5,
-                          ),
+                      _task.description,
+                  accentColor:
+                      categoryColor,
                 ),
               ],
             ],

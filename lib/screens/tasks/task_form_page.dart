@@ -15,6 +15,7 @@ import 'category_management_page.dart';
 import 'task_editor_controller.dart';
 import 'task_editor_mode.dart';
 import 'task_form_subtask_widgets.dart';
+import 'task_notes_editor.dart';
 import 'task_category_setting_row.dart';
 import 'task_priority_selector.dart';
 
@@ -1269,44 +1270,9 @@ class _TaskFormPageState
                 const SizedBox(
                   height: 7,
                 ),
-                TextFormField(
+                TaskNotesEditor(
                   controller:
                       _descriptionController,
-                  minLines:
-                      3,
-                  maxLines:
-                      8,
-                  textCapitalization:
-                      TextCapitalization.sentences,
-                  onTapOutside:
-                      (_) {
-                    _dismissKeyboard();
-                  },
-                  decoration:
-                      InputDecoration(
-                    hintText:
-                        'Dettagli, promemoria, link…',
-                    hintStyle:
-                        TextStyle(
-                      color:
-                          colorScheme
-                              .onSurfaceVariant
-                              .withValues(
-                                alpha: 0.78,
-                              ),
-                    ),
-                    border:
-                        InputBorder.none,
-                    enabledBorder:
-                        InputBorder.none,
-                    focusedBorder:
-                        InputBorder.none,
-                    contentPadding:
-                        const EdgeInsets
-                            .symmetric(
-                      vertical: 4,
-                    ),
-                  ),
                 ),
                 const SizedBox(
                   height: 8,

@@ -195,6 +195,8 @@ class _EditorialTimePickerSheetState
                               _hourController,
                           itemCount: 24,
                           selectedValue: _hour,
+                          keyPrefix:
+                              'hour',
                           labelBuilder: _twoDigits,
                           onChanged: (value) {
                             setState(() {
@@ -221,6 +223,8 @@ class _EditorialTimePickerSheetState
                               _minuteController,
                           itemCount: 60,
                           selectedValue: _minute,
+                          keyPrefix:
+                              'minute',
                           labelBuilder: _twoDigits,
                           onChanged: (value) {
                             setState(() {
@@ -290,6 +294,7 @@ class _TimeWheel extends StatelessWidget {
   final FixedExtentScrollController controller;
   final int itemCount;
   final int selectedValue;
+  final String keyPrefix;
   final String Function(int value)
       labelBuilder;
   final ValueChanged<int> onChanged;
@@ -298,6 +303,7 @@ class _TimeWheel extends StatelessWidget {
     required this.controller,
     required this.itemCount,
     required this.selectedValue,
+    required this.keyPrefix,
     required this.labelBuilder,
     required this.onChanged,
   });
@@ -329,26 +335,71 @@ class _TimeWheel extends StatelessWidget {
           final selected =
               index == selectedValue;
 
-          return Center(
-            child: Text(
+          final label =
               labelBuilder(
-                index,
+            index,
+          );
+
+          return Semantics(
+            button:
+                true,
+            selected:
+                selected,
+            label:
+                label,
+            child:
+                GestureDetector(
+              key:
+                  ValueKey(
+                'editorial_time_${keyPrefix}_$index',
               ),
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(
-                    color: selected
-                        ? colorScheme.onSurface
-                        : colorScheme
-                            .onSurfaceVariant
-                            .withValues(
-                              alpha: 0.48,
-                            ),
-                    fontWeight: selected
-                        ? FontWeight.w700
-                        : FontWeight.w500,
+              behavior:
+                  HitTestBehavior.opaque,
+              onTap: () {
+                onChanged(
+                  index,
+                );
+
+                controller.animateToItem(
+                  index,
+                  duration:
+                      const Duration(
+                    milliseconds:
+                        180,
                   ),
+                  curve:
+                      Curves.easeOutCubic,
+                );
+              },
+              child:
+                  Center(
+                child:
+                    Text(
+                  label,
+                  style:
+                      Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(
+                            color:
+                                selected
+                                    ? colorScheme
+                                        .onSurface
+                                    : colorScheme
+                                        .onSurfaceVariant
+                                        .withValues(
+                                          alpha:
+                                              0.48,
+                                        ),
+                            fontWeight:
+                                selected
+                                    ? FontWeight
+                                        .w700
+                                    : FontWeight
+                                        .w500,
+                          ),
+                ),
+              ),
             ),
           );
         },

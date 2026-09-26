@@ -13,7 +13,46 @@ enum TaskSeriesPromptAction {
   resize,
 }
 
+enum TaskQuickAction {
+  edit,
+  delete,
+}
+
 abstract final class TaskPrompts {
+  static Future<TaskQuickAction?>
+      chooseQuickAction(
+    BuildContext context,
+  ) {
+    return showLifeChoiceSheet<
+        TaskQuickAction>(
+      context,
+      title:
+          'Azioni attività',
+      options: [
+        LifeChoiceOption<
+            TaskQuickAction>(
+          value:
+              TaskQuickAction.edit,
+          icon:
+              Icons.edit_outlined,
+          title:
+              'Modifica',
+        ),
+        LifeChoiceOption<
+            TaskQuickAction>(
+          value:
+              TaskQuickAction.delete,
+          icon:
+              Icons.delete_outline,
+          title:
+              'Elimina',
+          destructive:
+              true,
+        ),
+      ],
+    );
+  }
+
   static Future<bool>
       confirmCompletionIfNeeded(
     BuildContext context, {

@@ -4,26 +4,102 @@ part of 'calendar_page.dart';
 // È un part della stessa libreria per mantenere invariata la visibilità dei
 // membri privati e separare il codice senza cambiare il comportamento.
 extension _CalendarMonthViewExtension on _CalendarPageState {
-  List<TaskOccurrence> _occurrencesForDay(
-    List<TaskOccurrence> occurrences,
+  int _monthDayKey(
     DateTime day,
   ) {
-    final start =
-        _dateOnly(day);
-    final end =
-        CivilDate.nextDay(
-      start,
-    );
+    return day.year * 10000 +
+        day.month * 100 +
+        day.day;
+  }
 
-    return occurrences
-        .where(
-          (occurrence) =>
-              occurrence.overlapsWindow(
-            start,
-            end,
+  Map<int, List<TaskOccurrence>>
+      _indexMonthOccurrencesByDay(
+    List<TaskOccurrence> occurrences,
+  ) {
+    final result =
+        <int, List<TaskOccurrence>>{};
+
+    for (final occurrence
+        in occurrences) {
+      final task =
+          occurrence.displayTask;
+
+      var firstDay =
+          _dateOnly(
+        occurrence.date,
+      );
+      var lastDay =
+          firstDay;
+
+      if (!task.allDay &&
+          task.startTimeMinutes != null) {
+        final timedEnd =
+            occurrence.timedEnd;
+
+        if (timedEnd != null) {
+          // L'estremo finale è esclusivo. Una task che termina
+          // esattamente alle 00:00 non deve creare un marker
+          // anche nel giorno successivo.
+          final lastVisibleInstant =
+              timedEnd.subtract(
+            const Duration(
+              microseconds:
+                  1,
+            ),
+          );
+
+          if (!lastVisibleInstant
+              .isBefore(
+            firstDay,
+          )) {
+            lastDay =
+                _dateOnly(
+              lastVisibleInstant,
+            );
+          }
+        }
+      }
+
+      var day =
+          firstDay;
+
+      while (!day.isAfter(
+        lastDay,
+      )) {
+        result
+            .putIfAbsent(
+          _monthDayKey(
+            day,
           ),
+          () =>
+              <TaskOccurrence>[],
         )
-        .toList();
+            .add(
+          occurrence,
+        );
+
+        day =
+            CivilDate.nextDay(
+          day,
+        );
+      }
+    }
+
+    return result;
+  }
+
+  List<TaskOccurrence>
+      _occurrencesForIndexedDay(
+    Map<int, List<TaskOccurrence>>
+        occurrencesByDay,
+    DateTime day,
+  ) {
+    return occurrencesByDay[
+          _monthDayKey(
+            day,
+          )
+        ] ??
+        const <TaskOccurrence>[];
   }
 
   String _twoDigits(
@@ -166,14 +242,6 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
       );
     }
 
-    if (task.description
-        .trim()
-        .isNotEmpty) {
-      parts.add(
-        task.description.trim(),
-      );
-    }
-
     return parts.join(' · ');
   }
 
@@ -240,9 +308,14 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
     final now =
         _now;
 
-    final selectedOccurrences =
-        _occurrencesForDay(
+    final occurrencesByDay =
+        _indexMonthOccurrencesByDay(
       occurrences,
+    );
+
+    final selectedOccurrences =
+        _occurrencesForIndexedDay(
+      occurrencesByDay,
       _selectedDay,
     );
 
@@ -335,8 +408,8 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
             },
             eventLoader:
                 (day) {
-              return _occurrencesForDay(
-                occurrences,
+              return _occurrencesForIndexedDay(
+                occurrencesByDay,
                 day,
               );
             },
@@ -422,16 +495,15 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
                   return null;
                 }
 
-                final visible =
-                    events
-                        .take(
-                          3,
-                        )
-                        .toList();
+                final visibleCount =
+                    math.min(
+                  3,
+                  events.length,
+                );
 
                 final hiddenCount =
                     events.length -
-                        visible.length;
+                        visibleCount;
 
                 return Positioned(
                   bottom:
@@ -449,7 +521,7 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
                       children: [
                         for (var i = 0;
                             i <
-                                visible.length;
+                                visibleCount;
                             i++) ...[
                           Container(
                             width:
@@ -461,7 +533,7 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
                               color:
                                   _categoryColor(
                                 context,
-                                visible[i]
+                                events[i]
                                     .displayTask,
                                 categoryMap,
                               ),
@@ -472,7 +544,7 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
                             ),
                           ),
                           if (i !=
-                                  visible.length -
+                                  visibleCount -
                                       1 ||
                               hiddenCount >
                                   0)
@@ -907,6 +979,24 @@ extension _CalendarMonthViewExtension on _CalendarPageState {
                       selectedOccurrences[i],
                     );
                   },
+                  onLongPress:
+                      () {
+                    final occurrence =
+                        selectedOccurrences[i];
+
+                    TaskQuickActions.show(
+                      context:
+                          context,
+                      task:
+                          occurrence.task,
+                      occurrence:
+                          occurrence,
+                      taskRepository:
+                          widget.taskRepository,
+                      categoryRepository:
+                          widget.categoryRepository,
+                    );
+                  },
                 ),
                 if (i !=
                     selectedOccurrences
@@ -1074,6 +1164,7 @@ class _CalendarTaskRow extends StatelessWidget {
   final String priorityLabel;
   final ValueChanged<bool> onCompletedChanged;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   const _CalendarTaskRow({
     required this.task,
@@ -1084,6 +1175,7 @@ class _CalendarTaskRow extends StatelessWidget {
     required this.priorityLabel,
     required this.onCompletedChanged,
     required this.onTap,
+    required this.onLongPress,
   });
 
   @override
@@ -1165,6 +1257,8 @@ class _CalendarTaskRow extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               onTap: onTap,
+              onLongPress:
+                  onLongPress,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   4,

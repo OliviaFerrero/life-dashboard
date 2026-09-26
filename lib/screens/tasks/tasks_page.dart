@@ -14,6 +14,7 @@ import '../../widgets/task_prompts.dart';
 import 'task_detail_page.dart';
 import 'task_editor_mode.dart';
 import 'task_form_page.dart';
+import 'task_quick_actions.dart';
 
 enum _TaskListMode {
   scheduled,
@@ -296,14 +297,6 @@ class _TasksPageState
     if (duration != null) {
       parts.add(
         _durationLabel(duration),
-      );
-    }
-
-    if (task.description
-        .trim()
-        .isNotEmpty) {
-      parts.add(
-        task.description.trim(),
       );
     }
 
@@ -768,6 +761,21 @@ class _TasksPageState
                                 task,
                               );
                             },
+                            onTaskLongPress:
+                                (task) {
+                              TaskQuickActions.show(
+                                context:
+                                    context,
+                                task:
+                                    task,
+                                taskRepository:
+                                    widget
+                                        .taskRepository,
+                                categoryRepository:
+                                    widget
+                                        .categoryRepository,
+                              );
+                            },
                           )
                       else ...[
                         if (currentOccurrences
@@ -859,6 +867,24 @@ class _TasksPageState
                                       .task,
                                   occurrence:
                                       occurrence,
+                                );
+                              },
+                              onTaskLongPress:
+                                  (occurrence) {
+                                TaskQuickActions.show(
+                                  context:
+                                      context,
+                                  task:
+                                      occurrence
+                                          .task,
+                                  occurrence:
+                                      occurrence,
+                                  taskRepository:
+                                      widget
+                                          .taskRepository,
+                                  categoryRepository:
+                                      widget
+                                          .categoryRepository,
                                 );
                               },
                             ),
@@ -959,6 +985,24 @@ class _TasksPageState
                                     .task,
                                 occurrence:
                                     occurrence,
+                              );
+                            },
+                            onTaskLongPress:
+                                (occurrence) {
+                              TaskQuickActions.show(
+                                context:
+                                    context,
+                                task:
+                                    occurrence
+                                        .task,
+                                occurrence:
+                                    occurrence,
+                                taskRepository:
+                                    widget
+                                        .taskRepository,
+                                categoryRepository:
+                                    widget
+                                        .categoryRepository,
                               );
                             },
                           ),
@@ -1365,6 +1409,10 @@ class _InboxSection
     LifeTask task,
   ) onTaskTap;
 
+  final void Function(
+    LifeTask task,
+  ) onTaskLongPress;
+
   const _InboxSection({
     required this.tasks,
     required this.timeLabelBuilder,
@@ -1374,6 +1422,7 @@ class _InboxSection
     required this.priorityLabelBuilder,
     required this.onCompletedChanged,
     required this.onTaskTap,
+    required this.onTaskLongPress,
   });
 
   @override
@@ -1462,6 +1511,12 @@ class _InboxSection
                 tasks[i],
               );
             },
+            onLongPress:
+                () {
+              onTaskLongPress(
+                tasks[i],
+              );
+            },
           ),
           if (i !=
               tasks.length - 1)
@@ -1512,6 +1567,10 @@ class _OccurrenceGroup
     TaskOccurrence occurrence,
   ) onTaskTap;
 
+  final void Function(
+    TaskOccurrence occurrence,
+  ) onTaskLongPress;
+
   const _OccurrenceGroup({
     required this.title,
     required this.occurrences,
@@ -1523,6 +1582,7 @@ class _OccurrenceGroup
     required this.recurrenceLabelBuilder,
     required this.onCompletedChanged,
     required this.onTaskTap,
+    required this.onTaskLongPress,
   });
 
   @override
@@ -1606,6 +1666,12 @@ class _OccurrenceGroup
                     occurrence,
                   );
                 },
+                onLongPress:
+                    () {
+                  onTaskLongPress(
+                    occurrence,
+                  );
+                },
               );
             },
           ),
@@ -1665,6 +1731,10 @@ class _PastSection
     TaskOccurrence occurrence,
   ) onTaskTap;
 
+  final void Function(
+    TaskOccurrence occurrence,
+  ) onTaskLongPress;
+
   const _PastSection({
     required this.occurrences,
     required this.expanded,
@@ -1679,6 +1749,7 @@ class _PastSection
     required this.recurrenceLabelBuilder,
     required this.onCompletedChanged,
     required this.onTaskTap,
+    required this.onTaskLongPress,
   });
 
   Map<String, List<TaskOccurrence>>
@@ -1905,6 +1976,12 @@ class _PastSection
                         occurrence,
                       );
                     },
+                    onLongPress:
+                        () {
+                      onTaskLongPress(
+                        occurrence,
+                      );
+                    },
                   );
                 },
               ),
@@ -1947,6 +2024,7 @@ class _TaskRow
     bool completed,
   ) onCompletedChanged;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   const _TaskRow({
     required this.task,
@@ -1958,6 +2036,7 @@ class _TaskRow
     required this.recurrenceLabel,
     required this.onCompletedChanged,
     required this.onTap,
+    required this.onLongPress,
     this.isPast = false,
   });
 
@@ -2074,6 +2153,8 @@ class _TaskRow
               child: InkWell(
                 onTap:
                     onTap,
+                onLongPress:
+                    onLongPress,
                 child: Padding(
                   padding:
                       const EdgeInsets

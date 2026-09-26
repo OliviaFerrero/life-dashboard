@@ -140,6 +140,90 @@ void main() {
   );
 
   testWidgets(
+    'editorial time wheel values can be selected by tap',
+    (tester) async {
+      TimeOfDay? result;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: () async {
+                      result =
+                          await showEditorialTimePicker(
+                        context:
+                            context,
+                        title:
+                            'Ora prova',
+                        initialTime:
+                            const TimeOfDay(
+                          hour:
+                              9,
+                          minute:
+                              15,
+                        ),
+                      );
+                    },
+                    child:
+                        const Text(
+                      'Apri',
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(
+        find.text(
+          'Apri',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey(
+            'editorial_time_hour_10',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey(
+            'editorial_time_minute_16',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.text(
+          'Conferma',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        result,
+        const TimeOfDay(
+          hour:
+              10,
+          minute:
+              16,
+        ),
+      );
+    },
+  );
+
+  testWidgets(
     'MorePage uses the editorial picker for personal day settings',
     (tester) async {
       final store =
