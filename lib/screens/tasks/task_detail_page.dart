@@ -13,6 +13,7 @@ import '../../repositories/category_repository.dart';
 import '../../repositories/task_repository.dart';
 import '../../utils/task_category_icons.dart';
 import '../../widgets/task_prompts.dart';
+import 'task_detail_subtasks.dart';
 import 'task_editor_mode.dart';
 import 'task_form_page.dart';
 
@@ -352,15 +353,6 @@ class _TaskDetailPageState
       cutoff,
     );
   }
-
-  int get _completedSubtaskCount =>
-      _subtasks
-          .where(
-            (subtask) =>
-                subtask.isCompleted,
-          )
-          .length;
-
 
   Future<void> _toggleSubtask(
     TaskSubtask subtask,
@@ -1389,90 +1381,14 @@ class _TaskDetailPageState
                 const SizedBox(
                   height: 24,
                 ),
-
-                Row(
-                  children: [
-                    const Expanded(
-                      child:
-                          _SectionLabel(
-                        text:
-                            'SOTTOATTIVITÀ',
-                      ),
-                    ),
-                    Text(
-                      '$_completedSubtaskCount/${_subtasks.length}',
-                      style:
-                          Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color:
-                                    colorScheme
-                                        .onSurfaceVariant,
-                                fontWeight:
-                                    FontWeight
-                                        .w700,
-                              ),
-                    ),
-                  ],
+                TaskDetailSubtasksSection(
+                  subtasks:
+                      _subtasks,
+                  accentColor:
+                      categoryColor,
+                  onToggle:
+                      _toggleSubtask,
                 ),
-
-                const SizedBox(
-                  height: 8,
-                ),
-
-                for (var index = 0;
-                    index <
-                        _subtasks.length;
-                    index++) ...[
-                  _SubtaskDetailRow(
-                    subtask:
-                        _subtasks[index],
-                    accentColor:
-                        categoryColor,
-                    onTap: () {
-                      _toggleSubtask(
-                        _subtasks[index],
-                      );
-                    },
-                  ),
-
-                  if (index !=
-                      _subtasks.length -
-                          1)
-                    Divider(
-                      height: 1,
-                      indent: 34,
-                      color:
-                          colorScheme
-                              .outlineVariant
-                              .withValues(
-                                alpha:
-                                    0.45,
-                              ),
-                    ),
-                ],
-
-                if (_completedSubtaskCount ==
-                    _subtasks.length) ...[
-                  const SizedBox(
-                    height: 8,
-                  ),
-                  Text(
-                    'Tutte le sottoattività sono completate.',
-                    style:
-                        Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              color:
-                                  categoryColor,
-                              fontWeight:
-                                  FontWeight
-                                      .w600,
-                            ),
-                  ),
-                ],
               ],
 
               if (_task.description
@@ -1561,112 +1477,6 @@ class _TaskIdentityItem
   }
 }
 
-class _SubtaskDetailRow
-    extends StatelessWidget {
-  final TaskSubtask subtask;
-  final Color accentColor;
-  final VoidCallback onTap;
-
-  const _SubtaskDetailRow({
-    required this.subtask,
-    required this.accentColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
-
-    return Material(
-      color:
-          Colors.transparent,
-      child: InkWell(
-        onTap:
-            onTap,
-        borderRadius:
-            BorderRadius.circular(
-          10,
-        ),
-        child: Padding(
-          padding:
-              const EdgeInsets
-                  .symmetric(
-            vertical: 12,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      subtask.isCompleted
-                          ? accentColor
-                          : Colors
-                              .transparent,
-                  shape:
-                      BoxShape.circle,
-                  border:
-                      Border.all(
-                    color:
-                        subtask.isCompleted
-                            ? accentColor
-                            : colorScheme
-                                .onSurfaceVariant,
-                    width: 2,
-                  ),
-                ),
-                child:
-                    subtask.isCompleted
-                        ? const Icon(
-                            Icons.check,
-                            size: 12,
-                            color:
-                                Colors.white,
-                          )
-                        : null,
-              ),
-
-              const SizedBox(
-                width: 12,
-              ),
-
-              Expanded(
-                child: Text(
-                  subtask.title,
-                  style:
-                      Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(
-                            fontWeight:
-                                FontWeight
-                                    .w500,
-                            decoration:
-                                subtask.isCompleted
-                                    ? TextDecoration
-                                        .lineThrough
-                                    : null,
-                            color:
-                                subtask.isCompleted
-                                    ? colorScheme
-                                        .onSurfaceVariant
-                                    : null,
-                          ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _CompletionAction
     extends StatelessWidget {
