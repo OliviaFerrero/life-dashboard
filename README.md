@@ -1,6 +1,6 @@
 # Life Dashboard
 
-Life Dashboard (`life_hub`) is a local-first Android application built with Flutter and Dart for organizing daily activities.
+Life Dashboard is a local-first Android application built with Flutter and Dart for organizing daily activities.
 
 The current implementation focuses on task management, scheduling and calendar views. Task data is stored locally with SQLite and Drift, while application settings that do not belong to the task database are stored separately on the device.
 
