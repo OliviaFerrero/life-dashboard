@@ -46,3 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Internal Life Dashboard project context
+/Life_Dashboard_Project_Rules.txt
+/Life_Dashboard_Project_Context.txt
