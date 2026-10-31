@@ -28,7 +28,6 @@ part 'calendar_week_view.dart';
 part 'calendar_week_widgets.dart';
 part 'calendar_week_grid.dart';
 
-
 class CalendarPage extends StatefulWidget {
   final TaskRepository taskRepository;
   final CategoryRepository categoryRepository;
@@ -45,10 +44,7 @@ class CalendarPage extends StatefulWidget {
 
 class _CalendarPageState extends State<CalendarPage>
     with SingleTickerProviderStateMixin {
-  TaskActions get _taskActions =>
-      TaskActions(
-        widget.taskRepository,
-      );
+  TaskActions get _taskActions => TaskActions(widget.taskRepository);
 
   static const double _weekDefaultHourHeight = 68;
   static const double _weekMinHourHeight = 40;
@@ -65,29 +61,25 @@ class _CalendarPageState extends State<CalendarPage>
   static const double _weekGridBottomPadding = 36;
   static const double _weekGutterWidth = 54;
 
-  static const Duration _calendarViewMenuTransitionDuration =
-      Duration(milliseconds: 220);
-  static const Duration _weekHeaderSettleDuration =
-      Duration(milliseconds: 180);
+  static const Duration _calendarViewMenuTransitionDuration = Duration(
+    milliseconds: 220,
+  );
+  static const Duration _weekHeaderSettleDuration = Duration(milliseconds: 180);
   static const double _weekHeaderDragDistance = 104;
 
   double _weekHourHeight = _weekDefaultHourHeight;
   double _weekDayWidth = _weekDefaultDayWidth;
 
-  final Map<int, Offset> _weekPointers =
-      <int, Offset>{};
+  final Map<int, Offset> _weekPointers = <int, Offset>{};
 
   _WeekPinchAxis? _weekPinchAxis;
 
   double _weekPinchStartHorizontalSpan = 0;
   double _weekPinchStartVerticalSpan = 0;
 
-  double _weekPinchStartHourHeight =
-      _weekDefaultHourHeight;
-  double _weekPinchStartDayWidth =
-      _weekDefaultDayWidth;
-  double _weekPinchFittedDayWidth =
-      _weekMinDayWidth;
+  double _weekPinchStartHourHeight = _weekDefaultHourHeight;
+  double _weekPinchStartDayWidth = _weekDefaultDayWidth;
+  double _weekPinchFittedDayWidth = _weekMinDayWidth;
 
   double? _weekPinchAnchorMinutes;
   double? _weekPinchAnchorDayPosition;
@@ -97,12 +89,18 @@ class _CalendarPageState extends State<CalendarPage>
 
   late DateTime _selectedDay;
   late DateTime _focusedDay;
+
+  // Evidenziazione visiva della Week.
+  //
+  // È separata da _selectedDay perché le frecce settimanali devono poter
+  // spostare la data di riferimento (usata anche dal tasto +) senza
+  // trascinare automaticamente il cerchio/colonna selezionata sulla stessa
+  // giornata della settimana.
+  DateTime? _weekHighlightedDay;
+
   bool _didInitializeDate = false;
 
-  DateTime get _now =>
-      AppClockScope.read(
-        context,
-      ).now;
+  DateTime get _now => AppClockScope.read(context).now;
 
   CalendarFormat _calendarFormat = CalendarFormat.month;
 
@@ -126,61 +124,38 @@ class _CalendarPageState extends State<CalendarPage>
   void initState() {
     super.initState();
 
-    _weekHeaderCollapseController =
-        AnimationController(
-      vsync:
-          this,
-      duration:
-          _weekHeaderSettleDuration,
-      value:
-          0,
+    _weekHeaderCollapseController = AnimationController(
+      vsync: this,
+      duration: _weekHeaderSettleDuration,
+      value: 0,
     );
-
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final clock =
-        AppClockScope.watch(
-      context,
-    );
+    final clock = AppClockScope.watch(context);
 
     if (_didInitializeDate) {
       return;
     }
 
-    _selectedDay =
-        CivilDate.dateOnly(
-      clock.now,
-    );
+    _selectedDay = CivilDate.dateOnly(clock.now);
 
-    _focusedDay =
-        _selectedDay;
+    _focusedDay = _selectedDay;
 
-    _didInitializeDate =
-        true;
+    _didInitializeDate = true;
   }
 
   @override
-  void didUpdateWidget(
-    CalendarPage oldWidget,
-  ) {
-    super.didUpdateWidget(
-      oldWidget,
-    );
+  void didUpdateWidget(CalendarPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
 
-    if (!identical(
-      oldWidget.taskRepository,
-      widget.taskRepository,
-    )) {
-      _calendarOccurrencesStream =
-          null;
-      _calendarOccurrencesStreamStart =
-          null;
-      _calendarOccurrencesStreamEnd =
-          null;
+    if (!identical(oldWidget.taskRepository, widget.taskRepository)) {
+      _calendarOccurrencesStream = null;
+      _calendarOccurrencesStreamStart = null;
+      _calendarOccurrencesStreamEnd = null;
     }
   }
 
@@ -204,20 +179,14 @@ class _CalendarPageState extends State<CalendarPage>
       ),
     );
 
-    if (result == null ||
-        result.shouldDelete ||
-        result.task == null) {
+    if (result == null || result.shouldDelete || result.task == null) {
       return;
     }
 
-    await widget.taskRepository.addTask(
-      result.task!,
-    );
+    await widget.taskRepository.addTask(result.task!);
   }
 
-  void _openTaskDetail(
-    TaskOccurrence occurrence,
-  ) {
+  void _openTaskDetail(TaskOccurrence occurrence) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -231,7 +200,6 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
-
   // I file part usano extension per tenere separate Mese e Settimana.
   // La chiamata reale a setState resta qui, dentro la sottoclasse di State,
   // così l'analyzer non segnala accessi al membro protetto dalle extension.
@@ -239,38 +207,19 @@ class _CalendarPageState extends State<CalendarPage>
     setState(update);
   }
 
-
-  DateTime _dateOnly(
-    DateTime date,
-  ) {
-    return CivilDate.dateOnly(
-      date,
-    );
+  DateTime _dateOnly(DateTime date) {
+    return CivilDate.dateOnly(date);
   }
 
-  DateTime _weekStartFor(
-    DateTime date,
-  ) {
-    return CivilDate.startOfWeek(
-      date,
-    );
+  DateTime _weekStartFor(DateTime date) {
+    return CivilDate.startOfWeek(date);
   }
 
   List<DateTime> _weekDays() {
-    final start =
-        _weekStartFor(
-      _focusedDay,
-    );
+    final start = _weekStartFor(_focusedDay);
 
-    return [
-      for (var i = 0; i < 7; i++)
-        CivilDate.addDays(
-          start,
-          i,
-        ),
-    ];
+    return [for (var i = 0; i < 7; i++) CivilDate.addDays(start, i)];
   }
-
 
   int _monthDataBucketStartMonth() {
     return ((_focusedDay.month - 1) ~/ 3) * 3 + 1;
@@ -281,8 +230,7 @@ class _CalendarPageState extends State<CalendarPage>
       return _weekStartFor(_focusedDay);
     }
 
-    final bucketStartMonth =
-        _monthDataBucketStartMonth();
+    final bucketStartMonth = _monthDataBucketStartMonth();
 
     // La vista Mese tiene in memoria un piccolo buffer stabile:
     // il trimestre corrente + un mese completo prima e dopo.
@@ -290,65 +238,40 @@ class _CalendarPageState extends State<CalendarPage>
     // In questo modo lo swipe tra mesi vicini non crea una nuova
     // sottoscrizione Drift a ogni pagina, e TableCalendar ha già i dati
     // anche mentre entra il mese adiacente.
-    return DateTime(
-      _focusedDay.year,
-      bucketStartMonth - 1,
-      1,
-    );
+    return DateTime(_focusedDay.year, bucketStartMonth - 1, 1);
   }
 
   DateTime _rangeEnd() {
     if (_calendarFormat == CalendarFormat.week) {
-      return CivilDate.addDays(
-        _rangeStart(),
-        6,
-      );
+      return CivilDate.addDays(_rangeStart(), 6);
     }
 
-    final bucketStartMonth =
-        _monthDataBucketStartMonth();
+    final bucketStartMonth = _monthDataBucketStartMonth();
 
     // Ultimo giorno del mese successivo al trimestre.
-    return DateTime(
-      _focusedDay.year,
-      bucketStartMonth + 4,
-      0,
-    );
+    return DateTime(_focusedDay.year, bucketStartMonth + 4, 0);
   }
 
-  Stream<List<TaskOccurrence>>
-      _occurrencesStreamForWindow(
+  Stream<List<TaskOccurrence>> _occurrencesStreamForWindow(
     DateTime rangeStart,
     DateTime rangeEndExclusive,
   ) {
     final sameWindow =
-        _calendarOccurrencesStream !=
-                null &&
-            _calendarOccurrencesStreamStart ==
-                rangeStart &&
-            _calendarOccurrencesStreamEnd ==
-                rangeEndExclusive;
+        _calendarOccurrencesStream != null &&
+        _calendarOccurrencesStreamStart == rangeStart &&
+        _calendarOccurrencesStreamEnd == rangeEndExclusive;
 
     if (!sameWindow) {
-      _calendarOccurrencesStreamStart =
-          rangeStart;
-      _calendarOccurrencesStreamEnd =
-          rangeEndExclusive;
-      _calendarOccurrencesStream =
-          widget.taskRepository
-              .watchOccurrencesOverlappingWindow(
-        rangeStart,
-        rangeEndExclusive,
-      );
+      _calendarOccurrencesStreamStart = rangeStart;
+      _calendarOccurrencesStreamEnd = rangeEndExclusive;
+      _calendarOccurrencesStream = widget.taskRepository
+          .watchOccurrencesOverlappingWindow(rangeStart, rangeEndExclusive);
     }
 
     return _calendarOccurrencesStream!;
   }
 
-
-  String _durationLabel(
-    int minutes,
-  ) {
+  String _durationLabel(int minutes) {
     final hours = minutes ~/ 60;
     final remaining = minutes % 60;
 
@@ -357,18 +280,13 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     if (remaining == 0) {
-      return hours == 1
-          ? '1 ora'
-          : '$hours ore';
+      return hours == 1 ? '1 ora' : '$hours ore';
     }
 
     return '$hours h $remaining min';
   }
 
-  String _monthYearLabel(
-    DateTime date,
-    dynamic locale,
-  ) {
+  String _monthYearLabel(DateTime date, dynamic locale) {
     const months = [
       'Gennaio',
       'Febbraio',
@@ -387,10 +305,7 @@ class _CalendarPageState extends State<CalendarPage>
     return '${months[date.month - 1]} ${date.year}';
   }
 
-
-  String _selectedDateLabel(
-    DateTime date,
-  ) {
+  String _selectedDateLabel(DateTime date) {
     const weekdays = [
       'Lunedì',
       'Martedì',
@@ -422,9 +337,7 @@ class _CalendarPageState extends State<CalendarPage>
         '${date.year}';
   }
 
-  String _selectedAgendaDateLabel(
-    DateTime date,
-  ) {
+  String _selectedAgendaDateLabel(DateTime date) {
     const weekdays = [
       'Lunedì',
       'Martedì',
@@ -475,8 +388,7 @@ class _CalendarPageState extends State<CalendarPage>
       'dicembre',
     ];
 
-    if (start.year == end.year &&
-        start.month == end.month) {
+    if (start.year == end.year && start.month == end.month) {
       return '${start.day}–${end.day} '
           '${months[start.month - 1]} '
           '${start.year}';
@@ -492,20 +404,26 @@ class _CalendarPageState extends State<CalendarPage>
         '${end.day} ${months[end.month - 1]} ${end.year}';
   }
 
-
-  void _setCalendarFormat(
-    CalendarFormat format,
-  ) {
+  void _setCalendarFormat(CalendarFormat format) {
     if (_calendarFormat == format) {
       return;
     }
+
+    // Ogni vero cambio di vista riparte da oggi.
+    //
+    // Questo evita che una data esplorata in Mese condizioni la Week e,
+    // viceversa, che una settimana esplorata lontano da oggi condizioni
+    // il successivo ingresso nella vista Mese.
+    final today = CivilDate.dateOnly(_now);
 
     _weekHeaderCollapseController.stop();
     _weekHeaderCollapseController.value = 0;
 
     setState(() {
       _calendarFormat = format;
-      _focusedDay = _selectedDay;
+      _selectedDay = today;
+      _focusedDay = today;
+      _weekHighlightedDay = format == CalendarFormat.week ? today : null;
       _weekHeaderCollapsed = false;
       _weekUntimedExpanded = false;
     });
@@ -517,183 +435,138 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  int _daysInMonth(
-    int year,
-    int month,
-  ) {
-    return DateTime(
-      year,
-      month + 1,
-      0,
-    ).day;
+  int _daysInMonth(int year, int month) {
+    return DateTime(year, month + 1, 0).day;
   }
 
-  void _changeMonth(
-    int monthOffset,
-  ) {
-    final targetMonth =
-        DateTime(
+  void _changeMonth(int monthOffset) {
+    final targetMonth = DateTime(
       _focusedDay.year,
       _focusedDay.month + monthOffset,
       1,
     );
 
-    final targetDay =
-        math.min(
-      _selectedDay.day,
-      _daysInMonth(
-        targetMonth.year,
-        targetMonth.month,
-      ),
-    ).toInt();
+    final targetDay = math
+        .min(
+          _selectedDay.day,
+          _daysInMonth(targetMonth.year, targetMonth.month),
+        )
+        .toInt();
 
-    final target =
-        DateTime(
-      targetMonth.year,
-      targetMonth.month,
-      targetDay,
-    );
+    final target = DateTime(targetMonth.year, targetMonth.month, targetDay);
 
     setState(() {
-      _focusedDay =
-          target;
-      _selectedDay =
-          target;
+      _focusedDay = target;
+      _selectedDay = target;
     });
   }
 
-  void _changeWeek(
-    int weekOffset,
-  ) {
+  void _changeWeek(int weekOffset) {
     setState(() {
-      _selectedDay =
-          CivilDate.addDays(
-        _selectedDay,
-        7 * weekOffset,
-      );
-      _focusedDay =
-          _selectedDay;
+      _selectedDay = CivilDate.addDays(_selectedDay, 7 * weekOffset);
+      _focusedDay = _selectedDay;
+
+      // Navigare di settimana non equivale a scegliere esplicitamente
+      // lo stesso giorno della settimana. La nuova Week parte quindi
+      // senza selezione visiva finché l'utente non tocca un giorno.
+      _weekHighlightedDay = null;
+
       _weekUntimedExpanded = false;
     });
   }
 
-  void _changePeriod(
-    int offset,
-  ) {
-    if (_calendarFormat ==
-        CalendarFormat.week) {
-      _changeWeek(
-        offset,
-      );
+  void _changePeriod(int offset) {
+    if (_calendarFormat == CalendarFormat.week) {
+      _changeWeek(offset);
       return;
     }
 
-    _changeMonth(
-      offset,
-    );
+    _changeMonth(offset);
   }
 
   String _periodLabel() {
-    if (_calendarFormat ==
-        CalendarFormat.week) {
+    if (_calendarFormat == CalendarFormat.week) {
       return _weekRangeLabel();
     }
 
-    return _monthYearLabel(
-      _focusedDay,
-      null,
-    );
+    return _monthYearLabel(_focusedDay, null);
+  }
+
+  String _weekCompactPeriodLabel() {
+    final days = _weekDays();
+    final start = days.first;
+    final end = days.last;
+
+    const shortMonths = [
+      'Gen',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mag',
+      'Giu',
+      'Lug',
+      'Ago',
+      'Set',
+      'Ott',
+      'Nov',
+      'Dic',
+    ];
+
+    if (start.year == end.year && start.month == end.month) {
+      return _monthYearLabel(start, null);
+    }
+
+    if (start.year == end.year) {
+      return '${shortMonths[start.month - 1]} · '
+          '${shortMonths[end.month - 1]} ${start.year}';
+    }
+
+    return '${shortMonths[start.month - 1]} ${start.year} · '
+        '${shortMonths[end.month - 1]} ${end.year}';
   }
 
   Future<void> _showViewMenu() async {
-    final selected =
-        await showGeneralDialog<CalendarFormat>(
-      context:
-          context,
-      barrierDismissible:
-          true,
-      barrierLabel:
-          'Chiudi selettore vista',
-      barrierColor:
-          Colors.black.withValues(
-        alpha: 0.24,
-      ),
-      transitionDuration:
-          _calendarViewMenuTransitionDuration,
-      pageBuilder:
-          (
-        dialogContext,
-        animation,
-        secondaryAnimation,
-      ) {
+    final selected = await showGeneralDialog<CalendarFormat>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Chiudi selettore vista',
+      barrierColor: Colors.black.withValues(alpha: 0.24),
+      transitionDuration: _calendarViewMenuTransitionDuration,
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
         return Align(
-          alignment:
-              Alignment.centerLeft,
+          alignment: Alignment.centerLeft,
           child: SafeArea(
             child: Material(
-              color:
-                  Theme.of(
-                dialogContext,
-              ).colorScheme.surface,
+              color: Theme.of(dialogContext).colorScheme.surface,
               child: SizedBox(
-                width:
-                    math.min(
-                  280.0,
-                  MediaQuery.sizeOf(
-                        dialogContext,
-                      ).width *
-                      0.76,
-                ).toDouble(),
-                height:
-                    double.infinity,
-                child:
-                    _CalendarViewMenu(
-                  selected:
-                      _calendarFormat,
-                ),
+                width: math
+                    .min(280.0, MediaQuery.sizeOf(dialogContext).width * 0.76)
+                    .toDouble(),
+                height: double.infinity,
+                child: _CalendarViewMenu(selected: _calendarFormat),
               ),
             ),
           ),
         );
       },
-      transitionBuilder:
-          (
-        dialogContext,
-        animation,
-        secondaryAnimation,
-        child,
-      ) {
-        final curved =
-            CurvedAnimation(
-          parent:
-              animation,
-          curve:
-              Curves.easeInOutCubic,
-          reverseCurve:
-              Curves.easeInOutCubic,
+      transitionBuilder: (dialogContext, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeInOutCubic,
+          reverseCurve: Curves.easeInOutCubic,
         );
 
         return SlideTransition(
-          position:
-              Tween<Offset>(
-            begin:
-                const Offset(
-              -1,
-              0,
-            ),
-            end:
-                Offset.zero,
-          ).animate(
-            curved,
-          ),
-          child:
-              child,
+          position: Tween<Offset>(
+            begin: const Offset(-1, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
         );
       },
     );
 
-    if (!mounted ||
-        selected == null) {
+    if (!mounted || selected == null) {
       return;
     }
 
@@ -701,29 +574,24 @@ class _CalendarPageState extends State<CalendarPage>
     // l'animazione inversa è ancora in corso. Aspettiamo che la tendina
     // abbia finito di richiudersi prima di cambiare la vista sottostante:
     // così il tap su Mese/Settimana ha la stessa chiusura del tap fuori.
-    await Future<void>.delayed(
-      _calendarViewMenuTransitionDuration,
-    );
+    await Future<void>.delayed(_calendarViewMenuTransitionDuration);
 
     if (!mounted) {
       return;
     }
 
-    _setCalendarFormat(
-      selected,
-    );
+    _setCalendarFormat(selected);
   }
 
-
   void _goToToday() {
-    final today =
-        CivilDate.dateOnly(
-      _now,
-    );
+    final today = CivilDate.dateOnly(_now);
 
     setState(() {
       _selectedDay = today;
       _focusedDay = today;
+      _weekHighlightedDay = _calendarFormat == CalendarFormat.week
+          ? today
+          : null;
       _weekUntimedExpanded = false;
     });
 
@@ -733,7 +601,6 @@ class _CalendarPageState extends State<CalendarPage>
       );
     }
   }
-
 
   void _scrollWeekNearMorning() {
     if (!_weekVerticalController.hasClients) {
@@ -745,198 +612,119 @@ class _CalendarPageState extends State<CalendarPage>
       _weekVerticalController.position.maxScrollExtent,
     );
 
-    _weekVerticalController.jumpTo(
-      target.toDouble(),
-    );
+    _weekVerticalController.jumpTo(target.toDouble());
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    AppClockScope.watch(
-      context,
-    );
+  Widget build(BuildContext context) {
+    AppClockScope.watch(context);
 
-    final rangeStart =
-        _rangeStart();
-    final rangeEndExclusive =
-        CivilDate.nextDay(
-      _rangeEnd(),
-    );
+    final rangeStart = _rangeStart();
+    final rangeEndExclusive = CivilDate.nextDay(_rangeEnd());
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading:
-            false,
+        automaticallyImplyLeading: false,
         leading: IconButton(
-          tooltip:
-              'Cambia vista calendario',
-          onPressed:
-              _showViewMenu,
-          icon:
-              const Icon(
-            Icons.menu_rounded,
-          ),
+          tooltip: 'Cambia vista calendario',
+          onPressed: _showViewMenu,
+          icon: const Icon(Icons.menu_rounded),
         ),
-        title:
-            const Text(
-          'Calendario',
-        ),
-        actions:
-            _calendarFormat ==
-                    CalendarFormat.week
-                ? [
-                    IconButton(
-                      tooltip:
-                          'Nuova attività',
-                      onPressed:
-                          _addTask,
-                      icon:
-                          const Icon(
-                        Icons.add_rounded,
-                      ),
-                    ),
-                    const SizedBox(
-                      width:
-                          4,
-                    ),
-                  ]
-                : null,
+        title: const Text('Calendario'),
+        actions: _calendarFormat == CalendarFormat.week
+            ? [
+                IconButton(
+                  tooltip: 'Nuova attività',
+                  onPressed: _addTask,
+                  icon: const Icon(Icons.add_rounded),
+                ),
+                const SizedBox(width: 4),
+              ]
+            : null,
       ),
-      body: StreamBuilder<
-          List<TaskOccurrence>>(
-        stream:
-            _occurrencesStreamForWindow(
-          rangeStart,
-          rangeEndExclusive,
-        ),
-        builder:
-            (context, snapshot) {
+      body: StreamBuilder<List<TaskOccurrence>>(
+        stream: _occurrencesStreamForWindow(rangeStart, rangeEndExclusive),
+        builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
               child: Padding(
-                padding:
-                    const EdgeInsets.all(
-                  24,
-                ),
+                padding: const EdgeInsets.all(24),
                 child: Text(
                   'Errore nel caricamento:\n'
                   '${snapshot.error}',
-                  textAlign:
-                      TextAlign.center,
+                  textAlign: TextAlign.center,
                 ),
               ),
             );
           }
 
           if (!snapshot.hasData) {
-            return const Center(
-              child:
-                  CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
-          final occurrences =
-              snapshot.data!;
+          final occurrences = snapshot.data!;
 
-          return StreamBuilder<
-              Map<String, TaskCategory>>(
-            stream:
-                widget.categoryRepository
-                    .watchCategoryMap(),
-            initialData:
-                const {},
-            builder:
-                (
-              context,
-              categorySnapshot,
-            ) {
+          return StreamBuilder<Map<String, TaskCategory>>(
+            stream: widget.categoryRepository.watchCategoryMap(),
+            initialData: const {},
+            builder: (context, categorySnapshot) {
               final categoryMap =
-                  categorySnapshot.data ??
-                      const <
-                          String,
-                          TaskCategory>{};
+                  categorySnapshot.data ?? const <String, TaskCategory>{};
 
               return Column(
                 children: [
                   AnimatedBuilder(
-                    animation:
-                        _weekHeaderCollapseController,
-                    builder:
-                        (context, child) {
-                      if (_calendarFormat !=
-                          CalendarFormat.week) {
+                    animation: _weekHeaderCollapseController,
+                    builder: (context, child) {
+                      if (_calendarFormat != CalendarFormat.week) {
                         return child!;
                       }
 
                       final visibleFactor =
-                          (1.0 -
-                                  _weekHeaderCollapseController
-                                      .value)
-                              .clamp(
-                                0.0,
-                                1.0,
-                              )
+                          (1.0 - _weekHeaderCollapseController.value)
+                              .clamp(0.0, 1.0)
                               .toDouble();
 
                       return ClipRect(
-                        child:
-                            Align(
-                          alignment:
-                              Alignment.topCenter,
-                          heightFactor:
-                              visibleFactor,
-                          child:
-                              Opacity(
-                            opacity:
-                                visibleFactor,
-                            child:
-                                child,
-                          ),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          heightFactor: visibleFactor,
+                          child: Opacity(opacity: visibleFactor, child: child),
                         ),
                       );
                     },
-                    child:
-                        _PeriodNavigationHeader(
-                      label:
-                          _periodLabel(),
-                      compact:
-                          _calendarFormat ==
-                              CalendarFormat.month,
-                      selectedDateLabel:
-                          _selectedDateLabel(
-                        _selectedDay,
-                      ),
-                      onPrevious: () {
-                        _changePeriod(
-                          -1,
-                        );
-                      },
-                      onNext: () {
-                        _changePeriod(
-                          1,
-                        );
-                      },
-                      onToday:
-                          _goToToday,
-                    ),
+                    child: _calendarFormat == CalendarFormat.month
+                        ? _PeriodNavigationHeader(
+                            label: _periodLabel(),
+                            compact: true,
+                            selectedDateLabel: _selectedDateLabel(_selectedDay),
+                            onPrevious: () {
+                              _changePeriod(-1);
+                            },
+                            onNext: () {
+                              _changePeriod(1);
+                            },
+                            onToday: _goToToday,
+                          )
+                        : _WeekNavigationHeader(
+                            label: _weekCompactPeriodLabel(),
+                            onPrevious: () {
+                              _changeWeek(-1);
+                            },
+                            onNext: () {
+                              _changeWeek(1);
+                            },
+                            onToday: _goToToday,
+                          ),
                   ),
                   Expanded(
-                    child:
-                        _calendarFormat ==
-                                CalendarFormat
-                                    .month
-                            ? _CalendarMonthViewExtension(this)._buildMonthView(
-                                context,
-                                occurrences,
-                                categoryMap,
-                              )
-                            : _CalendarWeekViewExtension(this)._buildWeekView(
-                                context,
-                                occurrences,
-                                categoryMap,
-                              ),
+                    child: _calendarFormat == CalendarFormat.month
+                        ? _CalendarMonthViewExtension(
+                            this,
+                          )._buildMonthView(context, occurrences, categoryMap)
+                        : _CalendarWeekViewExtension(
+                            this,
+                          )._buildWeekView(context, occurrences, categoryMap),
                   ),
                 ],
               );
@@ -946,17 +734,64 @@ class _CalendarPageState extends State<CalendarPage>
       ),
     );
   }
-
-
 }
 
+class _WeekNavigationHeader extends StatelessWidget {
+  final String label;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final VoidCallback onToday;
 
+  const _WeekNavigationHeader({
+    required this.label,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onToday,
+  });
 
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Settimana precedente',
+            visualDensity: VisualDensity.compact,
+            onPressed: onPrevious,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Expanded(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.25),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Settimana successiva',
+            visualDensity: VisualDensity.compact,
+            onPressed: onNext,
+            icon: const Icon(Icons.chevron_right),
+          ),
+          TextButton(
+            onPressed: onToday,
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+            child: const Text('Oggi'),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-
-
-class _PeriodNavigationHeader
-    extends StatelessWidget {
+class _PeriodNavigationHeader extends StatelessWidget {
   final String label;
   final String selectedDateLabel;
   final VoidCallback onPrevious;
@@ -974,105 +809,53 @@ class _PeriodNavigationHeader
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding:
-          EdgeInsets.fromLTRB(
-        12,
-        4,
-        12,
-        compact
-            ? 4
-            : 12,
-      ),
+      padding: EdgeInsets.fromLTRB(12, 4, 12, compact ? 4 : 12),
       child: Column(
         children: [
           Row(
             children: [
               IconButton(
-                tooltip:
-                    'Periodo precedente',
-                onPressed:
-                    onPrevious,
-                icon:
-                    const Icon(
-                  Icons.chevron_left,
-                ),
+                tooltip: 'Periodo precedente',
+                onPressed: onPrevious,
+                icon: const Icon(Icons.chevron_left),
               ),
               Expanded(
                 child: Text(
                   label,
-                  textAlign:
-                      TextAlign.center,
-                  style:
-                      Theme.of(
-                    context,
-                  )
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(
-                            fontWeight:
-                                FontWeight.w700,
-                            letterSpacing:
-                                -0.35,
-                          ),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.35,
+                  ),
                 ),
               ),
               IconButton(
-                tooltip:
-                    'Periodo successivo',
-                onPressed:
-                    onNext,
-                icon:
-                    const Icon(
-                  Icons.chevron_right,
-                ),
+                tooltip: 'Periodo successivo',
+                onPressed: onNext,
+                icon: const Icon(Icons.chevron_right),
               ),
             ],
           ),
           Padding(
-            padding:
-                const EdgeInsets.only(
-              left: 8,
-              right: 4,
-            ),
+            padding: const EdgeInsets.only(left: 8, right: 4),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     selectedDateLabel,
-                    maxLines:
-                        1,
-                    overflow:
-                        TextOverflow.ellipsis,
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              color:
-                                  colorScheme
-                                      .onSurfaceVariant,
-                              fontWeight:
-                                  FontWeight.w500,
-                            ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-                TextButton(
-                  onPressed:
-                      onToday,
-                  child:
-                      const Text(
-                    'Oggi',
-                  ),
-                ),
+                TextButton(onPressed: onToday, child: const Text('Oggi')),
               ],
             ),
           ),
@@ -1082,119 +865,57 @@ class _PeriodNavigationHeader
   }
 }
 
-class _CalendarViewMenu
-    extends StatelessWidget {
+class _CalendarViewMenu extends StatelessWidget {
   final CalendarFormat selected;
 
-  const _CalendarViewMenu({
-    required this.selected,
-  });
+  const _CalendarViewMenu({required this.selected});
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return DecoratedBox(
-      decoration:
-          BoxDecoration(
-        border:
-            Border(
-          right:
-              BorderSide(
-            color:
-                colorScheme
-                    .outlineVariant
-                    .withValues(
-              alpha:
-                  0.55,
-            ),
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.55),
           ),
         ),
       ),
       child: Padding(
-        padding:
-            const EdgeInsets.fromLTRB(
-          22,
-          28,
-          18,
-          20,
-        ),
+        padding: const EdgeInsets.fromLTRB(22, 28, 18, 20),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Calendario',
-              style:
-                  Theme.of(
-                context,
-              )
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(
-                        fontWeight:
-                            FontWeight.w700,
-                        letterSpacing:
-                            -0.5,
-                      ),
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
             ),
-            const SizedBox(
-              height:
-                  28,
-            ),
+            const SizedBox(height: 28),
             Text(
               'VISTA',
-              style:
-                  Theme.of(
-                context,
-              )
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(
-                        color:
-                            colorScheme
-                                .onSurfaceVariant,
-                        fontWeight:
-                            FontWeight.w800,
-                        letterSpacing:
-                            1,
-                      ),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+              ),
             ),
-            const SizedBox(
-              height:
-                  8,
-            ),
+            const SizedBox(height: 8),
             _CalendarViewMenuRow(
-              icon:
-                  Icons.calendar_month_outlined,
-              label:
-                  'Mese',
-              selected:
-                  selected ==
-                  CalendarFormat.month,
+              icon: Icons.calendar_month_outlined,
+              label: 'Mese',
+              selected: selected == CalendarFormat.month,
               onTap: () {
-                Navigator.pop(
-                  context,
-                  CalendarFormat.month,
-                );
+                Navigator.pop(context, CalendarFormat.month);
               },
             ),
             _CalendarViewMenuRow(
-              icon:
-                  Icons.view_week_outlined,
-              label:
-                  'Settimana',
-              selected:
-                  selected ==
-                  CalendarFormat.week,
+              icon: Icons.view_week_outlined,
+              label: 'Settimana',
+              selected: selected == CalendarFormat.week,
               onTap: () {
-                Navigator.pop(
-                  context,
-                  CalendarFormat.week,
-                );
+                Navigator.pop(context, CalendarFormat.week);
               },
             ),
             const Spacer(),
@@ -1205,8 +926,7 @@ class _CalendarViewMenu
   }
 }
 
-class _CalendarViewMenuRow
-    extends StatelessWidget {
+class _CalendarViewMenuRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
@@ -1220,88 +940,45 @@ class _CalendarViewMenuRow
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
-      color:
-          Colors.transparent,
+      color: Colors.transparent,
       child: InkWell(
-        onTap:
-            onTap,
-        borderRadius:
-            BorderRadius.circular(
-          12,
-        ),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(
-            vertical:
-                13,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 13),
           child: Row(
             children: [
               AnimatedContainer(
-                duration:
-                    const Duration(
-                  milliseconds:
-                      160,
-                ),
-                width:
-                    3,
-                height:
-                    28,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      selected
-                          ? colorScheme.primary
-                          : Colors.transparent,
-                  borderRadius:
-                      BorderRadius.circular(
-                    99,
-                  ),
+                duration: const Duration(milliseconds: 160),
+                width: 3,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: selected ? colorScheme.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const SizedBox(
-                width:
-                    12,
-              ),
+              const SizedBox(width: 12),
               Icon(
                 icon,
-                size:
-                    20,
-                color:
-                    selected
-                        ? colorScheme.primary
-                        : colorScheme.onSurfaceVariant,
+                size: 20,
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(
-                width:
-                    12,
-              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   label,
-                  style:
-                      Theme.of(
-                    context,
-                  )
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(
-                            color:
-                                selected
-                                    ? colorScheme.primary
-                                    : colorScheme.onSurface,
-                            fontWeight:
-                                selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                          ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: selected
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -1311,5 +988,3 @@ class _CalendarViewMenuRow
     );
   }
 }
-
-

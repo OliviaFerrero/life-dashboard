@@ -16,70 +16,27 @@ class _WeekActionSheetRow extends StatelessWidget {
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    final color =
-        isDestructive
-            ? colorScheme.error
-            : colorScheme.onSurface;
+    final color = isDestructive ? colorScheme.error : colorScheme.onSurface;
 
     return Material(
-      color:
-          Colors.transparent,
-      child:
-          InkWell(
-        onTap:
-            onTap,
-        borderRadius:
-            BorderRadius.circular(
-          12,
-        ),
-        child:
-            Padding(
-          padding:
-              const EdgeInsets.symmetric(
-            vertical:
-                15,
-          ),
-          child:
-              Row(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          child: Row(
             children: [
-              SizedBox(
-                width:
-                    32,
-                child:
-                    Icon(
-                  icon,
-                  size:
-                      20,
-                  color:
-                      color,
-                ),
-              ),
-              const SizedBox(
-                width:
-                    12,
-              ),
+              SizedBox(width: 32, child: Icon(icon, size: 20, color: color)),
+              const SizedBox(width: 12),
               Expanded(
-                child:
-                    Text(
+                child: Text(
                   label,
-                  style:
-                      Theme.of(
-                    context,
-                  )
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(
-                            color:
-                                color,
-                            fontWeight:
-                                FontWeight.w600,
-                          ),
+                  style: Theme.of(context).textTheme.bodyLarge
+                      ?.copyWith(color: color, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -110,93 +67,56 @@ class _WeekPinnedGutter extends StatelessWidget {
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    final backgroundColor =
-        Theme.of(context).scaffoldBackgroundColor;
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
 
     return ColoredBox(
-      color:
-          backgroundColor,
-      child:
-          Column(
+      color: backgroundColor,
+      child: Column(
         children: [
-          SizedBox(
-            height:
-                76,
-            width:
-                width,
-          ),
+          SizedBox(height: 76, width: width),
           Expanded(
-            child:
-                Stack(
+            child: Stack(
               children: [
                 Positioned.fill(
-                  child:
-                      IgnorePointer(
-                    child:
-                        ColoredBox(
-                      color:
-                          backgroundColor,
-                    ),
+                  child: IgnorePointer(
+                    child: ColoredBox(color: backgroundColor),
                   ),
                 ),
                 Positioned.fill(
-                  child:
-                      IgnorePointer(
-                    child:
-                        ClipRect(
-                      child:
-                          AnimatedBuilder(
-                        animation:
-                            verticalController,
-                        builder:
-                            (context, child) {
-                          final offset =
-                              verticalController.hasClients
-                                  ? verticalController.offset
-                                  : 0.0;
+                  child: IgnorePointer(
+                    child: ClipRect(
+                      child: AnimatedBuilder(
+                        animation: verticalController,
+                        builder: (context, child) {
+                          final offset = verticalController.hasClients
+                              ? verticalController.offset
+                              : 0.0;
 
                           return Stack(
-                            clipBehavior:
-                                Clip.hardEdge,
+                            clipBehavior: Clip.hardEdge,
                             children: [
-                              for (var hour = 0;
-                                  hour < 24;
-                                  hour++)
+                              for (var hour = 0; hour < 24; hour++)
                                 Positioned(
-                                  left:
-                                      0,
-                                  right:
-                                      7,
+                                  left: 0,
+                                  right: 7,
                                   top:
                                       gridTopPadding +
-                                          hour *
-                                              hourHeight -
-                                          8 -
-                                          offset,
-                                  child:
-                                      Text(
+                                      hour * hourHeight -
+                                      8 -
+                                      offset,
+                                  child: Text(
                                     '${hour.toString().padLeft(2, '0')}:00',
-                                    textAlign:
-                                        TextAlign.right,
-                                    style:
-                                        Theme.of(
-                                      context,
-                                    )
-                                            .textTheme
-                                            .labelSmall
-                                            ?.copyWith(
-                                              color:
-                                                  colorScheme
-                                                      .onSurfaceVariant,
-                                              fontWeight:
-                                                  FontWeight.w500,
-                                            ),
+                                    textAlign: TextAlign.right,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                   ),
                                 ),
                             ],
@@ -208,45 +128,24 @@ class _WeekPinnedGutter extends StatelessWidget {
                 ),
                 if (untimedExpanded)
                   Positioned(
-                    left:
-                        0,
-                    right:
-                        0,
-                    top:
-                        0,
-                    height:
-                        untimedOverlayHeight,
-                    child:
-                        Material(
-                      color:
-                          colorScheme
-                              .surfaceContainerHigh
-                              .withValues(
-                        alpha:
-                            0.97,
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: untimedOverlayHeight,
+                    child: Material(
+                      color: colorScheme.surfaceContainerHigh.withValues(
+                        alpha: 0.97,
                       ),
-                      elevation:
-                          5,
-                      shadowColor:
-                          colorScheme.shadow.withValues(
-                        alpha:
-                            0.14,
-                      ),
-                      child:
-                          Center(
-                        child:
-                            IconButton(
-                          tooltip:
-                              'Chiudi attività senza orario',
-                          visualDensity:
-                              VisualDensity.compact,
-                          onPressed:
-                              onCloseUntimed,
-                          icon:
-                              const Icon(
+                      elevation: 5,
+                      shadowColor: colorScheme.shadow.withValues(alpha: 0.14),
+                      child: Center(
+                        child: IconButton(
+                          tooltip: 'Chiudi attività senza orario',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: onCloseUntimed,
+                          icon: const Icon(
                             Icons.keyboard_arrow_up_rounded,
-                            size:
-                                19,
+                            size: 19,
                           ),
                         ),
                       ),
@@ -261,10 +160,9 @@ class _WeekPinnedGutter extends StatelessWidget {
   }
 }
 
-
 class _WeekDayHeader extends StatelessWidget {
   final List<DateTime> days;
-  final DateTime selectedDay;
+  final DateTime? selectedDay;
   final double gutterWidth;
   final double dayWidth;
   final bool collapsed;
@@ -291,219 +189,119 @@ class _WeekDayHeader extends StatelessWidget {
     required this.onDaySelected,
   });
 
-  bool _sameDay(
-    DateTime a,
-    DateTime b,
-  ) {
-    return a.year == b.year &&
-        a.month == b.month &&
-        a.day == b.day;
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  Color _indicatorColor(
-    BuildContext context,
-    TaskOccurrence occurrence,
-  ) {
-    final task =
-        occurrence.displayTask;
+  Color _indicatorColor(BuildContext context, TaskOccurrence occurrence) {
+    final task = occurrence.displayTask;
 
-    final category =
-        task.categoryId == null
-            ? null
-            : categoryMap[
-                task.categoryId];
+    final category = task.categoryId == null
+        ? null
+        : categoryMap[task.categoryId];
 
     if (category == null) {
-      return Theme.of(context)
-          .colorScheme
-          .onSurfaceVariant
-          .withValues(
-            alpha:
-                0.72,
-          );
+      return Theme.of(context).colorScheme.onSurfaceVariant
+          .withValues(alpha: 0.72);
     }
 
-    return Color(
-      category.colorValue,
-    );
+    return Color(category.colorValue);
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    final now =
-        AppClockScope.watch(
-      context,
-    ).now;
+    final now = AppClockScope.watch(context).now;
 
-    final today =
-        DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    final today = DateTime(now.year, now.month, now.day);
 
-    const shortWeekdays = [
-      'LUN',
-      'MAR',
-      'MER',
-      'GIO',
-      'VEN',
-      'SAB',
-      'DOM',
-    ];
+    const shortWeekdays = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'];
 
     return GestureDetector(
-      behavior:
-          HitTestBehavior.translucent,
-      onVerticalDragUpdate:
-          onVerticalDragUpdate,
-      onVerticalDragEnd:
-          onVerticalDragEnd,
-      child:
-          SizedBox(
-        height:
-            76,
-        child:
-            Row(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragUpdate: onVerticalDragUpdate,
+      onVerticalDragEnd: onVerticalDragEnd,
+      child: SizedBox(
+        height: 76,
+        child: Row(
           children: [
             SizedBox(
-              width:
-                  gutterWidth,
-              child:
-                  Center(
-                child:
-                    Icon(
+              width: gutterWidth,
+              child: Center(
+                child: Icon(
                   collapsed
-                      ? Icons
-                          .keyboard_arrow_down_rounded
-                      : Icons
-                          .keyboard_arrow_up_rounded,
-                  size:
-                      18,
-                  color:
-                      colorScheme
-                          .onSurfaceVariant
-                          .withValues(
-                    alpha:
-                        0.65,
-                  ),
+                      ? Icons.keyboard_arrow_down_rounded
+                      : Icons.keyboard_arrow_up_rounded,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
                 ),
               ),
             ),
-            for (var i = 0;
-                i < days.length;
-                i++)
+            for (var i = 0; i < days.length; i++)
               SizedBox(
-                width:
-                    dayWidth,
-                child:
-                    Column(
+                width: dayWidth,
+                child: Column(
                   children: [
                     Expanded(
-                      child:
-                          Material(
-                        color:
-                            Colors.transparent,
-                        child:
-                            InkWell(
-                          onTap:
-                              () {
-                            onDaySelected(
-                              days[i],
-                            );
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            onDaySelected(days[i]);
                           },
-                          child:
-                              Padding(
-                            padding:
-                                const EdgeInsets.only(
-                              top:
-                                  7,
-                            ),
-                            child:
-                                Column(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 7),
+                            child: Column(
                               children: [
                                 Text(
                                   shortWeekdays[i],
-                                  style:
-                                      Theme.of(
-                                    context,
-                                  )
-                                          .textTheme
-                                          .labelSmall
-                                          ?.copyWith(
-                                            color:
-                                                colorScheme
-                                                    .onSurfaceVariant,
-                                            fontWeight:
-                                                FontWeight.w700,
-                                            letterSpacing:
-                                                0.65,
-                                          ),
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.65,
+                                      ),
                                 ),
-                                const SizedBox(
-                                  height:
-                                      4,
-                                ),
+                                const SizedBox(height: 4),
                                 Container(
-                                  width:
-                                      30,
-                                  height:
-                                      30,
-                                  alignment:
-                                      Alignment.center,
-                                  decoration:
-                                      BoxDecoration(
-                                    color:
-                                        _sameDay(
-                                      days[i],
-                                      selectedDay,
-                                    )
-                                            ? colorScheme
-                                                .primary
-                                            : _sameDay(
-                                                days[i],
-                                                today,
-                                              )
-                                                ? colorScheme
-                                                    .primaryContainer
-                                                : Colors
-                                                    .transparent,
-                                    shape:
-                                        BoxShape.circle,
-                                  ),
-                                  child:
-                                      Text(
+                                  key: ValueKey<String>(
+                                    'calendar_week_day_'
+                                    '${days[i].year}_'
+                                    '${days[i].month}_'
                                     '${days[i].day}',
-                                    style:
-                                        Theme.of(
-                                      context,
-                                    )
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              color:
+                                  ),
+                                  width: 30,
+                                  height: 30,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        selectedDay != null &&
+                                            _sameDay(days[i], selectedDay!)
+                                        ? colorScheme.primary
+                                        : _sameDay(days[i], today)
+                                        ? colorScheme.primaryContainer
+                                        : Colors.transparent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '${days[i].day}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color:
+                                              selectedDay != null &&
                                                   _sameDay(
-                                                days[i],
-                                                selectedDay,
-                                              )
-                                                      ? colorScheme
-                                                          .onPrimary
-                                                      : _sameDay(
-                                                          days[i],
-                                                          today,
-                                                        )
-                                                          ? colorScheme
-                                                              .onPrimaryContainer
-                                                          : colorScheme
-                                                              .onSurface,
-                                              fontWeight:
-                                                  FontWeight.w700,
-                                            ),
+                                                    days[i],
+                                                    selectedDay!,
+                                                  )
+                                              ? colorScheme.onPrimary
+                                              : _sameDay(days[i], today)
+                                              ? colorScheme.onPrimaryContainer
+                                              : colorScheme.onSurface,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                   ),
                                 ),
                               ],
@@ -513,117 +311,66 @@ class _WeekDayHeader extends StatelessWidget {
                       ),
                     ),
                     SizedBox(
-                      height:
-                          16,
-                      child:
-                          Builder(
-                        builder:
-                            (context) {
+                      height: 16,
+                      child: Builder(
+                        builder: (context) {
                           final items =
-                              untimedByDay[i] ??
-                                  const <
-                                      TaskOccurrence>[];
+                              untimedByDay[i] ?? const <TaskOccurrence>[];
 
                           if (items.isEmpty) {
                             return const SizedBox.shrink();
                           }
 
-                          final visible =
-                              items
-                                  .take(
-                                    3,
-                                  )
-                                  .toList();
+                          final visible = items.take(3).toList();
 
                           return Tooltip(
-                            message:
-                                items.length ==
-                                        1
-                                    ? '1 attività senza orario'
-                                    : '${items.length} attività senza orario',
-                            child:
-                                Material(
-                              color:
-                                  Colors.transparent,
-                              child:
-                                  InkWell(
-                                onTap:
-                                    () {
-                                  onUntimedToggle(
-                                    days[i],
-                                  );
+                            message: items.length == 1
+                                ? '1 attività senza orario'
+                                : '${items.length} attività senza orario',
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  onUntimedToggle(days[i]);
                                 },
-                                borderRadius:
-                                    BorderRadius.circular(
-                                  999,
-                                ),
-                                child:
-                                    Center(
-                                  child:
-                                      AnimatedContainer(
-                                    duration:
-                                        const Duration(
-                                      milliseconds:
-                                          160,
+                                borderRadius: BorderRadius.circular(999),
+                                child: Center(
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 160),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 3,
                                     ),
-                                    padding:
-                                        const EdgeInsets.symmetric(
-                                      horizontal:
-                                          5,
-                                      vertical:
-                                          3,
-                                    ),
-                                    decoration:
-                                        BoxDecoration(
+                                    decoration: BoxDecoration(
                                       color:
                                           untimedExpanded &&
-                                                  _sameDay(
-                                                    days[i],
-                                                    selectedDay,
-                                                  )
-                                              ? colorScheme
-                                                  .surfaceContainerHigh
-                                              : Colors
-                                                  .transparent,
-                                      borderRadius:
-                                          BorderRadius.circular(
-                                        999,
-                                      ),
+                                              selectedDay != null &&
+                                              _sameDay(days[i], selectedDay!)
+                                          ? colorScheme.surfaceContainerHigh
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(999),
                                     ),
-                                    child:
-                                        Row(
-                                      mainAxisSize:
-                                          MainAxisSize.min,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        for (var dotIndex =
-                                                0;
-                                            dotIndex <
-                                                visible.length;
-                                            dotIndex++) ...[
+                                        for (
+                                          var dotIndex = 0;
+                                          dotIndex < visible.length;
+                                          dotIndex++
+                                        ) ...[
                                           Container(
-                                            width:
-                                                5,
-                                            height:
-                                                5,
-                                            decoration:
-                                                BoxDecoration(
-                                              color:
-                                                  _indicatorColor(
+                                            width: 5,
+                                            height: 5,
+                                            decoration: BoxDecoration(
+                                              color: _indicatorColor(
                                                 context,
-                                                visible[
-                                                    dotIndex],
+                                                visible[dotIndex],
                                               ),
-                                              shape:
-                                                  BoxShape.circle,
+                                              shape: BoxShape.circle,
                                             ),
                                           ),
-                                          if (dotIndex !=
-                                              visible.length -
-                                                  1)
-                                            const SizedBox(
-                                              width:
-                                                  3,
-                                            ),
+                                          if (dotIndex != visible.length - 1)
+                                            const SizedBox(width: 3),
                                         ],
                                       ],
                                     ),
@@ -673,115 +420,54 @@ class _WeekUntimedOverlay extends StatelessWidget {
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
-      color:
-          backgroundColor,
-      elevation:
-          5,
-      shadowColor:
-          colorScheme.shadow.withValues(
-        alpha:
-            0.14,
-      ),
-      child:
-          DecoratedBox(
-        decoration:
-            BoxDecoration(
-          border:
-              Border(
-            top:
-                BorderSide(
-              color:
-                  colorScheme
-                      .outlineVariant
-                      .withValues(
-                alpha:
-                    0.45,
-              ),
+      color: backgroundColor,
+      elevation: 5,
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.14),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.45),
             ),
-            bottom:
-                BorderSide(
-              color:
-                  colorScheme
-                      .outlineVariant
-                      .withValues(
-                alpha:
-                    0.75,
-              ),
+            bottom: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.75),
             ),
           ),
         ),
-        child:
-            Stack(
+        child: Stack(
           children: [
             Positioned(
-              left:
-                  0,
-              top:
-                  0,
-              bottom:
-                  0,
-              width:
-                  gutterWidth,
-              child:
-                  Center(
-                child:
-                    IconButton(
-                  tooltip:
-                      'Chiudi attività senza orario',
-                  visualDensity:
-                      VisualDensity.compact,
-                  onPressed:
-                      onClose,
-                  icon:
-                      const Icon(
-                    Icons
-                        .keyboard_arrow_up_rounded,
-                    size:
-                        19,
-                  ),
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: gutterWidth,
+              child: Center(
+                child: IconButton(
+                  tooltip: 'Chiudi attività senza orario',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onClose,
+                  icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 19),
                 ),
               ),
             ),
-            for (var dayIndex =
-                    0;
-                dayIndex <
-                    7;
-                dayIndex++)
+            for (var dayIndex = 0; dayIndex < 7; dayIndex++)
               Positioned(
-                left:
-                    gutterWidth +
-                    dayIndex *
-                        dayWidth,
-                top:
-                    0,
-                bottom:
-                    0,
-                width:
-                    dayWidth,
-                child:
-                    _UntimedDayLane(
-                  occurrences:
-                      untimedByDay[
-                          dayIndex]!,
-                  chipHeight:
-                      chipHeight,
-                  itemGap:
-                      itemGap,
-                  verticalPadding:
-                      verticalPadding,
-                  categoryMap:
-                      categoryMap,
-                  onOpen:
-                      onOpen,
-                  onActions:
-                      onActions,
+                left: gutterWidth + dayIndex * dayWidth,
+                top: 0,
+                bottom: 0,
+                width: dayWidth,
+                child: _UntimedDayLane(
+                  occurrences: untimedByDay[dayIndex]!,
+                  chipHeight: chipHeight,
+                  itemGap: itemGap,
+                  verticalPadding: verticalPadding,
+                  categoryMap: categoryMap,
+                  onOpen: onOpen,
+                  onActions: onActions,
                 ),
               ),
           ],
@@ -811,79 +497,36 @@ class _UntimedDayLane extends StatelessWidget {
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return DecoratedBox(
-      decoration:
-          BoxDecoration(
-        border:
-            Border(
-          left:
-              BorderSide(
-            color:
-                colorScheme
-                    .outlineVariant
-                    .withValues(
-              alpha:
-                  0.45,
-            ),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.45),
           ),
         ),
       ),
-      child:
-          ListView.separated(
-        primary:
-            false,
-        padding:
-            EdgeInsets.symmetric(
-          horizontal:
-              4,
-          vertical:
-              verticalPadding,
-        ),
-        itemCount:
-            occurrences.length,
-        separatorBuilder:
-            (_, _) =>
-                SizedBox(
-          height:
-              itemGap,
-        ),
-        itemBuilder:
-            (
-          context,
-          index,
-        ) {
-          final occurrence =
-              occurrences[
-                  index];
+      child: ListView.separated(
+        primary: false,
+        padding: EdgeInsets.symmetric(horizontal: 4, vertical: verticalPadding),
+        itemCount: occurrences.length,
+        separatorBuilder: (_, _) => SizedBox(height: itemGap),
+        itemBuilder: (context, index) {
+          final occurrence = occurrences[index];
 
           return SizedBox(
-            height:
-                chipHeight,
-            child:
-                _UntimedOccurrenceChip(
-              occurrence:
-                  occurrence,
-              height:
-                  chipHeight,
-              categoryMap:
-                  categoryMap,
-              onTap:
-                  () {
-                onOpen(
-                  occurrence,
-                );
+            height: chipHeight,
+            child: _UntimedOccurrenceChip(
+              occurrence: occurrence,
+              height: chipHeight,
+              categoryMap: categoryMap,
+              onTap: () {
+                onOpen(occurrence);
               },
-              onLongPress:
-                  () {
-                onActions(
-                  occurrence,
-                );
+              onLongPress: () {
+                onActions(occurrence);
               },
             ),
           );
@@ -909,107 +552,49 @@ class _UntimedOccurrenceChip extends StatelessWidget {
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
-    final task =
-        occurrence.displayTask;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final task = occurrence.displayTask;
 
-    final category =
-        task.categoryId == null
-            ? null
-            : categoryMap[
-                task.categoryId];
+    final category = task.categoryId == null
+        ? null
+        : categoryMap[task.categoryId];
 
-    final color =
-        category == null
-            ? colorScheme
-                .onSurfaceVariant
-            : Color(
-                category.colorValue,
-              );
+    final color = category == null
+        ? colorScheme.onSurfaceVariant
+        : Color(category.colorValue);
 
     return Material(
-      color:
-          color.withValues(
-        alpha:
-            0.12,
-      ),
-      borderRadius:
-          BorderRadius.circular(
-        8,
-      ),
-      child:
-          InkWell(
-        onTap:
-            onTap,
-        onLongPress:
-            onLongPress,
-        borderRadius:
-            BorderRadius.circular(
-          8,
-        ),
-        child:
-            Padding(
-          padding:
-              EdgeInsets.symmetric(
-            horizontal:
-                height < 25
-                    ? 4
-                    : 6,
-          ),
-          child:
-              Row(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: height < 25 ? 4 : 6),
+          child: Row(
             children: [
               Icon(
                 category == null
                     ? task.allDay
-                        ? Icons
-                            .wb_sunny_outlined
-                        : Icons
-                            .schedule_outlined
-                    : taskCategoryIcon(
-                        category.iconKey,
-                      ),
-                size:
-                    height < 25
-                        ? 10
-                        : 12,
-                color:
-                    color,
+                          ? Icons.wb_sunny_outlined
+                          : Icons.schedule_outlined
+                    : taskCategoryIcon(category.iconKey),
+                size: height < 25 ? 10 : 12,
+                color: color,
               ),
-              SizedBox(
-                width:
-                    height < 25
-                        ? 3
-                        : 4,
-              ),
+              SizedBox(width: height < 25 ? 3 : 4),
               Expanded(
-                child:
-                    Text(
+                child: Text(
                   task.title,
-                  maxLines:
-                      1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style:
-                      Theme.of(
-                    context,
-                  )
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(
-                            color:
-                                color,
-                            fontSize:
-                                height < 25
-                                    ? 9
-                                    : null,
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontSize: height < 25 ? 9 : null,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -1019,7 +604,6 @@ class _UntimedOccurrenceChip extends StatelessWidget {
     );
   }
 }
-
 
 class _WeekOccurrenceBlock extends StatelessWidget {
   final LifeTask task;
@@ -1059,236 +643,120 @@ class _WeekOccurrenceBlock extends StatelessWidget {
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    final identityIcon =
-        category == null
-            ? Icons.circle_outlined
-            : taskCategoryIcon(
-                category!.iconKey,
-              );
+    final identityIcon = category == null
+        ? Icons.circle_outlined
+        : taskCategoryIcon(category!.iconKey);
 
     return Material(
-      color:
-          accentColor.withValues(
-        alpha:
-            task.isCompleted
-                ? 0.08
-                : 0.15,
-      ),
-      borderRadius:
-          BorderRadius.circular(
-        9,
-      ),
-      child:
-          InkWell(
-        onTap:
-            onTap,
-        onLongPress:
-            onLongPress,
-        borderRadius:
-            BorderRadius.circular(
-          9,
-        ),
-        child:
-            Container(
-          decoration:
-              BoxDecoration(
-            borderRadius:
-                BorderRadius.circular(
-              9,
-            ),
-            border:
-                Border.all(
-              color:
-                  accentColor.withValues(
-                alpha:
-                    0.48,
-              ),
-            ),
+      color: accentColor.withValues(alpha: task.isCompleted ? 0.08 : 0.15),
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(9),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: accentColor.withValues(alpha: 0.48)),
           ),
-          child:
-              LayoutBuilder(
-            builder:
-                (
-              context,
-              constraints,
-            ) {
-              final width =
-                  constraints.maxWidth;
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
 
-              final ultraNarrow =
-                  width < 34;
+              final ultraNarrow = width < 34;
 
               if (ultraNarrow) {
                 return Center(
-                  child:
-                      Icon(
-                    identityIcon,
-                    size:
-                        10,
-                    color:
-                        accentColor,
-                  ),
+                  child: Icon(identityIcon, size: 10, color: accentColor),
                 );
               }
 
-              final compact =
-                  width < 60;
+              final compact = width < 60;
 
               // I blocchi molto bassi (per esempio attività da 15/30 minuti)
               // hanno pochissimo spazio verticale. In quel caso passiamo a una
               // resa minimale: una sola riga di titolo, niente icona interna e
               // padding ridotto. Il resize handle resta sovrapposto in basso.
-              final veryShort =
-                  constraints.maxHeight < 40;
+              final veryShort = constraints.maxHeight < 40;
 
-              final showTime =
-                  !veryShort &&
-                  width >= 68 &&
-                  height >= 46;
+              final showTime = !veryShort && width >= 68 && height >= 46;
 
               final showFooter =
                   width >= 78 &&
                   height >= 68 &&
-                  (subtaskText !=
-                          null ||
-                      task.priority !=
-                          TaskPriority
-                              .normal);
+                  (subtaskText != null || task.priority != TaskPriority.normal);
 
-              final titleStyle =
-                  Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(
-                        color:
-                            accentColor,
-                        fontSize:
-                            veryShort ||
-                                    compact
-                                ? 8.5
-                                : null,
-                        fontWeight:
-                            FontWeight.w800,
-                        height:
-                            1.05,
-                        decoration:
-                            task.isCompleted
-                                ? TextDecoration
-                                    .lineThrough
-                                : null,
-                      );
+              final titleStyle = Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(
+                    color: accentColor,
+                    fontSize: veryShort || compact ? 8.5 : null,
+                    fontWeight: FontWeight.w800,
+                    height: 1.05,
+                    decoration: task.isCompleted
+                        ? TextDecoration.lineThrough
+                        : null,
+                  );
 
-              final content =
-                  Padding(
-                padding:
-                    EdgeInsets.fromLTRB(
-                  compact
-                      ? 3
-                      : 5,
-                  veryShort
-                      ? 2
-                      : 4,
-                  compact
-                      ? 3
-                      : 4,
+              final content = Padding(
+                padding: EdgeInsets.fromLTRB(
+                  compact ? 3 : 5,
+                  veryShort ? 2 : 4,
+                  compact ? 3 : 4,
                   veryShort
                       ? 2
                       : onResizeEnd == null
-                          ? 4
-                          : 12,
+                      ? 4
+                      : 12,
                 ),
-                child:
-                    ClipRect(
-                  child:
-                      Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                child: ClipRect(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (veryShort ||
-                          compact)
+                      if (veryShort || compact)
                         Text(
                           task.title,
-                          maxLines:
-                              veryShort
-                                  ? 1
-                                  : height >= 46
-                                      ? 2
-                                      : 1,
-                          overflow:
-                              TextOverflow.ellipsis,
-                          style:
-                              titleStyle,
+                          maxLines: veryShort
+                              ? 1
+                              : height >= 46
+                              ? 2
+                              : 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: titleStyle,
                         )
                       else
                         Row(
                           children: [
-                            Icon(
-                              identityIcon,
-                              size:
-                                  11,
-                              color:
-                                  accentColor,
-                            ),
-                            const SizedBox(
-                              width:
-                                  3,
-                            ),
+                            Icon(identityIcon, size: 11, color: accentColor),
+                            const SizedBox(width: 3),
                             Expanded(
-                              child:
-                                  Text(
+                              child: Text(
                                 task.title,
-                                maxLines:
-                                    height >= 52
-                                        ? 2
-                                        : 1,
-                                overflow:
-                                    TextOverflow.ellipsis,
-                                style:
-                                    titleStyle,
+                                maxLines: height >= 52 ? 2 : 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: titleStyle,
                               ),
                             ),
                           ],
                         ),
                       if (showTime) ...[
-                        const SizedBox(
-                          height:
-                              3,
-                        ),
+                        const SizedBox(height: 3),
                         SizedBox(
-                          width:
-                              double.infinity,
-                          child:
-                              FittedBox(
-                            fit:
-                                BoxFit.scaleDown,
-                            alignment:
-                                Alignment.centerLeft,
-                            child:
-                                Text(
+                          width: double.infinity,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
                               timeText,
-                              maxLines:
-                                  1,
-                              style:
-                                  Theme.of(
-                                context,
-                              )
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                        color:
-                                            colorScheme
-                                                .onSurfaceVariant,
-                                        fontSize:
-                                            9,
-                                        fontWeight:
-                                            FontWeight.w600,
-                                      ),
+                              maxLines: 1,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
                           ),
                         ),
@@ -1297,53 +765,32 @@ class _WeekOccurrenceBlock extends StatelessWidget {
                         const Spacer(),
                         Row(
                           children: [
-                            if (subtaskText !=
-                                null) ...[
+                            if (subtaskText != null) ...[
                               Icon(
-                                Icons
-                                    .checklist_rounded,
-                                size:
-                                    10,
-                                color:
-                                    accentColor,
+                                Icons.checklist_rounded,
+                                size: 10,
+                                color: accentColor,
                               ),
-                              const SizedBox(
-                                width:
-                                    2,
-                              ),
+                              const SizedBox(width: 2),
                               Flexible(
-                                child:
-                                    Text(
+                                child: Text(
                                   subtaskText!,
-                                  maxLines:
-                                      1,
-                                  overflow:
-                                      TextOverflow.ellipsis,
-                                  style:
-                                      Theme.of(
-                                    context,
-                                  )
-                                          .textTheme
-                                          .labelSmall
-                                          ?.copyWith(
-                                            color:
-                                                accentColor,
-                                            fontSize:
-                                                9,
-                                            fontWeight:
-                                                FontWeight.w700,
-                                          ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: accentColor,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                 ),
                               ),
                             ],
                             const Spacer(),
                             Icon(
-                              Icons
-                                  .flag_outlined,
-                              size:
-                                  10,
-                              color:
-                                  priorityColor,
+                              Icons.flag_outlined,
+                              size: 10,
+                              color: priorityColor,
                             ),
                           ],
                         ),
@@ -1358,40 +805,23 @@ class _WeekOccurrenceBlock extends StatelessWidget {
               }
 
               return Stack(
-                clipBehavior:
-                    Clip.none,
+                clipBehavior: Clip.none,
                 children: [
-                  Positioned.fill(
-                    child:
-                        content,
-                  ),
+                  Positioned.fill(child: content),
                   Positioned(
-                    left:
-                        0,
-                    right:
-                        0,
-                    bottom:
-                        0,
-                    height:
-                        18,
-                    child:
-                        _WeekResizeHandle(
-                      accentColor:
-                          accentColor,
-                      hourHeight:
-                          hourHeight,
-                      startTimeMinutes:
-                          startTimeMinutes,
-                      initialDurationMinutes:
-                          initialDurationMinutes,
-                      verticalScrollController:
-                          verticalScrollController,
-                      onAutoScrollUpdate:
-                          onAutoScrollUpdate,
-                      onAutoScrollEnd:
-                          onAutoScrollEnd,
-                      onResizeEnd:
-                          onResizeEnd!,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 18,
+                    child: _WeekResizeHandle(
+                      accentColor: accentColor,
+                      hourHeight: hourHeight,
+                      startTimeMinutes: startTimeMinutes,
+                      initialDurationMinutes: initialDurationMinutes,
+                      verticalScrollController: verticalScrollController,
+                      onAutoScrollUpdate: onAutoScrollUpdate,
+                      onAutoScrollEnd: onAutoScrollEnd,
+                      onResizeEnd: onResizeEnd!,
                     ),
                   ),
                 ],
@@ -1404,7 +834,6 @@ class _WeekOccurrenceBlock extends StatelessWidget {
   }
 }
 
-
 class _WeekResizeHandle extends StatefulWidget {
   final Color accentColor;
   final double hourHeight;
@@ -1413,9 +842,7 @@ class _WeekResizeHandle extends StatefulWidget {
   final ScrollController verticalScrollController;
   final _WeekAutoScrollUpdate onAutoScrollUpdate;
   final VoidCallback onAutoScrollEnd;
-  final Future<void> Function(
-    int durationMinutes,
-  ) onResizeEnd;
+  final Future<void> Function(int durationMinutes) onResizeEnd;
 
   const _WeekResizeHandle({
     required this.accentColor,
@@ -1429,12 +856,10 @@ class _WeekResizeHandle extends StatefulWidget {
   });
 
   @override
-  State<_WeekResizeHandle> createState() =>
-      _WeekResizeHandleState();
+  State<_WeekResizeHandle> createState() => _WeekResizeHandleState();
 }
 
-class _WeekResizeHandleState
-    extends State<_WeekResizeHandle> {
+class _WeekResizeHandleState extends State<_WeekResizeHandle> {
   double _dragDy = 0;
   double _initialVerticalScrollOffset = 0;
   bool _dragging = false;
@@ -1443,174 +868,111 @@ class _WeekResizeHandleState
   @override
   void initState() {
     super.initState();
-    _previewDurationMinutes =
-        widget.initialDurationMinutes;
+    _previewDurationMinutes = widget.initialDurationMinutes;
   }
 
   @override
-  void didUpdateWidget(
-    covariant _WeekResizeHandle oldWidget,
-  ) {
+  void didUpdateWidget(covariant _WeekResizeHandle oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     if (!_dragging &&
-        oldWidget.initialDurationMinutes !=
-            widget.initialDurationMinutes) {
-      _previewDurationMinutes =
-          widget.initialDurationMinutes;
+        oldWidget.initialDurationMinutes != widget.initialDurationMinutes) {
+      _previewDurationMinutes = widget.initialDurationMinutes;
     }
   }
 
-  int _durationForDrag(
-    double dragDy,
-  ) {
+  int _durationForDrag(double dragDy) {
     final rawDuration =
-        widget.initialDurationMinutes +
-        dragDy /
-            widget.hourHeight *
-            60;
+        widget.initialDurationMinutes + dragDy / widget.hourHeight * 60;
 
-    final snapped =
-        (rawDuration / 15).round() *
-        15;
+    final snapped = (rawDuration / 15).round() * 15;
 
-    return math.max(
-      15,
-      snapped,
-    ).toInt();
+    return math.max(15, snapped).toInt();
   }
 
-  String _clockLabel(
-    int minutes,
-  ) {
-    final normalized =
-        minutes % (24 * 60);
+  String _clockLabel(int minutes) {
+    final normalized = minutes % (24 * 60);
 
-    final hour =
-        (normalized ~/ 60)
-            .toString()
-            .padLeft(
-              2,
-              '0',
-            );
+    final hour = (normalized ~/ 60).toString().padLeft(2, '0');
 
-    final minute =
-        (normalized % 60)
-            .toString()
-            .padLeft(
-              2,
-              '0',
-            );
+    final minute = (normalized % 60).toString().padLeft(2, '0');
 
     return '$hour:$minute';
   }
 
-  String _durationLabel(
-    int minutes,
-  ) {
-    final hours =
-        minutes ~/ 60;
-    final remaining =
-        minutes % 60;
+  String _durationLabel(int minutes) {
+    final hours = minutes ~/ 60;
+    final remaining = minutes % 60;
 
     if (hours == 0) {
       return '$remaining min';
     }
 
     if (remaining == 0) {
-      return hours == 1
-          ? '1 h'
-          : '$hours h';
+      return hours == 1 ? '1 h' : '$hours h';
     }
 
     return '$hours h $remaining min';
   }
 
   double _effectiveDragDy() {
-    final currentScrollOffset =
-        widget.verticalScrollController.hasClients
-            ? widget.verticalScrollController.offset
-            : _initialVerticalScrollOffset;
+    final currentScrollOffset = widget.verticalScrollController.hasClients
+        ? widget.verticalScrollController.offset
+        : _initialVerticalScrollOffset;
 
-    return _dragDy +
-        currentScrollOffset -
-        _initialVerticalScrollOffset;
+    return _dragDy + currentScrollOffset - _initialVerticalScrollOffset;
   }
 
   void _refreshPreviewDuration() {
-    if (!_dragging ||
-        !mounted) {
+    if (!_dragging || !mounted) {
       return;
     }
 
-    final nextDuration =
-        _durationForDrag(
-      _effectiveDragDy(),
-    );
+    final nextDuration = _durationForDrag(_effectiveDragDy());
 
-    if (nextDuration ==
-        _previewDurationMinutes) {
+    if (nextDuration == _previewDurationMinutes) {
       return;
     }
 
     setState(() {
-      _previewDurationMinutes =
-          nextDuration;
+      _previewDurationMinutes = nextDuration;
     });
   }
 
-  void _startDrag(
-    DragStartDetails details,
-  ) {
-    _initialVerticalScrollOffset =
-        widget.verticalScrollController.hasClients
-            ? widget.verticalScrollController.offset
-            : 0;
+  void _startDrag(DragStartDetails details) {
+    _initialVerticalScrollOffset = widget.verticalScrollController.hasClients
+        ? widget.verticalScrollController.offset
+        : 0;
 
     setState(() {
       _dragDy = 0;
       _dragging = true;
-      _previewDurationMinutes =
-          widget.initialDurationMinutes;
+      _previewDurationMinutes = widget.initialDurationMinutes;
     });
 
     widget.onAutoScrollUpdate(
       details.globalPosition,
-      allowHorizontal:
-          false,
-      allowVertical:
-          true,
-      onScrolled:
-          _refreshPreviewDuration,
+      allowHorizontal: false,
+      allowVertical: true,
+      onScrolled: _refreshPreviewDuration,
     );
   }
 
-  void _updateDrag(
-    DragUpdateDetails details,
-  ) {
-    _dragDy +=
-        details.delta.dy;
+  void _updateDrag(DragUpdateDetails details) {
+    _dragDy += details.delta.dy;
 
     widget.onAutoScrollUpdate(
       details.globalPosition,
-      allowHorizontal:
-          false,
-      allowVertical:
-          true,
-      onScrolled:
-          _refreshPreviewDuration,
+      allowHorizontal: false,
+      allowVertical: true,
+      onScrolled: _refreshPreviewDuration,
     );
 
     _refreshPreviewDuration();
   }
 
-  Future<void> _finishDrag(
-    DragEndDetails details,
-  ) async {
-    final finalDuration =
-        _durationForDrag(
-      _effectiveDragDy(),
-    );
+  Future<void> _finishDrag(DragEndDetails details) async {
+    final finalDuration = _durationForDrag(_effectiveDragDy());
 
     widget.onAutoScrollEnd();
 
@@ -1619,22 +981,18 @@ class _WeekResizeHandleState
       _dragDy = 0;
     });
 
-    if (finalDuration ==
-        widget.initialDurationMinutes) {
+    if (finalDuration == widget.initialDurationMinutes) {
       return;
     }
 
-    await widget.onResizeEnd(
-      finalDuration,
-    );
+    await widget.onResizeEnd(finalDuration);
 
     if (!mounted) {
       return;
     }
 
     setState(() {
-      _previewDurationMinutes =
-          widget.initialDurationMinutes;
+      _previewDurationMinutes = widget.initialDurationMinutes;
     });
   }
 
@@ -1648,143 +1006,80 @@ class _WeekResizeHandleState
     setState(() {
       _dragging = false;
       _dragDy = 0;
-      _previewDurationMinutes =
-          widget.initialDurationMinutes;
+      _previewDurationMinutes = widget.initialDurationMinutes;
     });
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    final endMinutes =
-        widget.startTimeMinutes +
-        _previewDurationMinutes;
+    final endMinutes = widget.startTimeMinutes + _previewDurationMinutes;
 
     final previewOffset =
-        (_previewDurationMinutes -
-                widget.initialDurationMinutes) /
-            60 *
-            widget.hourHeight;
+        (_previewDurationMinutes - widget.initialDurationMinutes) /
+        60 *
+        widget.hourHeight;
 
     return GestureDetector(
-      behavior:
-          HitTestBehavior.opaque,
-      onVerticalDragStart:
-          _startDrag,
-      onVerticalDragUpdate:
-          _updateDrag,
-      onVerticalDragEnd:
-          _finishDrag,
-      onVerticalDragCancel:
-          _cancelDrag,
-      child:
-          Transform.translate(
-        offset:
-            Offset(
-          0,
-          previewOffset,
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragStart: _startDrag,
+      onVerticalDragUpdate: _updateDrag,
+      onVerticalDragEnd: _finishDrag,
+      onVerticalDragCancel: _cancelDrag,
+      child: Transform.translate(
+        offset: Offset(0, previewOffset),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          children: [
+            if (_dragging)
+              Positioned(
+                bottom: 16,
+                child: IgnorePointer(
+                  child: Material(
+                    color: colorScheme.surfaceContainerHighest,
+                    elevation: 2,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 4,
+                      ),
+                      child: Text(
+                        '${_clockLabel(widget.startTimeMinutes)}–'
+                        '${_clockLabel(endMinutes)} · '
+                        '${_durationLabel(_previewDurationMinutes)}',
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Container(
+                  width: 22,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: widget.accentColor.withValues(
+                      alpha: _dragging ? 1 : 0.72,
+                    ),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        child:
-            Stack(
-        clipBehavior:
-            Clip.none,
-        alignment:
-            Alignment.bottomCenter,
-        children: [
-          if (_dragging)
-            Positioned(
-              bottom:
-                  16,
-              child:
-                  IgnorePointer(
-                child:
-                    Material(
-                  color:
-                      colorScheme
-                          .surfaceContainerHighest,
-                  elevation:
-                      2,
-                  borderRadius:
-                      BorderRadius.circular(
-                    8,
-                  ),
-                  child:
-                      Padding(
-                    padding:
-                        const EdgeInsets.symmetric(
-                      horizontal:
-                          7,
-                      vertical:
-                          4,
-                    ),
-                    child:
-                        Text(
-                      '${_clockLabel(widget.startTimeMinutes)}–'
-                      '${_clockLabel(endMinutes)} · '
-                      '${_durationLabel(_previewDurationMinutes)}',
-                      maxLines:
-                          1,
-                      style:
-                          Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(
-                                color:
-                                    colorScheme
-                                        .onSurface,
-                                fontSize:
-                                    9,
-                                fontWeight:
-                                    FontWeight.w700,
-                              ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          Align(
-            alignment:
-                Alignment.bottomCenter,
-            child:
-                Padding(
-              padding:
-                  const EdgeInsets.only(
-                bottom:
-                    3,
-              ),
-              child:
-                  Container(
-                width:
-                    22,
-                height:
-                    3,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      widget.accentColor
-                          .withValues(
-                    alpha:
-                        _dragging
-                            ? 1
-                            : 0.72,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(
-                    99,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
       ),
     );
   }
 }
-
-
