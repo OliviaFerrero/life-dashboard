@@ -29,19 +29,13 @@ class TodayPage extends StatefulWidget {
   });
 
   @override
-  State<TodayPage> createState() =>
-      _TodayPageState();
+  State<TodayPage> createState() => _TodayPageState();
 }
 
 class _TodayPageState extends State<TodayPage> {
-  TaskActions get _taskActions =>
-      TaskActions(
-        widget.taskRepository,
-      );
+  TaskActions get _taskActions => TaskActions(widget.taskRepository);
 
-  String _dayLabel(
-    DateTime date,
-  ) {
+  String _dayLabel(DateTime date) {
     const weekdays = [
       'Lunedì',
       'Martedì',
@@ -72,22 +66,16 @@ class _TodayPageState extends State<TodayPage> {
         '${months[date.month - 1]}';
   }
 
-  String _durationLabel(
-    int minutes,
-  ) {
-    final hours =
-        minutes ~/ 60;
-    final remaining =
-        minutes % 60;
+  String _durationLabel(int minutes) {
+    final hours = minutes ~/ 60;
+    final remaining = minutes % 60;
 
     if (hours == 0) {
       return '$remaining min';
     }
 
     if (remaining == 0) {
-      return hours == 1
-          ? '1 ora'
-          : '$hours ore';
+      return hours == 1 ? '1 ora' : '$hours ore';
     }
 
     return '$hours h $remaining min';
@@ -98,67 +86,41 @@ class _TodayPageState extends State<TodayPage> {
     DateTime windowStart,
     DateTime windowEnd,
   ) {
-    final task =
-        occurrence.displayTask;
-    final parts =
-        <String>[];
+    final task = occurrence.displayTask;
+    final parts = <String>[];
 
-    final actualStart =
-        occurrence.timedStart;
-    final actualEnd =
-        occurrence.timedEnd;
+    final actualStart = occurrence.timedStart;
+    final actualEnd = occurrence.timedEnd;
 
-    if (!task.allDay &&
-        actualStart != null &&
-        actualEnd != null) {
-      if (actualStart.isBefore(
-        windowStart,
-      )) {
-        parts.add(
-          'continua da prima',
-        );
+    if (!task.allDay && actualStart != null && actualEnd != null) {
+      if (actualStart.isBefore(windowStart)) {
+        parts.add('continua da prima');
       }
 
-      if (actualEnd.isAfter(
-        windowEnd,
-      )) {
-        parts.add(
-          'continua dopo',
-        );
+      if (actualEnd.isAfter(windowEnd)) {
+        parts.add('continua dopo');
       }
     }
 
-    final duration =
-        task.durationMinutes;
+    final duration = task.durationMinutes;
 
     if (duration != null) {
-      parts.add(
-        _durationLabel(duration),
-      );
+      parts.add(_durationLabel(duration));
     }
 
     return parts.join(' · ');
   }
 
-  Color _priorityColor(
-    BuildContext context,
-    TaskPriority priority,
-  ) {
+  Color _priorityColor(BuildContext context, TaskPriority priority) {
     switch (priority) {
       case TaskPriority.low:
-        return const Color(
-          0xFF5F8F73,
-        );
+        return const Color(0xFF5F8F73);
 
       case TaskPriority.normal:
-        return Theme.of(context)
-            .colorScheme
-            .primary;
+        return Theme.of(context).colorScheme.primary;
 
       case TaskPriority.high:
-        return const Color(
-          0xFFC65B61,
-        );
+        return const Color(0xFFC65B61);
     }
   }
 
@@ -167,41 +129,28 @@ class _TodayPageState extends State<TodayPage> {
     LifeTask task,
     Map<String, TaskCategory> categoryMap,
   ) {
-    final category =
-        task.categoryId == null
-            ? null
-            : categoryMap[task.categoryId];
+    final category = task.categoryId == null
+        ? null
+        : categoryMap[task.categoryId];
 
     if (category == null) {
-      return Theme.of(context)
-          .colorScheme
-          .onSurfaceVariant
-          .withValues(
-            alpha: 0.72,
-          );
+      return Theme.of(context).colorScheme.onSurfaceVariant
+          .withValues(alpha: 0.72);
     }
 
-    return Color(
-      category.colorValue,
-    );
+    return Color(category.colorValue);
   }
 
-  IconData _categoryIcon(
-    LifeTask task,
-    Map<String, TaskCategory> categoryMap,
-  ) {
-    final category =
-        task.categoryId == null
-            ? null
-            : categoryMap[task.categoryId];
+  IconData _categoryIcon(LifeTask task, Map<String, TaskCategory> categoryMap) {
+    final category = task.categoryId == null
+        ? null
+        : categoryMap[task.categoryId];
 
     if (category == null) {
       return Icons.label_outline;
     }
 
-    return taskCategoryIcon(
-      category.iconKey,
-    );
+    return taskCategoryIcon(category.iconKey);
   }
 
   DateTime _effectiveDayEnd({
@@ -213,31 +162,21 @@ class _TodayPageState extends State<TodayPage> {
     var result = configuredEnd;
 
     for (final occurrence in occurrences) {
-      final task =
-          occurrence.displayTask;
+      final task = occurrence.displayTask;
 
-      if (task.allDay ||
-          task.startTimeMinutes == null) {
+      if (task.allDay || task.startTimeMinutes == null) {
         continue;
       }
 
-      final start =
-          occurrence.timedStart;
+      final start = occurrence.timedStart;
 
-      if (start == null ||
-          !start.isBefore(nextDayStart)) {
+      if (start == null || !start.isBefore(nextDayStart)) {
         continue;
       }
 
-      var end =
-          occurrence.timedEnd;
+      var end = occurrence.timedEnd;
 
-      end ??= start.add(
-        Duration(
-          minutes:
-              task.durationMinutes ?? 30,
-        ),
-      );
+      end ??= start.add(Duration(minutes: task.durationMinutes ?? 30));
 
       if (!end.isAfter(dayStart)) {
         continue;
@@ -251,354 +190,219 @@ class _TodayPageState extends State<TodayPage> {
     return result;
   }
 
-  void _openTasks(
-    BuildContext context, {
-    bool inbox = false,
-  }) {
+  void _openTasks(BuildContext context, {bool inbox = false}) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => TasksPage(
-          taskRepository:
-              widget.taskRepository,
-          categoryRepository:
-              widget.categoryRepository,
-          openInbox:
-              inbox,
+          taskRepository: widget.taskRepository,
+          categoryRepository: widget.categoryRepository,
+          openInbox: inbox,
         ),
       ),
     );
   }
 
-  void _openTaskDetail(
-    BuildContext context,
-    TaskOccurrence occurrence,
-  ) {
+  void _openTaskDetail(BuildContext context, TaskOccurrence occurrence) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            TaskDetailPage(
-          task:
-              occurrence.task,
-          occurrence:
-              occurrence,
-          taskRepository:
-              widget.taskRepository,
-          categoryRepository:
-              widget.categoryRepository,
+        builder: (_) => TaskDetailPage(
+          task: occurrence.task,
+          occurrence: occurrence,
+          taskRepository: widget.taskRepository,
+          categoryRepository: widget.categoryRepository,
         ),
       ),
     );
   }
 
-
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final now =
-        AppClockScope.watch(
-      context,
-    ).now;
+  Widget build(BuildContext context) {
+    final now = AppClockScope.watch(context).now;
 
     return AnimatedBuilder(
-      animation:
-          widget.daySettingsController,
-      builder:
-          (context, _) {
-        final dayWindowStart =
-            widget.daySettingsController
-                .personalDayStartFor(
+      animation: widget.daySettingsController,
+      builder: (context, _) {
+        final dayWindowStart = widget.daySettingsController.personalDayStartFor(
           now,
         );
 
-        final configuredDayEnd =
-            widget.daySettingsController
-                .configuredEndForStart(
+        final configuredDayEnd = widget.daySettingsController
+            .configuredEndForStart(dayWindowStart);
+
+        final nextDayStart = widget.daySettingsController.nextPersonalDayStart(
           dayWindowStart,
         );
 
-        final nextDayStart =
-            widget.daySettingsController
-                .nextPersonalDayStart(
-          dayWindowStart,
-        );
-
-        final anchorDate =
-            DateTime(
+        final anchorDate = DateTime(
           dayWindowStart.year,
           dayWindowStart.month,
           dayWindowStart.day,
         );
 
-        final colorScheme =
-            Theme.of(context)
-                .colorScheme;
+        final colorScheme = Theme.of(context).colorScheme;
 
         return SafeArea(
           bottom: false,
-          child: StreamBuilder<
-              List<LifeTask>>(
-            stream:
-                widget.taskRepository
-                    .watchAllTasks(),
-            initialData:
-                const [],
-            builder:
-                (context, allTaskSnapshot) {
-              final allTasks =
-                  allTaskSnapshot.data ??
-                      const <LifeTask>[];
+          child: StreamBuilder<List<LifeTask>>(
+            stream: widget.taskRepository.watchAllTasks(),
+            initialData: const [],
+            builder: (context, allTaskSnapshot) {
+              final allTasks = allTaskSnapshot.data ?? const <LifeTask>[];
 
-              final inboxCount =
-                  allTasks.where(
-                (task) =>
-                    task.scheduledDate ==
-                        null &&
-                    !task.isCompleted,
-              ).length;
+              final inboxCount = allTasks
+                  .where(
+                    (task) => task.scheduledDate == null && !task.isCompleted,
+                  )
+                  .length;
 
-              return StreamBuilder<
-                  List<TaskOccurrence>>(
-                stream:
-                    widget.taskRepository
-                        .watchOccurrencesOverlappingWindow(
+              return StreamBuilder<List<TaskOccurrence>>(
+                stream: widget.taskRepository.watchOccurrencesOverlappingWindow(
                   dayWindowStart,
                   nextDayStart,
-                  untimedAnchorDate:
-                      anchorDate,
+                  untimedAnchorDate: anchorDate,
                 ),
-                initialData:
-                    const [],
-                builder:
-                    (context, occurrenceSnapshot) {
+                initialData: const [],
+                builder: (context, occurrenceSnapshot) {
                   final occurrences =
-                      occurrenceSnapshot.data ??
-                          const <
-                              TaskOccurrence>[];
+                      occurrenceSnapshot.data ?? const <TaskOccurrence>[];
 
-                  final effectiveDayEnd =
-                      _effectiveDayEnd(
-                    dayStart:
-                        dayWindowStart,
-                    configuredEnd:
-                        configuredDayEnd,
-                    nextDayStart:
-                        nextDayStart,
-                    occurrences:
-                        occurrences,
+                  final effectiveDayEnd = _effectiveDayEnd(
+                    dayStart: dayWindowStart,
+                    configuredEnd: configuredDayEnd,
+                    nextDayStart: nextDayStart,
+                    occurrences: occurrences,
                   );
 
-                  final tasks =
-                      occurrences
-                          .map(
-                            (occurrence) =>
-                                occurrence
-                                    .displayTask,
-                          )
-                          .toList();
+                  final tasks = occurrences
+                      .map((occurrence) => occurrence.displayTask)
+                      .toList();
 
-                  final completedCount =
-                      occurrences.where(
-                    (occurrence) =>
-                        occurrence.isCompleted,
-                  ).length;
+                  final completedCount = occurrences
+                      .where((occurrence) => occurrence.isCompleted)
+                      .length;
 
                   return StreamBuilder<int>(
-                    stream:
-                        widget.taskRepository
-                            .watchIncompleteOverviewCount(
+                    stream: widget.taskRepository.watchIncompleteOverviewCount(
                       now,
                     ),
-                    initialData:
-                        0,
-                    builder:
-                        (context, totalSnapshot) {
-                      final totalIncompleteCount =
-                          totalSnapshot.data ??
-                              0;
+                    initialData: 0,
+                    builder: (context, totalSnapshot) {
+                      final totalIncompleteCount = totalSnapshot.data ?? 0;
 
-                      return StreamBuilder<
-                          Map<String,
-                              TaskCategory>>(
-                        stream:
-                            widget.categoryRepository
-                                .watchCategoryMap(),
-                        initialData:
-                            const {},
-                        builder:
-                            (context,
-                                categorySnapshot) {
+                      return StreamBuilder<Map<String, TaskCategory>>(
+                        stream: widget.categoryRepository.watchCategoryMap(),
+                        initialData: const {},
+                        builder: (context, categorySnapshot) {
                           final categoryMap =
-                              categorySnapshot
-                                      .data ??
-                                  const <
-                                      String,
-                                      TaskCategory>{};
+                              categorySnapshot.data ??
+                              const <String, TaskCategory>{};
 
                           return Column(
                             children: [
                               Container(
-                                width:
-                                    double.infinity,
-                                padding:
-                                    const EdgeInsets.fromLTRB(
+                                width: double.infinity,
+                                padding: const EdgeInsets.fromLTRB(
                                   20,
                                   20,
                                   20,
                                   14,
                                 ),
-                                decoration:
-                                    BoxDecoration(
-                                  color:
-                                      Theme.of(context)
-                                          .scaffoldBackgroundColor,
-                                  border:
-                                      Border(
-                                    bottom:
-                                        BorderSide(
-                                      color:
-                                          colorScheme
-                                              .outlineVariant
-                                              .withValues(
-                                        alpha:
-                                            0.38,
-                                      ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .scaffoldBackgroundColor,
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: colorScheme.outlineVariant
+                                          .withValues(alpha: 0.38),
                                     ),
                                   ),
                                 ),
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       children: [
                                         Expanded(
                                           child: Text(
                                             'Oggi',
-                                            style:
-                                                Theme.of(
-                                              context,
-                                            )
-                                                    .textTheme
-                                                    .headlineLarge
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      letterSpacing:
-                                                          -0.8,
-                                                    ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headlineLarge
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: -0.8,
+                                                ),
                                           ),
                                         ),
                                         IconButton(
-                                          tooltip:
-                                              'Tutte le attività',
-                                          onPressed:
-                                              () {
-                                            _openTasks(
-                                              context,
-                                            );
+                                          tooltip: 'Tutte le attività',
+                                          onPressed: () {
+                                            _openTasks(context);
                                           },
-                                          icon:
-                                              Badge(
+                                          icon: Badge(
                                             isLabelVisible:
-                                                totalIncompleteCount >
-                                                    0,
+                                                totalIncompleteCount > 0,
                                             label: Text(
                                               '$totalIncompleteCount',
                                             ),
-                                            child:
-                                                const Icon(
-                                              Icons
-                                                  .checklist_rounded,
+                                            child: const Icon(
+                                              Icons.checklist_rounded,
                                             ),
                                           ),
                                         ),
                                         IconButton(
-                                          tooltip:
-                                              'Inbox',
-                                          onPressed:
-                                              () {
-                                            _openTasks(
-                                              context,
-                                              inbox:
-                                                  true,
-                                            );
+                                          tooltip: 'Inbox',
+                                          onPressed: () {
+                                            _openTasks(context, inbox: true);
                                           },
-                                          icon:
-                                              Badge(
-                                            isLabelVisible:
-                                                inboxCount >
-                                                    0,
-                                            label: Text(
-                                              '$inboxCount',
-                                            ),
-                                            child:
-                                                const Icon(
-                                              Icons
-                                                  .inbox_outlined,
+                                          icon: Badge(
+                                            isLabelVisible: inboxCount > 0,
+                                            label: Text('$inboxCount'),
+                                            child: const Icon(
+                                              Icons.inbox_outlined,
                                             ),
                                           ),
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(
-                                      height: 3,
-                                    ),
+                                    const SizedBox(height: 3),
                                     Row(
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            _dayLabel(
-                                              anchorDate,
-                                            ),
+                                            _dayLabel(anchorDate),
                                             maxLines: 1,
-                                            overflow:
-                                                TextOverflow.ellipsis,
-                                            style:
-                                                Theme.of(
-                                              context,
-                                            )
-                                                    .textTheme
-                                                    .bodyLarge
-                                                    ?.copyWith(
-                                                      color:
-                                                          colorScheme
-                                                              .onSurfaceVariant,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
+                                            overflow: TextOverflow.ellipsis,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyLarge
+                                                ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                           ),
                                         ),
                                         if (tasks.isNotEmpty) ...[
-                                          const SizedBox(
-                                            width: 16,
-                                          ),
+                                          const SizedBox(width: 16),
                                           Icon(
                                             Icons.check_rounded,
                                             size: 15,
-                                            color:
-                                                colorScheme.primary,
+                                            color: colorScheme.primary,
                                           ),
-                                          const SizedBox(
-                                            width: 4,
-                                          ),
+                                          const SizedBox(width: 4),
                                           Text(
                                             '$completedCount/${tasks.length}',
-                                            style:
-                                                Theme.of(
-                                              context,
-                                            )
-                                                    .textTheme
-                                                    .bodySmall
-                                                    ?.copyWith(
-                                                      color:
-                                                          colorScheme
-                                                              .onSurfaceVariant,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                    ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                           ),
                                         ],
                                       ],
@@ -608,8 +412,7 @@ class _TodayPageState extends State<TodayPage> {
                               ),
                               Expanded(
                                 child: ListView(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(
+                                  padding: const EdgeInsets.fromLTRB(
                                     20,
                                     16,
                                     20,
@@ -618,39 +421,29 @@ class _TodayPageState extends State<TodayPage> {
                                   children: [
                                     if (tasks.isEmpty)
                                       Padding(
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                          vertical:
-                                              26,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 26,
                                         ),
                                         child: Row(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
                                             Icon(
-                                              Icons
-                                                  .wb_sunny_outlined,
-                                              color:
-                                                  colorScheme.primary,
+                                              Icons.wb_sunny_outlined,
+                                              color: colorScheme.primary,
                                             ),
-                                            const SizedBox(
-                                              width: 14,
-                                            ),
+                                            const SizedBox(width: 14),
                                             Expanded(
                                               child: Text(
                                                 'Nessuna attività '
                                                 'programmata per questa giornata.',
-                                                style:
-                                                    Theme.of(
-                                                  context,
-                                                )
-                                                        .textTheme
-                                                        .bodyLarge
-                                                        ?.copyWith(
-                                                          color:
-                                                              colorScheme
-                                                                  .onSurfaceVariant,
-                                                        ),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyLarge
+                                                    ?.copyWith(
+                                                      color: colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
                                               ),
                                             ),
                                           ],
@@ -658,109 +451,90 @@ class _TodayPageState extends State<TodayPage> {
                                       )
                                     else
                                       TaskTimeline(
-                                        occurrences:
-                                            occurrences,
-                                        windowStart:
-                                            dayWindowStart,
-                                        windowEnd:
-                                            effectiveDayEnd,
+                                        occurrences: occurrences,
+                                        windowStart: dayWindowStart,
+                                        windowEnd: effectiveDayEnd,
                                         secondaryLabelBuilder:
                                             _secondaryLabelForWindow,
-                                        subtaskProgressBuilder:
-                                            (task) {
-                                          if (task.subtasks
-                                              .isEmpty) {
+                                        subtaskProgressBuilder: (task) {
+                                          if (task.subtasks.isEmpty) {
                                             return null;
                                           }
 
-                                          final completed =
-                                              task.subtasks
-                                                  .where(
-                                                    (subtask) =>
-                                                        subtask
-                                                            .isCompleted,
-                                                  )
-                                                  .length;
+                                          final completed = task.subtasks
+                                              .where(
+                                                (subtask) =>
+                                                    subtask.isCompleted,
+                                              )
+                                              .length;
 
                                           return '$completed/'
                                               '${task.subtasks.length}';
                                         },
-                                        accentColorBuilder:
-                                            (task) {
+                                        accentColorBuilder: (task) {
                                           return _categoryColor(
                                             context,
                                             task,
                                             categoryMap,
                                           );
                                         },
-                                        categoryIconBuilder:
-                                            (task) {
+                                        categoryIconBuilder: (task) {
                                           return _categoryIcon(
                                             task,
                                             categoryMap,
                                           );
                                         },
-                                        priorityColorBuilder:
-                                            (task) {
+                                        priorityColorBuilder: (task) {
                                           return _priorityColor(
                                             context,
                                             task.priority,
                                           );
                                         },
-                                        onCompletedChanged:
-                                            (
-                                          occurrence,
-                                          completed,
-                                        ) async {
+                                        onCompletedChanged: (occurrence, completed) async {
                                           if (completed) {
                                             final confirmed =
-                                                await TaskPrompts
-                                                    .confirmCompletionIfNeeded(
-                                              context,
-                                              subtasks:
-                                                  occurrence
-                                                      .subtasks,
-                                            );
+                                                await TaskPrompts.confirmCompletionIfNeeded(
+                                                  context,
+                                                  subtasks: occurrence.subtasks,
+                                                );
 
                                             if (!confirmed) {
                                               return;
                                             }
                                           }
 
-                                          await _taskActions
-                                              .setCompleted(
-                                            task:
-                                                occurrence
-                                                    .task,
-                                            occurrence:
-                                                occurrence,
-                                            completed:
-                                                completed,
+                                          await _taskActions.setCompleted(
+                                            task: occurrence.task,
+                                            occurrence: occurrence,
+                                            completed: completed,
                                           );
                                         },
-                                        onTaskTap:
-                                            (occurrence) {
-                                          _openTaskDetail(
-                                            context,
-                                            occurrence,
-                                          );
+                                        onSubtaskCompletedChanged:
+                                            (
+                                              occurrence,
+                                              subtask,
+                                              completed,
+                                            ) async {
+                                              await _taskActions
+                                                  .setSubtaskCompleted(
+                                                    task: occurrence.task,
+                                                    subtask: subtask,
+                                                    completed: completed,
+                                                    occurrence: occurrence,
+                                                  );
+                                            },
+                                        onTaskTap: (occurrence) {
+                                          _openTaskDetail(context, occurrence);
                                         },
-                                        onTaskLongPress:
-                                            (occurrence) {
+                                        onTaskLongPress: (occurrence) {
                                           TaskQuickActions.show(
-                                            context:
-                                                context,
-                                            task:
-                                                occurrence
-                                                    .task,
-                                            occurrence:
-                                                occurrence,
+                                            context: context,
+                                            task: occurrence.task,
+                                            occurrence: occurrence,
                                             taskRepository:
-                                                widget
-                                                    .taskRepository,
+                                                widget.taskRepository,
                                             categoryRepository:
-                                                widget
-                                                    .categoryRepository,
+                                                widget.categoryRepository,
                                           );
                                         },
                                       ),
