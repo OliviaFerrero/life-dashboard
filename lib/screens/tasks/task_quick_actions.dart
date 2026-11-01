@@ -10,6 +10,26 @@ import '../../widgets/task_prompts.dart';
 import 'task_editor_mode.dart';
 import 'task_form_page.dart';
 
+/// Esito di un'azione di modifica/eliminazione, usato dalle schermate per
+/// aggiornare il proprio stato senza duplicare navigazione e persistenza.
+class TaskActionResult {
+  final TaskSeriesScope scope;
+  final LifeTask? updatedTask;
+  final bool deleted;
+
+  const TaskActionResult.updated(this.scope, this.updatedTask)
+    : deleted = false;
+
+  const TaskActionResult.deleted(this.scope)
+    : updatedTask = null,
+      deleted = true;
+}
+
+/// Coordinatore UI condiviso per modifica ed eliminazione delle attività.
+///
+/// Mostra gli stessi prompt e lo stesso editor da Dettaglio, Week e azioni
+/// rapide. Le regole di persistenza restano in TaskActions/TaskRepository.
+/// Spostamento e resize via gesture restano volutamente nella Week.
 abstract final class TaskQuickActions {
   static Future<void> show({
     required BuildContext context,
@@ -18,362 +38,132 @@ abstract final class TaskQuickActions {
     required TaskRepository taskRepository,
     required CategoryRepository categoryRepository,
   }) async {
-    final action =
-        await TaskPrompts
-            .chooseQuickAction(
-      context,
-    );
-
-    if (!context.mounted ||
-        action == null) {
-      return;
-    }
+    final action = await TaskPrompts.chooseQuickAction(context);
+    if (!context.mounted || action == null) return;
 
     switch (action) {
       case TaskQuickAction.edit:
-        await _edit(
-          context:
-              context,
-          task:
-              task,
-          occurrence:
-              occurrence,
-          taskRepository:
-              taskRepository,
-          categoryRepository:
-              categoryRepository,
+        await edit(
+          context: context,
+          task: task,
+          occurrence: occurrence,
+          taskRepository: taskRepository,
+          categoryRepository: categoryRepository,
         );
         break;
-
       case TaskQuickAction.delete:
-        await _delete(
-          context:
-              context,
-          task:
-              task,
-          occurrence:
-              occurrence,
-          taskRepository:
-              taskRepository,
+        await delete(
+          context: context,
+          task: task,
+          occurrence: occurrence,
+          taskRepository: taskRepository,
         );
         break;
     }
   }
 
-  static Future<void> _edit({
+  static Future<TaskActionResult?> edit({
     required BuildContext context,
     required LifeTask task,
-    required TaskOccurrence? occurrence,
+    TaskOccurrence? occurrence,
     required TaskRepository taskRepository,
     required CategoryRepository categoryRepository,
+    LifeTask? seriesDraft,
+    LifeTask? occurrenceDraft,
   }) async {
-    if (!task.recurrence.isRecurring ||
-        occurrence == null ||
-        !occurrence.isRecurring) {
-      await _editSeries(
-        context:
-            context,
-        task:
-            task,
-        taskRepository:
-            taskRepository,
-        categoryRepository:
-            categoryRepository,
-      );
-      return;
-    }
-
-    final scope =
-        await TaskPrompts
-            .chooseSeriesScope(
-      context,
-      action:
-          TaskSeriesPromptAction.edit,
+    final scope = await _chooseScope(
+      context: context,
+      task: task,
+      occurrence: occurrence,
+      action: TaskSeriesPromptAction.edit,
     );
+    if (scope == null || !context.mounted) return null;
 
-    if (!context.mounted ||
-        scope == null) {
-      return;
-    }
+    final initialTask = scope == TaskSeriesScope.occurrence
+        ? occurrenceDraft ?? draftForOccurrence(occurrence!)
+        : seriesDraft ?? task;
 
-    switch (scope) {
-      case TaskSeriesScope.occurrence:
-        await _editOccurrence(
-          context:
-              context,
-          task:
-              task,
-          occurrence:
-              occurrence,
-          taskRepository:
-              taskRepository,
-          categoryRepository:
-              categoryRepository,
-        );
-        break;
-
-      case TaskSeriesScope.series:
-        await _editSeries(
-          context:
-              context,
-          task:
-              task,
-          taskRepository:
-              taskRepository,
-          categoryRepository:
-              categoryRepository,
-        );
-        break;
-    }
-  }
-
-  static Future<void> _editSeries({
-    required BuildContext context,
-    required LifeTask task,
-    required TaskRepository taskRepository,
-    required CategoryRepository categoryRepository,
-  }) async {
-    final result =
-        await Navigator.push<
-            TaskFormResult>(
+    final result = await Navigator.push<TaskFormResult>(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            TaskFormPage(
-          categoryRepository:
-              categoryRepository,
-          mode:
-              TaskEditorMode.edit,
-          initialTask:
-              task,
+        builder: (_) => TaskFormPage(
+          categoryRepository: categoryRepository,
+          mode: scope == TaskSeriesScope.occurrence
+              ? TaskEditorMode.editOccurrence
+              : TaskEditorMode.edit,
+          initialTask: initialTask,
         ),
       ),
     );
+    if (!context.mounted || result == null) return null;
 
-    if (!context.mounted ||
-        result == null) {
-      return;
-    }
-
+    // La conferma di cancellazione dal form è già stata chiesta dal form.
     if (result.shouldDelete) {
-      await TaskActions(
-        taskRepository,
-      ).delete(
-        task:
-            task,
-        scope:
-            TaskSeriesScope.series,
+      await TaskActions(taskRepository)
+          .delete(task: task, scope: scope, occurrence: occurrence);
+      return TaskActionResult.deleted(scope);
+    }
+
+    final editedTask = result.task;
+    if (editedTask == null) return null;
+
+    if (scope == TaskSeriesScope.occurrence) {
+      await taskRepository.saveOccurrenceOverride(
+        occurrence: occurrence!,
+        editedTask: editedTask,
       );
-      return;
+    } else {
+      await taskRepository.updateTask(editedTask);
     }
-
-    final updatedTask =
-        result.task;
-
-    if (updatedTask == null) {
-      return;
-    }
-
-    await taskRepository.updateTask(
-      updatedTask,
-    );
+    return TaskActionResult.updated(scope, editedTask);
   }
 
-  static Future<void> _editOccurrence({
+  static Future<TaskActionResult?> delete({
     required BuildContext context,
     required LifeTask task,
-    required TaskOccurrence occurrence,
+    TaskOccurrence? occurrence,
     required TaskRepository taskRepository,
-    required CategoryRepository categoryRepository,
   }) async {
-    final result =
-        await Navigator.push<
-            TaskFormResult>(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            TaskFormPage(
-          categoryRepository:
-              categoryRepository,
-          mode:
-              TaskEditorMode
-                  .editOccurrence,
-          initialTask:
-              _occurrenceTaskForEditing(
-            task,
-            occurrence,
-          ),
-        ),
-      ),
+    final scope = await _chooseScope(
+      context: context,
+      task: task,
+      occurrence: occurrence,
+      action: TaskSeriesPromptAction.delete,
     );
+    if (scope == null || !context.mounted) return null;
 
-    if (!context.mounted ||
-        result == null) {
-      return;
-    }
+    final confirmed = scope == TaskSeriesScope.occurrence
+        ? await TaskPrompts.confirmDeleteOccurrence(context)
+        : await TaskPrompts.confirmDeleteTask(context, task: task);
+    if (!confirmed || !context.mounted) return null;
 
-    if (result.shouldDelete) {
-      await TaskActions(
-        taskRepository,
-      ).delete(
-        task:
-            task,
-        occurrence:
-            occurrence,
-        scope:
-            TaskSeriesScope.occurrence,
-      );
-      return;
-    }
-
-    final editedTask =
-        result.task;
-
-    if (editedTask == null) {
-      return;
-    }
-
-    await taskRepository
-        .saveOccurrenceOverride(
-      occurrence:
-          occurrence,
-      editedTask:
-          editedTask,
-    );
+    await TaskActions(taskRepository)
+        .delete(task: task, scope: scope, occurrence: occurrence);
+    return TaskActionResult.deleted(scope);
   }
 
-  static Future<void> _delete({
+  static Future<TaskSeriesScope?> _chooseScope({
     required BuildContext context,
     required LifeTask task,
     required TaskOccurrence? occurrence,
-    required TaskRepository taskRepository,
-  }) async {
+    required TaskSeriesPromptAction action,
+  }) {
     if (!task.recurrence.isRecurring ||
         occurrence == null ||
         !occurrence.isRecurring) {
-      final confirmed =
-          await TaskPrompts
-              .confirmDeleteTask(
-        context,
-        task:
-            task,
-      );
-
-      if (!confirmed ||
-          !context.mounted) {
-        return;
-      }
-
-      await TaskActions(
-        taskRepository,
-      ).delete(
-        task:
-            task,
-        scope:
-            TaskSeriesScope.series,
-      );
-      return;
+      return Future.value(TaskSeriesScope.series);
     }
-
-    final scope =
-        await TaskPrompts
-            .chooseSeriesScope(
-      context,
-      action:
-          TaskSeriesPromptAction.delete,
-    );
-
-    if (!context.mounted ||
-        scope == null) {
-      return;
-    }
-
-    switch (scope) {
-      case TaskSeriesScope.occurrence:
-        final confirmed =
-            await TaskPrompts
-                .confirmDeleteOccurrence(
-          context,
-        );
-
-        if (!confirmed ||
-            !context.mounted) {
-          return;
-        }
-
-        await TaskActions(
-          taskRepository,
-        ).delete(
-          task:
-              task,
-          occurrence:
-              occurrence,
-          scope:
-              TaskSeriesScope.occurrence,
-        );
-        break;
-
-      case TaskSeriesScope.series:
-        final confirmed =
-            await TaskPrompts
-                .confirmDeleteTask(
-          context,
-          task:
-              task,
-        );
-
-        if (!confirmed ||
-            !context.mounted) {
-          return;
-        }
-
-        await TaskActions(
-          taskRepository,
-        ).delete(
-          task:
-              task,
-          scope:
-              TaskSeriesScope.series,
-        );
-        break;
-    }
+    return TaskPrompts.chooseSeriesScope(context, action: action);
   }
 
-  static LifeTask
-      _occurrenceTaskForEditing(
-    LifeTask seriesTask,
-    TaskOccurrence occurrence,
-  ) {
-    final displayTask =
-        occurrence.displayTask;
-
-    return LifeTask(
-      id:
-          seriesTask.id,
-      title:
-          displayTask.title,
-      description:
-          displayTask.description,
-      scheduledDate:
-          occurrence.date,
-      startTimeMinutes:
-          displayTask
-              .startTimeMinutes,
-      durationMinutes:
-          displayTask
-              .durationMinutes,
-      categoryId:
-          displayTask.categoryId,
-      allDay:
-          displayTask.allDay,
-      priority:
-          displayTask.priority,
-      recurrence:
-          seriesTask.recurrence,
-      subtasks:
-          occurrence.subtasks,
-      isCompleted:
-          occurrence.isCompleted,
+  static LifeTask draftForOccurrence(TaskOccurrence occurrence) {
+    // La data visualizzata può essere diversa da seriesDate, che resta
+    // l'identità persistente dell'eccezione (usata dal repository).
+    return occurrence.displayTask.copyWith(
+      scheduledDate: occurrence.date,
+      recurrence: occurrence.task.recurrence,
+      subtasks: occurrence.subtasks,
+      isCompleted: occurrence.isCompleted,
     );
   }
 }

@@ -17,6 +17,7 @@ import 'task_detail_notes.dart';
 import 'task_detail_subtasks.dart';
 import 'task_editor_mode.dart';
 import 'task_form_page.dart';
+import 'task_quick_actions.dart';
 
 class TaskDetailPage extends StatefulWidget {
   final LifeTask task;
@@ -380,104 +381,6 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     );
   }
 
-  Future<void> _editSeries() async {
-    final result = await Navigator.push<TaskFormResult>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TaskFormPage(
-          categoryRepository: widget.categoryRepository,
-          mode: TaskEditorMode.edit,
-          initialTask: _seriesTaskForEditing(),
-        ),
-      ),
-    );
-
-    if (result == null) {
-      return;
-    }
-
-    if (result.shouldDelete) {
-      await _taskActions.delete(
-        task: _seriesTask,
-        scope: TaskSeriesScope.series,
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      Navigator.pop(context);
-      return;
-    }
-
-    final updatedTask = result.task;
-
-    if (updatedTask == null) {
-      return;
-    }
-
-    await widget.taskRepository.updateTask(updatedTask);
-
-    if (!mounted) {
-      return;
-    }
-
-    if (_seriesTask.recurrence.isRecurring) {
-      // Torniamo alla lista/calendario: la sorgente reattiva ricostruisce
-      // l'occorrenza con eventuali eccezioni ancora applicabili.
-      Navigator.pop(context);
-      return;
-    }
-
-    setState(() {
-      _seriesTask = updatedTask;
-      _task = updatedTask;
-      _occurrenceDate = updatedTask.scheduledDate;
-      _seriesDate = updatedTask.scheduledDate;
-      _isCompleted = updatedTask.isCompleted;
-      _subtasks = updatedTask.subtasks.toList()
-        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    });
-  }
-
-  Future<void> _editOccurrence() async {
-    final occurrence = _currentOccurrence();
-
-    if (occurrence == null || !occurrence.isRecurring) {
-      return;
-    }
-
-    final result = await Navigator.push<TaskFormResult>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TaskFormPage(
-          categoryRepository: widget.categoryRepository,
-          mode: TaskEditorMode.editOccurrence,
-          initialTask: _occurrenceTaskForEditing(),
-        ),
-      ),
-    );
-
-    final editedTask = result?.task;
-
-    if (editedTask == null) {
-      return;
-    }
-
-    await widget.taskRepository.saveOccurrenceOverride(
-      occurrence: occurrence,
-      editedTask: editedTask,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    // La pagina sorgente è reattiva e ricostruirà l'occorrenza con
-    // titolo/data/orario/categoria/priorità effettivi aggiornati.
-    Navigator.pop(context);
-  }
-
   Future<void> _rescheduleTask() async {
     if (_seriesTask.recurrence.isRecurring) {
       return;
@@ -517,114 +420,49 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     });
   }
 
-  Future<void> _deleteSeries() async {
-    final confirmed = await TaskPrompts.confirmDeleteTask(
-      context,
-      task: _seriesTask,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    await _taskActions.delete(task: _seriesTask, scope: TaskSeriesScope.series);
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.pop(context);
-  }
-
-  Future<void> _deleteOccurrence() async {
-    final occurrence = _currentOccurrence();
-
-    if (occurrence == null || !occurrence.isRecurring) {
-      return;
-    }
-
-    final confirmed = await TaskPrompts.confirmDeleteOccurrence(context);
-
-    if (!confirmed) {
-      return;
-    }
-
-    await _taskActions.delete(
-      task: _seriesTask,
-      occurrence: occurrence,
-      scope: TaskSeriesScope.occurrence,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.pop(context);
-  }
-
   Future<void> _handleEditAction() async {
-    if (!_seriesTask.recurrence.isRecurring) {
-      await _editSeries();
-      return;
-    }
-
-    final occurrence = _currentOccurrence();
-
-    if (occurrence == null) {
-      await _editSeries();
-      return;
-    }
-
-    final scope = await TaskPrompts.chooseSeriesScope(
-      context,
-      action: TaskSeriesPromptAction.edit,
+    final result = await TaskQuickActions.edit(
+      context: context,
+      task: _seriesTask,
+      occurrence: _currentOccurrence(),
+      taskRepository: widget.taskRepository,
+      categoryRepository: widget.categoryRepository,
+      seriesDraft: _seriesTaskForEditing(),
+      occurrenceDraft: _occurrenceTaskForEditing(),
     );
+    if (!mounted || result == null) return;
 
-    if (!mounted || scope == null) {
+    if (result.deleted ||
+        result.scope == TaskSeriesScope.occurrence ||
+        _seriesTask.recurrence.isRecurring) {
+      // Il chiamante reattivo ricostruisce le occorrenze aggiornate.
+      Navigator.pop(context);
       return;
     }
 
-    switch (scope) {
-      case TaskSeriesScope.occurrence:
-        await _editOccurrence();
-        break;
+    final updatedTask = result.updatedTask;
+    if (updatedTask == null) return;
 
-      case TaskSeriesScope.series:
-        await _editSeries();
-        break;
-    }
+    setState(() {
+      _seriesTask = updatedTask;
+      _task = updatedTask;
+      _occurrenceDate = updatedTask.scheduledDate;
+      _seriesDate = updatedTask.scheduledDate;
+      _isCompleted = updatedTask.isCompleted;
+      _subtasks = updatedTask.subtasks.toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    });
   }
 
   Future<void> _handleDeleteAction() async {
-    if (!_seriesTask.recurrence.isRecurring) {
-      await _deleteSeries();
-      return;
-    }
-
-    final occurrence = _currentOccurrence();
-
-    if (occurrence == null) {
-      await _deleteSeries();
-      return;
-    }
-
-    final scope = await TaskPrompts.chooseSeriesScope(
-      context,
-      action: TaskSeriesPromptAction.delete,
+    final result = await TaskQuickActions.delete(
+      context: context,
+      task: _seriesTask,
+      occurrence: _currentOccurrence(),
+      taskRepository: widget.taskRepository,
     );
-
-    if (!mounted || scope == null) {
-      return;
-    }
-
-    switch (scope) {
-      case TaskSeriesScope.occurrence:
-        await _deleteOccurrence();
-        break;
-
-      case TaskSeriesScope.series:
-        await _deleteSeries();
-        break;
+    if (mounted && result != null) {
+      Navigator.pop(context);
     }
   }
 
