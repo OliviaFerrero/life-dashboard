@@ -782,6 +782,11 @@ class TaskItem extends DataClass implements Insertable<TaskItem> {
   /// categoryId torna automaticamente a null.
   final String? categoryId;
   final bool allDay;
+
+  /// Valori persistiti stabili:
+  /// 0 = low, 1 = normal, 2 = high.
+  ///
+  /// Non dipende dall'ordine dichiarativo dell'enum Dart.
   final int priority;
 
   /// Stato usato dalle task NON ricorrenti.
@@ -2561,6 +2566,11 @@ class TaskOccurrenceOverrideRow extends DataClass
   final int? durationMinutes;
   final String? categoryId;
   final bool allDay;
+
+  /// Valori persistiti stabili:
+  /// 0 = low, 1 = normal, 2 = high.
+  ///
+  /// Non dipende dall'ordine dichiarativo dell'enum Dart.
   final int priority;
 
   /// true = questa singola occorrenza è esclusa dalla serie.
@@ -3368,10 +3378,11 @@ class $$TaskCategoriesTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (taskItemsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           TaskCategoryRow,
                           $TaskCategoriesTable,
-                          TaskItem
+                          TaskItem,
+                          $TaskItemsTable
                         >(
                           currentTable: table,
                           referencedTable: $$TaskCategoriesTableReferences
@@ -3382,17 +3393,16 @@ class $$TaskCategoriesTableTableManager
                                 table,
                                 p0,
                               ).taskItemsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.categoryId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'category_id',
                           typedResults: items,
                         ),
                       if (taskOccurrenceOverridesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           TaskCategoryRow,
                           $TaskCategoriesTable,
-                          TaskOccurrenceOverrideRow
+                          TaskOccurrenceOverrideRow,
+                          $TaskOccurrenceOverridesTable
                         >(
                           currentTable: table,
                           referencedTable: $$TaskCategoriesTableReferences
@@ -3403,10 +3413,8 @@ class $$TaskCategoriesTableTableManager
                                 table,
                                 p0,
                               ).taskOccurrenceOverridesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.categoryId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'category_id',
                           typedResults: items,
                         ),
                     ];
@@ -4169,10 +4177,11 @@ class $$TaskItemsTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (taskOccurrenceStatesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           TaskItem,
                           $TaskItemsTable,
-                          TaskOccurrenceStateRow
+                          TaskOccurrenceStateRow,
+                          $TaskOccurrenceStatesTable
                         >(
                           currentTable: table,
                           referencedTable: $$TaskItemsTableReferences
@@ -4183,17 +4192,16 @@ class $$TaskItemsTableTableManager
                                 table,
                                 p0,
                               ).taskOccurrenceStatesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.taskId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'task_id',
                           typedResults: items,
                         ),
                       if (taskSubtasksRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           TaskItem,
                           $TaskItemsTable,
-                          TaskSubtaskRow
+                          TaskSubtaskRow,
+                          $TaskSubtasksTable
                         >(
                           currentTable: table,
                           referencedTable: $$TaskItemsTableReferences
@@ -4204,17 +4212,16 @@ class $$TaskItemsTableTableManager
                                 table,
                                 p0,
                               ).taskSubtasksRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.taskId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'task_id',
                           typedResults: items,
                         ),
                       if (taskOccurrenceOverridesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           TaskItem,
                           $TaskItemsTable,
-                          TaskOccurrenceOverrideRow
+                          TaskOccurrenceOverrideRow,
+                          $TaskOccurrenceOverridesTable
                         >(
                           currentTable: table,
                           referencedTable: $$TaskItemsTableReferences
@@ -4225,10 +4232,8 @@ class $$TaskItemsTableTableManager
                                 table,
                                 p0,
                               ).taskOccurrenceOverridesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.taskId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'task_id',
                           typedResults: items,
                         ),
                     ];
@@ -4947,10 +4952,11 @@ class $$TaskSubtasksTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (taskSubtaskOccurrenceStatesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           TaskSubtaskRow,
                           $TaskSubtasksTable,
-                          TaskSubtaskOccurrenceStateRow
+                          TaskSubtaskOccurrenceStateRow,
+                          $TaskSubtaskOccurrenceStatesTable
                         >(
                           currentTable: table,
                           referencedTable: $$TaskSubtasksTableReferences
@@ -4961,10 +4967,8 @@ class $$TaskSubtasksTableTableManager
                                 table,
                                 p0,
                               ).taskSubtaskOccurrenceStatesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.subtaskId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'subtask_id',
                           typedResults: items,
                         ),
                     ];
