@@ -1,50 +1,42 @@
 abstract final class CivilDate {
-  static DateTime dateOnly(
-    DateTime value,
-  ) {
+  static DateTime dateOnly(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
+  }
+
+  /// Costruisce un orario civile locale a partire dai minuti dopo
+  /// mezzanotte (normalmente 0..1439).
+  ///
+  /// Non usare dateOnly(date).add(Duration(minutes: minutes)): in una
+  /// giornata di 23 o 25 ore quel calcolo sposta l'ora sul quadrante.
+  ///
+  /// Gli orari inesistenti o ripetuti durante il cambio dell'ora restano
+  /// soggetti alla normalizzazione di DateTime della piattaforma.
+  static DateTime atTimeMinutes(DateTime date, int minutes) {
     return DateTime(
-      value.year,
-      value.month,
-      value.day,
+      date.year,
+      date.month,
+      date.day,
+      minutes ~/ 60,
+      minutes % 60,
     );
   }
 
-  static bool sameDay(
-    DateTime first,
-    DateTime second,
-  ) {
+  static bool sameDay(DateTime first, DateTime second) {
     return first.year == second.year &&
         first.month == second.month &&
         first.day == second.day;
   }
 
-  static DateTime addDays(
-    DateTime date,
-    int days,
-  ) {
-    return DateTime(
-      date.year,
-      date.month,
-      date.day + days,
-    );
+  static DateTime addDays(DateTime date, int days) {
+    return DateTime(date.year, date.month, date.day + days);
   }
 
-  static DateTime nextDay(
-    DateTime date,
-  ) {
-    return addDays(
-      date,
-      1,
-    );
+  static DateTime nextDay(DateTime date) {
+    return addDays(date, 1);
   }
 
-  static DateTime previousDay(
-    DateTime date,
-  ) {
-    return addDays(
-      date,
-      -1,
-    );
+  static DateTime previousDay(DateTime date) {
+    return addDays(date, -1);
   }
 
   /// Numero di giorni CIVILI da [from] a [to].
@@ -52,56 +44,24 @@ abstract final class CivilDate {
   /// Non misura ore trascorse: usa solo anno/mese/giorno, quindi
   /// resta corretto anche quando due mezzanotti locali consecutive
   /// sono separate da 23 o 25 ore per il cambio dell'ora.
-  static int differenceInDays(
-    DateTime from,
-    DateTime to,
-  ) {
-    final fromUtc =
-        DateTime.utc(
-      from.year,
-      from.month,
-      from.day,
-    );
+  static int differenceInDays(DateTime from, DateTime to) {
+    final fromUtc = DateTime.utc(from.year, from.month, from.day);
 
-    final toUtc =
-        DateTime.utc(
-      to.year,
-      to.month,
-      to.day,
-    );
+    final toUtc = DateTime.utc(to.year, to.month, to.day);
 
-    return toUtc
-        .difference(
-          fromUtc,
-        )
-        .inDays;
+    return toUtc.difference(fromUtc).inDays;
   }
 
   static DateTime startOfWeek(
     DateTime date, {
-    int firstWeekday =
-        DateTime.monday,
+    int firstWeekday = DateTime.monday,
   }) {
-    assert(
-      firstWeekday >=
-              DateTime.monday &&
-          firstWeekday <=
-              DateTime.sunday,
-    );
+    assert(firstWeekday >= DateTime.monday && firstWeekday <= DateTime.sunday);
 
-    final normalized =
-        dateOnly(
-      date,
-    );
+    final normalized = dateOnly(date);
 
-    final offset =
-        (normalized.weekday -
-                firstWeekday) %
-            7;
+    final offset = (normalized.weekday - firstWeekday) % 7;
 
-    return addDays(
-      normalized,
-      -offset,
-    );
+    return addDays(normalized, -offset);
   }
 }

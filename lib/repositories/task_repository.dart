@@ -13,13 +13,10 @@ class TaskRepository {
   TaskRepository(this._database);
 
   Stream<List<LifeTask>> watchAllTasks() {
-    return _watchTaskData().map(
-      (snapshot) => snapshot.tasks,
-    );
+    return _watchTaskData().map((snapshot) => snapshot.tasks);
   }
 
-  Stream<List<TaskOccurrence>>
-      watchOccurrencesInRange(
+  Stream<List<TaskOccurrence>> watchOccurrencesInRange(
     DateTime start,
     DateTime end,
   ) {
@@ -27,11 +24,7 @@ class TaskRepository {
     final rangeEnd = _dateOnly(end);
 
     return _watchTaskData().map(
-      (snapshot) => _buildOccurrencesInRange(
-        snapshot,
-        rangeStart,
-        rangeEnd,
-      ),
+      (snapshot) => _buildOccurrencesInRange(snapshot, rangeStart, rangeEnd),
     );
   }
 
@@ -41,70 +34,46 @@ class TaskRepository {
   /// Serve per gestire correttamente task che attraversano la mezzanotte
   /// (es. 23:30 -> 00:30) e prepara anche la futura timeline Oggi con
   /// confini personalizzati della giornata (es. 06:00 -> 03:00).
-  Stream<List<TaskOccurrence>>
-      watchOccurrencesOverlappingWindow(
+  Stream<List<TaskOccurrence>> watchOccurrencesOverlappingWindow(
     DateTime windowStart,
     DateTime windowEnd, {
     DateTime? untimedAnchorDate,
   }) {
-    if (!windowEnd.isAfter(
-      windowStart,
-    )) {
-      return Stream.value(
-        const <TaskOccurrence>[],
-      );
+    if (!windowEnd.isAfter(windowStart)) {
+      return Stream.value(const <TaskOccurrence>[]);
     }
 
-    return _watchTaskData().map(
-      (snapshot) {
-        final lookbackDays =
-            _maxCrossDayLookback(
-          snapshot,
-        );
+    return _watchTaskData().map((snapshot) {
+      final lookbackDays = _maxCrossDayLookback(snapshot);
 
-        final generationStart =
-            CivilDate.addDays(
-          _dateOnly(
-            windowStart,
-          ),
-          -lookbackDays,
-        );
+      final generationStart = CivilDate.addDays(
+        _dateOnly(windowStart),
+        -lookbackDays,
+      );
 
-        final lastVisibleInstant =
-            windowEnd.subtract(
-          const Duration(
-            microseconds: 1,
-          ),
-        );
+      final lastVisibleInstant = windowEnd.subtract(
+        const Duration(microseconds: 1),
+      );
 
-        final generationEnd =
-            _dateOnly(
-          lastVisibleInstant,
-        );
+      final generationEnd = _dateOnly(lastVisibleInstant);
 
-        final candidates =
-            _buildOccurrencesInRange(
-          snapshot,
-          generationStart,
-          generationEnd,
-        );
+      final candidates = _buildOccurrencesInRange(
+        snapshot,
+        generationStart,
+        generationEnd,
+      );
 
-        return candidates
-            .where(
-              (occurrence) =>
-                  occurrence.overlapsWindow(
-                windowStart,
-                windowEnd,
-                untimedAnchorDate:
-                    untimedAnchorDate,
-              ),
-            )
-            .toList()
-          ..sort(
-            _compareOccurrencesByRealStart,
-          );
-      },
-    );
+      return candidates
+          .where(
+            (occurrence) => occurrence.overlapsWindow(
+              windowStart,
+              windowEnd,
+              untimedAnchorDate: untimedAnchorDate,
+            ),
+          )
+          .toList()
+        ..sort(_compareOccurrencesByRealStart);
+    });
   }
 
   /// Restituisce una sola voce pianificata per ogni task:
@@ -113,15 +82,9 @@ class TaskRepository {
   ///   altrimenti la prossima occorrenza utile.
   ///
   /// In questo modo la pagina Attività non genera una lista infinita.
-  Stream<List<TaskOccurrence>>
-      watchScheduleOverview(
-    DateTime referenceTime,
-  ) {
+  Stream<List<TaskOccurrence>> watchScheduleOverview(DateTime referenceTime) {
     return _watchTaskData().map(
-      (snapshot) => _buildScheduleOverview(
-        snapshot,
-        referenceTime,
-      ),
+      (snapshot) => _buildScheduleOverview(snapshot, referenceTime),
     );
   }
 
@@ -129,216 +92,133 @@ class TaskRepository {
   ///
   /// Le task ricorrenti contano come una singola occorrenza
   /// corrente/prossima, evitando un totale infinito.
-  Stream<int> watchIncompleteOverviewCount(
-    DateTime referenceTime,
-  ) {
+  Stream<int> watchIncompleteOverviewCount(DateTime referenceTime) {
     return _watchTaskData().map((snapshot) {
-      final inboxIncomplete =
-          snapshot.tasks.where(
-        (task) =>
-            task.scheduledDate == null &&
-            !task.isCompleted,
-      ).length;
+      final inboxIncomplete = snapshot.tasks
+          .where((task) => task.scheduledDate == null && !task.isCompleted)
+          .length;
 
-      final scheduledIncomplete =
-          _buildScheduleOverview(
+      final scheduledIncomplete = _buildScheduleOverview(
         snapshot,
         referenceTime,
-      ).where(
-        (occurrence) =>
-            !occurrence.isCompleted,
-      ).length;
+      ).where((occurrence) => !occurrence.isCompleted).length;
 
-      return inboxIncomplete +
-          scheduledIncomplete;
+      return inboxIncomplete + scheduledIncomplete;
     });
   }
 
-  Future<void> addTask(
-    LifeTask task,
-  ) async {
+  Future<void> addTask(LifeTask task) async {
     await _database.transaction(() async {
       await _database
           .into(_database.taskItems)
           .insert(
-        TaskItemsCompanion.insert(
-          id: task.id,
-          title: task.title,
-          description:
-              Value(task.description),
+            TaskItemsCompanion.insert(
+              id: task.id,
+              title: task.title,
+              description: Value(task.description),
 
-          // Legacy mantenuto sincronizzato.
-          startAt: Value(task.startAt),
-          endAt: Value(task.endAt),
+              // Legacy mantenuto sincronizzato.
+              startAt: Value(task.startAt),
+              endAt: Value(task.endAt),
 
-          scheduledDate:
-              Value(task.scheduledDate),
-          startTimeMinutes: Value(
-            task.allDay
-                ? null
-                : task.startTimeMinutes,
-          ),
-          durationMinutes:
-              Value(task.durationMinutes),
+              scheduledDate: Value(task.scheduledDate),
+              startTimeMinutes: Value(
+                task.allDay ? null : task.startTimeMinutes,
+              ),
+              durationMinutes: Value(task.durationMinutes),
 
-          categoryId:
-              Value(task.categoryId),
+              categoryId: Value(task.categoryId),
 
-          allDay:
-              Value(task.allDay),
-          priority:
-              Value(task.priority.storageValue),
+              allDay: Value(task.allDay),
+              priority: Value(task.priority.storageValue),
 
-          // Per una serie ricorrente lo stato vive
-          // nelle singole occorrenze.
-          isCompleted: Value(
-            task.recurrence.isRecurring
-                ? false
-                : task.isCompleted,
-          ),
+              // Per una serie ricorrente lo stato vive
+              // nelle singole occorrenze.
+              isCompleted: Value(
+                task.recurrence.isRecurring ? false : task.isCompleted,
+              ),
 
-          recurrenceType: Value(
-            task.recurrence.storageValue,
-          ),
-          recurrenceWeekdays: Value(
-            task.recurrence.weekdaysMask,
-          ),
-        ),
-      );
+              recurrenceType: Value(task.recurrence.storageValue),
+              recurrenceWeekdays: Value(task.recurrence.weekdaysMask),
+            ),
+          );
 
-      await _syncSubtasks(
-        task,
-      );
+      await _syncSubtasks(task);
     });
   }
 
-  Future<void> updateTask(
-    LifeTask task,
-  ) async {
+  Future<void> updateTask(LifeTask task) async {
     await _database.transaction(() async {
       await (_database.update(
         _database.taskItems,
-      )..where(
-            (row) => row.id.equals(task.id),
-          ))
-          .write(
+      )..where((row) => row.id.equals(task.id))).write(
         TaskItemsCompanion(
           title: Value(task.title),
-          description:
-              Value(task.description),
+          description: Value(task.description),
 
           // Legacy mantenuto sincronizzato.
           startAt: Value(task.startAt),
           endAt: Value(task.endAt),
 
-          scheduledDate:
-              Value(task.scheduledDate),
-          startTimeMinutes: Value(
-            task.allDay
-                ? null
-                : task.startTimeMinutes,
-          ),
-          durationMinutes:
-              Value(task.durationMinutes),
+          scheduledDate: Value(task.scheduledDate),
+          startTimeMinutes: Value(task.allDay ? null : task.startTimeMinutes),
+          durationMinutes: Value(task.durationMinutes),
 
-          categoryId:
-              Value(task.categoryId),
+          categoryId: Value(task.categoryId),
 
-          allDay:
-              Value(task.allDay),
-          priority:
-              Value(task.priority.storageValue),
+          allDay: Value(task.allDay),
+          priority: Value(task.priority.storageValue),
           isCompleted: Value(
-            task.recurrence.isRecurring
-                ? false
-                : task.isCompleted,
+            task.recurrence.isRecurring ? false : task.isCompleted,
           ),
 
-          recurrenceType: Value(
-            task.recurrence.storageValue,
-          ),
-          recurrenceWeekdays: Value(
-            task.recurrence.weekdaysMask,
-          ),
+          recurrenceType: Value(task.recurrence.storageValue),
+          recurrenceWeekdays: Value(task.recurrence.weekdaysMask),
         ),
       );
 
-      await _syncSubtasks(
-        task,
-      );
+      await _syncSubtasks(task);
     });
   }
 
-  Future<void> _syncSubtasks(
-    LifeTask task,
-  ) async {
-    final existing =
-        await (_database.select(
+  Future<void> _syncSubtasks(LifeTask task) async {
+    final existing = await (_database.select(
       _database.taskSubtasks,
-    )..where(
-              (row) =>
-                  row.taskId.equals(task.id),
-            ))
-            .get();
+    )..where((row) => row.taskId.equals(task.id))).get();
 
-    final incomingIds =
-        task.subtasks
-            .map(
-              (subtask) =>
-                  subtask.id,
-            )
-            .toSet();
+    final incomingIds = task.subtasks.map((subtask) => subtask.id).toSet();
 
     for (final row in existing) {
-      if (!incomingIds.contains(
-        row.id,
-      )) {
+      if (!incomingIds.contains(row.id)) {
         await (_database.delete(
           _database.taskSubtasks,
-        )..where(
-              (item) =>
-                  item.id.equals(row.id),
-            ))
-            .go();
+        )..where((item) => item.id.equals(row.id))).go();
       }
     }
 
-    for (var index = 0;
-        index < task.subtasks.length;
-        index++) {
-      final subtask =
-          task.subtasks[index];
+    for (var index = 0; index < task.subtasks.length; index++) {
+      final subtask = task.subtasks[index];
 
       await _database
-          .into(
-            _database.taskSubtasks,
-          )
+          .into(_database.taskSubtasks)
           .insertOnConflictUpdate(
-        TaskSubtasksCompanion.insert(
-          id: subtask.id,
-          taskId: task.id,
-          title: subtask.title,
-          sortOrder:
-              Value(index),
-          isCompleted: Value(
-            task.recurrence.isRecurring
-                ? false
-                : subtask.isCompleted,
-          ),
-        ),
-      );
+            TaskSubtasksCompanion.insert(
+              id: subtask.id,
+              taskId: task.id,
+              title: subtask.title,
+              sortOrder: Value(index),
+              isCompleted: Value(
+                task.recurrence.isRecurring ? false : subtask.isCompleted,
+              ),
+            ),
+          );
     }
   }
 
-  Future<void> deleteTask(
-    String id,
-  ) async {
+  Future<void> deleteTask(String id) async {
     await (_database.delete(
       _database.taskItems,
-    )..where(
-          (row) => row.id.equals(id),
-        ))
-        .go();
+    )..where((row) => row.id.equals(id))).go();
   }
 
   /// Completion della task NON ricorrente.
@@ -346,36 +226,16 @@ class TaskRepository {
   /// Quando si completa il parent vengono completate anche tutte le
   /// sottoattività ancora aperte. Quando si riapre il parent, invece,
   /// gli stati delle sottoattività restano invariati.
-  Future<void> setCompleted(
-    String id,
-    bool completed,
-  ) async {
+  Future<void> setCompleted(String id, bool completed) async {
     await _database.transaction(() async {
-      await (_database.update(
-        _database.taskItems,
-      )..where(
-            (row) => row.id.equals(id),
-          ))
-          .write(
-        TaskItemsCompanion(
-          isCompleted:
-              Value(completed),
-        ),
-      );
+      await (_database.update(_database.taskItems)
+            ..where((row) => row.id.equals(id)))
+          .write(TaskItemsCompanion(isCompleted: Value(completed)));
 
       if (completed) {
-        await (_database.update(
-          _database.taskSubtasks,
-        )..where(
-              (row) =>
-                  row.taskId.equals(id),
-            ))
-            .write(
-          const TaskSubtasksCompanion(
-            isCompleted:
-                Value(true),
-          ),
-        );
+        await (_database.update(_database.taskSubtasks)
+              ..where((row) => row.taskId.equals(id)))
+            .write(const TaskSubtasksCompanion(isCompleted: Value(true)));
       }
     });
   }
@@ -394,77 +254,48 @@ class TaskRepository {
       );
     }
 
-    final effectiveDate =
-        editedTask.scheduledDate;
+    final effectiveDate = editedTask.scheduledDate;
 
     if (effectiveDate == null) {
-      throw ArgumentError(
-        'Una singola occorrenza deve avere una data.',
-      );
+      throw ArgumentError('Una singola occorrenza deve avere una data.');
     }
 
     await _database
-        .into(
-          _database.taskOccurrenceOverrides,
-        )
+        .into(_database.taskOccurrenceOverrides)
         .insertOnConflictUpdate(
-      TaskOccurrenceOverridesCompanion.insert(
-        taskId:
-            occurrence.task.id,
-        occurrenceDate:
-            _dateOnly(occurrence.seriesDate),
-        effectiveDate:
-            _dateOnly(effectiveDate),
-        title:
-            editedTask.title,
-        description:
-            Value(editedTask.description),
-        startTimeMinutes:
-            Value(
-          editedTask.allDay
-              ? null
-              : editedTask.startTimeMinutes,
-        ),
-        durationMinutes:
-            Value(editedTask.durationMinutes),
-        categoryId:
-            Value(editedTask.categoryId),
-        allDay:
-            Value(editedTask.allDay),
-        priority:
-            Value(editedTask.priority.storageValue),
-        isDeleted:
-            const Value(false),
-      ),
-    );
+          TaskOccurrenceOverridesCompanion.insert(
+            taskId: occurrence.task.id,
+            occurrenceDate: _dateOnly(occurrence.seriesDate),
+            effectiveDate: _dateOnly(effectiveDate),
+            title: editedTask.title,
+            description: Value(editedTask.description),
+            startTimeMinutes: Value(
+              editedTask.allDay ? null : editedTask.startTimeMinutes,
+            ),
+            durationMinutes: Value(editedTask.durationMinutes),
+            categoryId: Value(editedTask.categoryId),
+            allDay: Value(editedTask.allDay),
+            priority: Value(editedTask.priority.storageValue),
+            isDeleted: const Value(false),
+          ),
+        );
   }
 
   /// Rimuove l'override di una singola occorrenza ricorrente.
   ///
   /// Usato quando un drag applicato a "Tutta la serie" deve far tornare
   /// anche l'occorrenza corrente sotto la definizione della serie.
-  Future<void> clearOccurrenceOverride(
-    TaskOccurrence occurrence,
-  ) async {
+  Future<void> clearOccurrenceOverride(TaskOccurrence occurrence) async {
     if (!occurrence.isRecurring) {
       return;
     }
 
-    final occurrenceDate =
-        _dateOnly(
-      occurrence.seriesDate,
-    );
+    final occurrenceDate = _dateOnly(occurrence.seriesDate);
 
-    await (_database.delete(
-      _database.taskOccurrenceOverrides,
-    )..where(
+    await (_database.delete(_database.taskOccurrenceOverrides)..where(
           (row) =>
-              row.taskId.equals(
-                occurrence.task.id,
-              ) &
-              row.occurrenceDate.equals(
-                occurrenceDate,
-              ),
+              row.taskId.equals(occurrence.task.id) &
+              row.occurrenceDate.equals(occurrenceDate),
         ))
         .go();
   }
@@ -474,53 +305,33 @@ class TaskRepository {
   /// Gli stati completato/subtasks restano collegati alla data originaria,
   /// così un eventuale futuro ripristino dell'eccezione non li ricollega
   /// a un'altra occorrenza.
-  Future<void> deleteOccurrence(
-    TaskOccurrence occurrence,
-  ) async {
+  Future<void> deleteOccurrence(TaskOccurrence occurrence) async {
     if (!occurrence.isRecurring) {
-      await deleteTask(
-        occurrence.task.id,
-      );
+      await deleteTask(occurrence.task.id);
       return;
     }
 
-    final effective =
-        occurrence.displayTask;
+    final effective = occurrence.displayTask;
 
     await _database
-        .into(
-          _database.taskOccurrenceOverrides,
-        )
+        .into(_database.taskOccurrenceOverrides)
         .insertOnConflictUpdate(
-      TaskOccurrenceOverridesCompanion.insert(
-        taskId:
-            occurrence.task.id,
-        occurrenceDate:
-            _dateOnly(occurrence.seriesDate),
-        effectiveDate:
-            _dateOnly(occurrence.date),
-        title:
-            effective.title,
-        description:
-            Value(effective.description),
-        startTimeMinutes:
-            Value(
-          effective.allDay
-              ? null
-              : effective.startTimeMinutes,
-        ),
-        durationMinutes:
-            Value(effective.durationMinutes),
-        categoryId:
-            Value(effective.categoryId),
-        allDay:
-            Value(effective.allDay),
-        priority:
-            Value(effective.priority.storageValue),
-        isDeleted:
-            const Value(true),
-      ),
-    );
+          TaskOccurrenceOverridesCompanion.insert(
+            taskId: occurrence.task.id,
+            occurrenceDate: _dateOnly(occurrence.seriesDate),
+            effectiveDate: _dateOnly(occurrence.date),
+            title: effective.title,
+            description: Value(effective.description),
+            startTimeMinutes: Value(
+              effective.allDay ? null : effective.startTimeMinutes,
+            ),
+            durationMinutes: Value(effective.durationMinutes),
+            categoryId: Value(effective.categoryId),
+            allDay: Value(effective.allDay),
+            priority: Value(effective.priority.storageValue),
+            isDeleted: const Value(true),
+          ),
+        );
   }
 
   /// Completion della singola occorrenza di una task ricorrente.
@@ -532,76 +343,47 @@ class TaskRepository {
     bool completed,
   ) async {
     if (!occurrence.isRecurring) {
-      await setCompleted(
-        occurrence.task.id,
-        completed,
-      );
+      await setCompleted(occurrence.task.id, completed);
       return;
     }
 
-    final date =
-        _dateOnly(occurrence.seriesDate);
+    final date = _dateOnly(occurrence.seriesDate);
 
     await _database.transaction(() async {
       if (completed) {
         await _database
-            .into(
-              _database.taskOccurrenceStates,
-            )
+            .into(_database.taskOccurrenceStates)
             .insertOnConflictUpdate(
-          TaskOccurrenceStatesCompanion.insert(
-            taskId:
-                occurrence.task.id,
-            occurrenceDate:
-                date,
-            isCompleted:
-                const Value(true),
-          ),
-        );
+              TaskOccurrenceStatesCompanion.insert(
+                taskId: occurrence.task.id,
+                occurrenceDate: date,
+                isCompleted: const Value(true),
+              ),
+            );
 
-        final subtasks =
-            await (_database.select(
+        final subtasks = await (_database.select(
           _database.taskSubtasks,
-        )..where(
-                  (row) =>
-                      row.taskId.equals(
-                        occurrence.task.id,
-                      ),
-                ))
-                .get();
+        )..where((row) => row.taskId.equals(occurrence.task.id))).get();
 
         for (final subtask in subtasks) {
           await _database
-              .into(
-                _database
-                    .taskSubtaskOccurrenceStates,
-              )
+              .into(_database.taskSubtaskOccurrenceStates)
               .insertOnConflictUpdate(
-            TaskSubtaskOccurrenceStatesCompanion
-                .insert(
-              subtaskId:
-                  subtask.id,
-              occurrenceDate:
-                  date,
-              isCompleted:
-                  const Value(true),
-            ),
-          );
+                TaskSubtaskOccurrenceStatesCompanion.insert(
+                  subtaskId: subtask.id,
+                  occurrenceDate: date,
+                  isCompleted: const Value(true),
+                ),
+              );
         }
 
         return;
       }
 
-      await (_database.delete(
-        _database.taskOccurrenceStates,
-      )..where(
+      await (_database.delete(_database.taskOccurrenceStates)..where(
             (row) =>
-                row.taskId.equals(
-                  occurrence.task.id,
-                ) &
-                row.occurrenceDate.equals(
-                  date,
-                ),
+                row.taskId.equals(occurrence.task.id) &
+                row.occurrenceDate.equals(date),
           ))
           .go();
     });
@@ -622,51 +404,21 @@ class TaskRepository {
     DateTime? occurrenceDate,
   }) async {
     if (!task.recurrence.isRecurring) {
-      await _database.transaction(
-        () async {
-          await (_database.update(
-            _database.taskSubtasks,
-          )..where(
-                (row) =>
-                    row.id.equals(
-                      subtask.id,
-                    ) &
-                    row.taskId.equals(
-                      task.id,
-                    ),
-              ))
-              .write(
-            TaskSubtasksCompanion(
-              isCompleted:
-                  Value(
-                completed,
-              ),
-            ),
-          );
+      await _database.transaction(() async {
+        await (_database.update(_database.taskSubtasks)..where(
+              (row) => row.id.equals(subtask.id) & row.taskId.equals(task.id),
+            ))
+            .write(TaskSubtasksCompanion(isCompleted: Value(completed)));
 
-          // Invariante centrale:
-          // una sottoattività aperta non può appartenere a un parent
-          // che resta marcato come completato.
-          if (!completed) {
-            await (_database.update(
-              _database.taskItems,
-            )..where(
-                  (row) =>
-                      row.id.equals(
-                    task.id,
-                  ),
-                ))
-                .write(
-              const TaskItemsCompanion(
-                isCompleted:
-                    Value(
-                  false,
-                ),
-              ),
-            );
-          }
-        },
-      );
+        // Invariante centrale:
+        // una sottoattività aperta non può appartenere a un parent
+        // che resta marcato come completato.
+        if (!completed) {
+          await (_database.update(_database.taskItems)
+                ..where((row) => row.id.equals(task.id)))
+              .write(const TaskItemsCompanion(isCompleted: Value(false)));
+        }
+      });
 
       return;
     }
@@ -677,69 +429,40 @@ class TaskRepository {
       );
     }
 
-    final date =
-        _dateOnly(
-      occurrenceDate,
-    );
+    final date = _dateOnly(occurrenceDate);
 
-    await _database.transaction(
-      () async {
-        if (completed) {
-          await _database
-              .into(
-                _database
-                    .taskSubtaskOccurrenceStates,
-              )
-              .insertOnConflictUpdate(
-            TaskSubtaskOccurrenceStatesCompanion
-                .insert(
-              subtaskId:
-                  subtask.id,
-              occurrenceDate:
-                  date,
-              isCompleted:
-                  const Value(
-                true,
+    await _database.transaction(() async {
+      if (completed) {
+        await _database
+            .into(_database.taskSubtaskOccurrenceStates)
+            .insertOnConflictUpdate(
+              TaskSubtaskOccurrenceStatesCompanion.insert(
+                subtaskId: subtask.id,
+                occurrenceDate: date,
+                isCompleted: const Value(true),
               ),
-            ),
-          );
+            );
 
-          return;
-        }
+        return;
+      }
 
-        await (_database.delete(
-          _database
-              .taskSubtaskOccurrenceStates,
-        )..where(
-              (row) =>
-                  row.subtaskId.equals(
-                    subtask.id,
-                  ) &
-                  row.occurrenceDate.equals(
-                    date,
-                  ),
-            ))
-            .go();
+      await (_database.delete(_database.taskSubtaskOccurrenceStates)..where(
+            (row) =>
+                row.subtaskId.equals(subtask.id) &
+                row.occurrenceDate.equals(date),
+          ))
+          .go();
 
-        // Stessa invariante, ma limitata alla singola occorrenza.
-        await (_database.delete(
-          _database.taskOccurrenceStates,
-        )..where(
-              (row) =>
-                  row.taskId.equals(
-                    task.id,
-                  ) &
-                  row.occurrenceDate.equals(
-                    date,
-                  ),
-            ))
-            .go();
-      },
-    );
+      // Stessa invariante, ma limitata alla singola occorrenza.
+      await (_database.delete(_database.taskOccurrenceStates)..where(
+            (row) =>
+                row.taskId.equals(task.id) & row.occurrenceDate.equals(date),
+          ))
+          .go();
+    });
   }
 
-  Stream<_TaskDataSnapshot>
-      _watchTaskData() {
+  Stream<_TaskDataSnapshot> _watchTaskData() {
     // Questa query serve solo come trigger reattivo.
     //
     // Osserva tutte le tabelle che compongono lo snapshot task e,
@@ -747,205 +470,113 @@ class TaskRepository {
     // separate. In questo modo evitiamo il vecchio join tra più
     // relazioni one-to-many indipendenti, che poteva moltiplicare
     // enormemente le righe SQL prima della deduplicazione in Dart.
-    final invalidationQuery =
-        _database.customSelect(
+    final invalidationQuery = _database.customSelect(
       'SELECT 1',
       readsFrom: {
         _database.taskItems,
         _database.taskOccurrenceStates,
         _database.taskSubtasks,
-        _database
-            .taskSubtaskOccurrenceStates,
+        _database.taskSubtaskOccurrenceStates,
         _database.taskOccurrenceOverrides,
       },
     );
 
-    return invalidationQuery
-        .watch()
-        .asyncMap(
-          (_) =>
-              _readTaskDataSnapshot(),
-        );
+    return invalidationQuery.watch().asyncMap((_) => _readTaskDataSnapshot());
   }
 
-  Future<_TaskDataSnapshot>
-      _readTaskDataSnapshot() {
-    return _database.transaction(
-      () async {
-        final taskRows =
-            await _database
-                .select(
-                  _database.taskItems,
-                )
-                .get();
+  Future<_TaskDataSnapshot> _readTaskDataSnapshot() {
+    return _database.transaction(() async {
+      final taskRows = await _database.select(_database.taskItems).get();
 
-        final occurrenceStateRows =
-            await _database
-                .select(
-                  _database
-                      .taskOccurrenceStates,
-                )
-                .get();
+      final occurrenceStateRows = await _database
+          .select(_database.taskOccurrenceStates)
+          .get();
 
-        final subtaskRows =
-            await _database
-                .select(
-                  _database.taskSubtasks,
-                )
-                .get();
+      final subtaskRows = await _database.select(_database.taskSubtasks).get();
 
-        final subtaskStateRows =
-            await _database
-                .select(
-                  _database
-                      .taskSubtaskOccurrenceStates,
-                )
-                .get();
+      final subtaskStateRows = await _database
+          .select(_database.taskSubtaskOccurrenceStates)
+          .get();
 
-        final overrideRows =
-            await _database
-                .select(
-                  _database
-                      .taskOccurrenceOverrides,
-                )
-                .get();
+      final overrideRows = await _database
+          .select(_database.taskOccurrenceOverrides)
+          .get();
 
-        final subtasksByTaskId =
-            <String,
-                List<TaskSubtask>>{};
+      final subtasksByTaskId = <String, List<TaskSubtask>>{};
 
-        for (final row
-            in subtaskRows) {
-          subtasksByTaskId
-              .putIfAbsent(
-                row.taskId,
-                () =>
-                    <TaskSubtask>[],
-              )
-              .add(
-                TaskSubtask(
-                  id: row.id,
-                  title:
-                      row.title,
-                  sortOrder:
-                      row.sortOrder,
-                  isCompleted:
-                      row.isCompleted,
-                ),
-              );
-        }
-
-        for (final subtasks
-            in subtasksByTaskId.values) {
-          subtasks.sort(
-            (a, b) {
-              final order =
-                  a.sortOrder.compareTo(
-                b.sortOrder,
-              );
-
-              if (order != 0) {
-                return order;
-              }
-
-              return a.title
-                  .toLowerCase()
-                  .compareTo(
-                    b.title
-                        .toLowerCase(),
-                  );
-            },
-          );
-        }
-
-        final completedOccurrenceKeys =
-            <String>{
-          for (final row
-              in occurrenceStateRows)
-            if (row.isCompleted)
-              _stateKey(
-                row.taskId,
-                row.occurrenceDate,
+      for (final row in subtaskRows) {
+        subtasksByTaskId
+            .putIfAbsent(row.taskId, () => <TaskSubtask>[])
+            .add(
+              TaskSubtask(
+                id: row.id,
+                title: row.title,
+                sortOrder: row.sortOrder,
+                isCompleted: row.isCompleted,
               ),
-        };
+            );
+      }
 
-        final completedSubtaskOccurrenceKeys =
-            <String>{
-          for (final row
-              in subtaskStateRows)
-            if (row.isCompleted)
-              _subtaskStateKey(
-                row.subtaskId,
-                row.occurrenceDate,
-              ),
-        };
+      for (final subtasks in subtasksByTaskId.values) {
+        subtasks.sort((a, b) {
+          final order = a.sortOrder.compareTo(b.sortOrder);
 
-        final overridesByTaskId =
-            <String,
-                Map<
-                    String,
-                    TaskOccurrenceOverrideRow>>{};
+          if (order != 0) {
+            return order;
+          }
 
-        for (final override
-            in overrideRows) {
-          overridesByTaskId
-              .putIfAbsent(
-                override.taskId,
-                () => <
-                    String,
-                    TaskOccurrenceOverrideRow>{},
-              )[_stateKey(
-                override.taskId,
-                override.occurrenceDate,
-              )] =
-              override;
-        }
+          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        });
+      }
 
-        final tasks =
-            <LifeTask>[
-          for (final row
-              in taskRows)
-            _taskFromRow(
-              row,
-              subtasks:
-                  subtasksByTaskId[
-                        row.id] ??
-                      const <
-                          TaskSubtask>[],
-            ),
-        ];
+      final completedOccurrenceKeys = <String>{
+        for (final row in occurrenceStateRows)
+          if (row.isCompleted) _stateKey(row.taskId, row.occurrenceDate),
+      };
 
-        tasks.sort(
-          _compareTasks,
-        );
+      final completedSubtaskOccurrenceKeys = <String>{
+        for (final row in subtaskStateRows)
+          if (row.isCompleted)
+            _subtaskStateKey(row.subtaskId, row.occurrenceDate),
+      };
 
-        return _TaskDataSnapshot(
-          tasks: tasks,
-          completedOccurrenceKeys:
-              completedOccurrenceKeys,
-          completedSubtaskOccurrenceKeys:
-              completedSubtaskOccurrenceKeys,
-          overridesByTaskId:
-              overridesByTaskId,
-        );
-      },
-    );
+      final overridesByTaskId =
+          <String, Map<String, TaskOccurrenceOverrideRow>>{};
+
+      for (final override in overrideRows) {
+        overridesByTaskId.putIfAbsent(
+          override.taskId,
+          () => <String, TaskOccurrenceOverrideRow>{},
+        )[_stateKey(override.taskId, override.occurrenceDate)] = override;
+      }
+
+      final tasks = <LifeTask>[
+        for (final row in taskRows)
+          _taskFromRow(
+            row,
+            subtasks: subtasksByTaskId[row.id] ?? const <TaskSubtask>[],
+          ),
+      ];
+
+      tasks.sort(_compareTasks);
+
+      return _TaskDataSnapshot(
+        tasks: tasks,
+        completedOccurrenceKeys: completedOccurrenceKeys,
+        completedSubtaskOccurrenceKeys: completedSubtaskOccurrenceKeys,
+        overridesByTaskId: overridesByTaskId,
+      );
+    });
   }
 
-  int _maxCrossDayLookback(
-    _TaskDataSnapshot snapshot,
-  ) {
+  int _maxCrossDayLookback(_TaskDataSnapshot snapshot) {
     var maxDays = 0;
 
     for (final task in snapshot.tasks) {
-      final days =
-          _crossDaySpan(
-        allDay:
-            task.allDay,
-        startTimeMinutes:
-            task.startTimeMinutes,
-        durationMinutes:
-            task.durationMinutes,
+      final days = _crossDaySpan(
+        allDay: task.allDay,
+        startTimeMinutes: task.startTimeMinutes,
+        durationMinutes: task.durationMinutes,
       );
 
       if (days > maxDays) {
@@ -953,22 +584,16 @@ class TaskRepository {
       }
     }
 
-    for (final taskOverrides
-        in snapshot.overridesByTaskId.values) {
-      for (final override
-          in taskOverrides.values) {
+    for (final taskOverrides in snapshot.overridesByTaskId.values) {
+      for (final override in taskOverrides.values) {
         if (override.isDeleted) {
           continue;
         }
 
-        final days =
-            _crossDaySpan(
-          allDay:
-              override.allDay,
-          startTimeMinutes:
-              override.startTimeMinutes,
-          durationMinutes:
-              override.durationMinutes,
+        final days = _crossDaySpan(
+          allDay: override.allDay,
+          startTimeMinutes: override.startTimeMinutes,
+          durationMinutes: override.durationMinutes,
         );
 
         if (days > maxDays) {
@@ -992,69 +617,51 @@ class TaskRepository {
       return 0;
     }
 
-    final lastOccupiedMinute =
-        startTimeMinutes +
-        durationMinutes -
-        1;
+    final lastOccupiedMinute = startTimeMinutes + durationMinutes - 1;
 
     if (lastOccupiedMinute < 0) {
       return 0;
     }
 
-    return lastOccupiedMinute ~/
-        (24 * 60);
+    // Il giorno civile puo avere 23 ore durante il passaggio all'ora
+    // legale. La finestra di ricerca deve includere anche la data
+    // precedente quando un evento puo proseguire oltre mezzanotte.
+    // Aggiungiamo un margine conservativo di 2 ore SOLO alla ricerca
+    // delle date candidate: la visibilita reale e poi determinata
+    // dagli istanti timedStart / timedEnd e dalla finestra richiesta.
+    const clockChangeMarginMinutes = 2 * 60;
+    return (lastOccupiedMinute + clockChangeMarginMinutes) ~/ (24 * 60);
   }
 
-  int _compareOccurrencesByRealStart(
-    TaskOccurrence a,
-    TaskOccurrence b,
-  ) {
-    final aTask =
-        a.displayTask;
-    final bTask =
-        b.displayTask;
+  int _compareOccurrencesByRealStart(TaskOccurrence a, TaskOccurrence b) {
+    final aTask = a.displayTask;
+    final bTask = b.displayTask;
 
-    final aStart =
-        a.timedStart;
-    final bStart =
-        b.timedStart;
+    final aStart = a.timedStart;
+    final bStart = b.timedStart;
 
-    if (aStart != null &&
-        bStart != null) {
-      final comparison =
-          aStart.compareTo(
-        bStart,
-      );
+    if (aStart != null && bStart != null) {
+      final comparison = aStart.compareTo(bStart);
 
       if (comparison != 0) {
         return comparison;
       }
-    } else if (aStart == null &&
-        bStart != null) {
+    } else if (aStart == null && bStart != null) {
       return -1;
-    } else if (aStart != null &&
-        bStart == null) {
+    } else if (aStart != null && bStart == null) {
       return 1;
     }
 
-    final dateComparison =
-        a.date.compareTo(
-      b.date,
-    );
+    final dateComparison = a.date.compareTo(b.date);
 
     if (dateComparison != 0) {
       return dateComparison;
     }
 
-    return aTask.title
-        .toLowerCase()
-        .compareTo(
-          bTask.title.toLowerCase(),
-        );
+    return aTask.title.toLowerCase().compareTo(bTask.title.toLowerCase());
   }
 
-  List<TaskOccurrence>
-      _buildOccurrencesInRange(
+  List<TaskOccurrence> _buildOccurrencesInRange(
     _TaskDataSnapshot snapshot,
     DateTime start,
     DateTime end,
@@ -1063,32 +670,26 @@ class TaskRepository {
       return const [];
     }
 
-    final result =
-        <TaskOccurrence>[];
+    final result = <TaskOccurrence>[];
 
     for (final task in snapshot.tasks) {
-      final startDate =
-          task.scheduledDate;
+      final startDate = task.scheduledDate;
 
       if (startDate == null) {
         continue;
       }
 
       if (!task.recurrence.isRecurring) {
-        final date =
-            _dateOnly(startDate);
+        final date = _dateOnly(startDate);
 
-        if (!date.isBefore(start) &&
-            !date.isAfter(end)) {
+        if (!date.isBefore(start) && !date.isAfter(end)) {
           result.add(
             TaskOccurrence(
               task: task,
               date: date,
               seriesDate: date,
-              isCompleted:
-                  task.isCompleted,
-              subtasks:
-                  task.subtasks,
+              isCompleted: task.isCompleted,
+              subtasks: task.subtasks,
             ),
           );
         }
@@ -1097,65 +698,36 @@ class TaskRepository {
       }
 
       final taskOverrides =
-          snapshot.overridesByTaskId[
-                task.id] ??
-              const <
-                  String,
-                  TaskOccurrenceOverrideRow>{};
+          snapshot.overridesByTaskId[task.id] ??
+          const <String, TaskOccurrenceOverrideRow>{};
 
-      var cursor =
-          _dateOnly(startDate);
+      var cursor = _dateOnly(startDate);
 
       if (cursor.isBefore(start)) {
         cursor = start;
       }
 
       while (!cursor.isAfter(end)) {
-        if (task.recurrence.occursOn(
-          cursor,
-          startDate,
-        )) {
-          final key =
-              _stateKey(
-            task.id,
-            cursor,
-          );
+        if (task.recurrence.occursOn(cursor, startDate)) {
+          final key = _stateKey(task.id, cursor);
 
           // Le eccezioni vengono aggiunte separatamente usando la
           // loro data effettiva. Qui evitiamo il doppione base.
-          if (!taskOverrides.containsKey(
-            key,
-          )) {
-            result.add(
-              _buildBaseOccurrence(
-                task,
-                cursor,
-                snapshot,
-              ),
-            );
+          if (!taskOverrides.containsKey(key)) {
+            result.add(_buildBaseOccurrence(task, cursor, snapshot));
           }
         }
 
-        cursor =
-            CivilDate.nextDay(
-          cursor,
-        );
+        cursor = CivilDate.nextDay(cursor);
       }
 
-      for (final override
-          in taskOverrides.values) {
-        final seriesDate =
-            _dateOnly(
-          override.occurrenceDate,
-        );
+      for (final override in taskOverrides.values) {
+        final seriesDate = _dateOnly(override.occurrenceDate);
 
         // Se la definizione della serie è stata cambiata e la vecchia
         // data non appartiene più alla regola, l'eccezione resta
         // persistita ma non viene applicata.
-        if (!task.recurrence.occursOn(
-          seriesDate,
-          startDate,
-        )) {
+        if (!task.recurrence.occursOn(seriesDate, startDate)) {
           continue;
         }
 
@@ -1163,44 +735,29 @@ class TaskRepository {
           continue;
         }
 
-        final effectiveDate =
-            _dateOnly(
-          override.effectiveDate,
-        );
+        final effectiveDate = _dateOnly(override.effectiveDate);
 
-        if (effectiveDate.isBefore(start) ||
-            effectiveDate.isAfter(end)) {
+        if (effectiveDate.isBefore(start) || effectiveDate.isAfter(end)) {
           continue;
         }
 
-        result.add(
-          _buildOverrideOccurrence(
-            task,
-            override,
-            snapshot,
-          ),
-        );
+        result.add(_buildOverrideOccurrence(task, override, snapshot));
       }
     }
 
-    result.sort(
-      _compareOccurrences,
-    );
+    result.sort(_compareOccurrences);
 
     return result;
   }
 
-  List<TaskOccurrence>
-      _buildScheduleOverview(
+  List<TaskOccurrence> _buildScheduleOverview(
     _TaskDataSnapshot snapshot,
     DateTime now,
   ) {
-    final result =
-        <TaskOccurrence>[];
+    final result = <TaskOccurrence>[];
 
     for (final task in snapshot.tasks) {
-      final startDate =
-          task.scheduledDate;
+      final startDate = task.scheduledDate;
 
       if (startDate == null) {
         continue;
@@ -1212,33 +769,22 @@ class TaskRepository {
             task: task,
             date: startDate,
             seriesDate: startDate,
-            isCompleted:
-                task.isCompleted,
-            subtasks:
-                task.subtasks,
+            isCompleted: task.isCompleted,
+            subtasks: task.subtasks,
           ),
         );
 
         continue;
       }
 
-      final next =
-          _nextRelevantOccurrence(
-        task,
-        snapshot,
-        now,
-      );
+      final next = _nextRelevantOccurrence(task, snapshot, now);
 
       if (next != null) {
-        result.add(
-          next,
-        );
+        result.add(next);
       }
     }
 
-    result.sort(
-      _compareOccurrences,
-    );
+    result.sort(_compareOccurrences);
 
     return result;
   }
@@ -1248,28 +794,16 @@ class TaskRepository {
     DateTime seriesDate,
     _TaskDataSnapshot snapshot,
   ) {
-    final normalized =
-        _dateOnly(seriesDate);
+    final normalized = _dateOnly(seriesDate);
 
     return TaskOccurrence(
       task: task,
       date: normalized,
       seriesDate: normalized,
-      isCompleted:
-          snapshot
-              .completedOccurrenceKeys
-              .contains(
-        _stateKey(
-          task.id,
-          normalized,
-        ),
+      isCompleted: snapshot.completedOccurrenceKeys.contains(
+        _stateKey(task.id, normalized),
       ),
-      subtasks:
-          _effectiveSubtasksForOccurrence(
-        task,
-        normalized,
-        snapshot,
-      ),
+      subtasks: _effectiveSubtasksForOccurrence(task, normalized, snapshot),
     );
   }
 
@@ -1278,72 +812,40 @@ class TaskRepository {
     TaskOccurrenceOverrideRow override,
     _TaskDataSnapshot snapshot,
   ) {
-    final seriesDate =
-        _dateOnly(
-      override.occurrenceDate,
-    );
+    final seriesDate = _dateOnly(override.occurrenceDate);
 
-    final effectiveDate =
-        _dateOnly(
-      override.effectiveDate,
-    );
+    final effectiveDate = _dateOnly(override.effectiveDate);
 
-    final subtasks =
-        _effectiveSubtasksForOccurrence(
+    final subtasks = _effectiveSubtasksForOccurrence(
       task,
       seriesDate,
       snapshot,
     );
 
-    final effectiveTask =
-        LifeTask(
-      id:
-          task.id,
-      title:
-          override.title,
-      description:
-          override.description,
-      scheduledDate:
-          effectiveDate,
-      startTimeMinutes:
-          override.allDay
-              ? null
-              : override.startTimeMinutes,
-      durationMinutes:
-          override.durationMinutes,
-      categoryId:
-          override.categoryId,
-      allDay:
-          override.allDay,
-      priority:
-          TaskPriority.fromStorage(
-        override.priority,
-      ),
-      recurrence:
-          task.recurrence,
-      subtasks:
-          subtasks,
-      isCompleted:
-          false,
+    final effectiveTask = LifeTask(
+      id: task.id,
+      title: override.title,
+      description: override.description,
+      scheduledDate: effectiveDate,
+      startTimeMinutes: override.allDay ? null : override.startTimeMinutes,
+      durationMinutes: override.durationMinutes,
+      categoryId: override.categoryId,
+      allDay: override.allDay,
+      priority: TaskPriority.fromStorage(override.priority),
+      recurrence: task.recurrence,
+      subtasks: subtasks,
+      isCompleted: false,
     );
 
     return TaskOccurrence(
       task: task,
       date: effectiveDate,
       seriesDate: seriesDate,
-      isCompleted:
-          snapshot
-              .completedOccurrenceKeys
-              .contains(
-        _stateKey(
-          task.id,
-          seriesDate,
-        ),
+      isCompleted: snapshot.completedOccurrenceKeys.contains(
+        _stateKey(task.id, seriesDate),
       ),
-      subtasks:
-          subtasks,
-      effectiveTask:
-          effectiveTask,
+      subtasks: subtasks,
+      effectiveTask: effectiveTask,
     );
   }
 
@@ -1352,152 +854,87 @@ class TaskRepository {
     _TaskDataSnapshot snapshot,
     DateTime now,
   ) {
-    final startDate =
-        task.scheduledDate;
+    final startDate = task.scheduledDate;
 
-    if (startDate == null ||
-        !task.recurrence.isRecurring) {
+    if (startDate == null || !task.recurrence.isRecurring) {
       return null;
     }
 
-    final candidates =
-        <TaskOccurrence>[];
+    final candidates = <TaskOccurrence>[];
 
     final taskOverrides =
-        snapshot.overridesByTaskId[
-              task.id] ??
-            const <
-                String,
-                TaskOccurrenceOverrideRow>{};
+        snapshot.overridesByTaskId[task.id] ??
+        const <String, TaskOccurrenceOverrideRow>{};
 
     // Le eccezioni possono provenire anche da una data originaria
     // precedente e essere state spostate nel futuro.
-    for (final override
-        in taskOverrides.values) {
-      final seriesDate =
-          _dateOnly(
-        override.occurrenceDate,
-      );
+    for (final override in taskOverrides.values) {
+      final seriesDate = _dateOnly(override.occurrenceDate);
 
       if (override.isDeleted ||
-          !task.recurrence.occursOn(
-            seriesDate,
-            startDate,
-          )) {
+          !task.recurrence.occursOn(seriesDate, startDate)) {
         continue;
       }
 
-      final occurrence =
-          _buildOverrideOccurrence(
-        task,
-        override,
-        snapshot,
-      );
+      final occurrence = _buildOverrideOccurrence(task, override, snapshot);
 
-      if (!_isOccurrencePast(
-        occurrence.displayTask,
-        occurrence.date,
-        now,
-      )) {
-        candidates.add(
-          occurrence,
-        );
+      if (!_isOccurrencePast(occurrence.displayTask, occurrence.date, now)) {
+        candidates.add(occurrence);
       }
     }
 
-    final today =
-        _dateOnly(now);
+    final today = _dateOnly(now);
 
-    final lookbackDays =
-        _crossDaySpan(
-      allDay:
-          task.allDay,
-      startTimeMinutes:
-          task.startTimeMinutes,
-      durationMinutes:
-          task.durationMinutes,
+    final lookbackDays = _crossDaySpan(
+      allDay: task.allDay,
+      startTimeMinutes: task.startTimeMinutes,
+      durationMinutes: task.durationMinutes,
     );
 
-    var cursor =
-        CivilDate.addDays(
-      today,
-      -lookbackDays,
-    );
+    var cursor = CivilDate.addDays(today, -lookbackDays);
 
-    final normalizedStartDate =
-        _dateOnly(
-      startDate,
-    );
+    final normalizedStartDate = _dateOnly(startDate);
 
-    if (cursor.isBefore(
-      normalizedStartDate,
-    )) {
-      cursor =
-          normalizedStartDate;
+    if (cursor.isBefore(normalizedStartDate)) {
+      cursor = normalizedStartDate;
     }
 
     // Ogni eccezione può "occupare" una data base. Allunghiamo il
     // margine in base al numero di eccezioni per trovare comunque
     // una prossima occorrenza non esclusa.
-    final maxSteps =
-        370 +
-        taskOverrides.length * 7;
+    final maxSteps = 370 + taskOverrides.length * 7;
 
-    for (var i = 0;
-        i < maxSteps;
-        i++) {
-      if (task.recurrence.occursOn(
-        cursor,
-        startDate,
-      )) {
-        final key =
-            _stateKey(
-          task.id,
-          cursor,
-        );
+    for (var i = 0; i < maxSteps; i++) {
+      if (task.recurrence.occursOn(cursor, startDate)) {
+        final key = _stateKey(task.id, cursor);
 
-        if (!taskOverrides.containsKey(
-          key,
-        )) {
-          final occurrence =
-              _buildBaseOccurrence(
-            task,
-            cursor,
-            snapshot,
-          );
+        if (!taskOverrides.containsKey(key)) {
+          final occurrence = _buildBaseOccurrence(task, cursor, snapshot);
 
           if (!_isOccurrencePast(
             occurrence.displayTask,
             occurrence.date,
             now,
           )) {
-            candidates.add(
-              occurrence,
-            );
+            candidates.add(occurrence);
             break;
           }
         }
       }
 
-      cursor =
-          CivilDate.nextDay(
-        cursor,
-      );
+      cursor = CivilDate.nextDay(cursor);
     }
 
     if (candidates.isEmpty) {
       return null;
     }
 
-    candidates.sort(
-      _compareOccurrences,
-    );
+    candidates.sort(_compareOccurrences);
 
     return candidates.first;
   }
 
-  List<TaskSubtask>
-      _effectiveSubtasksForOccurrence(
+  List<TaskSubtask> _effectiveSubtasksForOccurrence(
     LifeTask task,
     DateTime date,
     _TaskDataSnapshot snapshot,
@@ -1507,148 +944,85 @@ class TaskRepository {
     }
 
     return [
-      for (final subtask
-          in task.subtasks)
+      for (final subtask in task.subtasks)
         subtask.copyWith(
-          isCompleted:
-              snapshot
-                  .completedSubtaskOccurrenceKeys
-                  .contains(
-            _subtaskStateKey(
-              subtask.id,
-              date,
-            ),
+          isCompleted: snapshot.completedSubtaskOccurrenceKeys.contains(
+            _subtaskStateKey(subtask.id, date),
           ),
         ),
     ];
   }
 
-  bool _isOccurrencePast(
-    LifeTask task,
-    DateTime occurrenceDate,
-    DateTime now,
-  ) {
-    final date =
-        _dateOnly(
-      occurrenceDate,
-    );
+  bool _isOccurrencePast(LifeTask task, DateTime occurrenceDate, DateTime now) {
+    final date = _dateOnly(occurrenceDate);
 
-    if (!task.allDay &&
-        task.startTimeMinutes !=
-            null) {
-      final startMoment =
-          date.add(
-        Duration(
-          minutes:
-              task.startTimeMinutes!,
-        ),
-      );
+    if (!task.allDay && task.startTimeMinutes != null) {
+      final startMoment = CivilDate.atTimeMinutes(date, task.startTimeMinutes!);
 
-      final duration =
-          task.durationMinutes;
+      final duration = task.durationMinutes;
 
-      final cutoff =
-          duration != null &&
-                  duration > 0
-              ? startMoment.add(
-                  Duration(
-                    minutes:
-                        duration,
-                  ),
-                )
-              : startMoment;
+      final cutoff = duration != null && duration > 0
+          ? startMoment.add(Duration(minutes: duration))
+          : startMoment;
 
-      return now.isAfter(
-        cutoff,
-      );
+      return now.isAfter(cutoff);
     }
 
-    final today =
-        _dateOnly(now);
+    final today = _dateOnly(now);
 
-    return date.isBefore(
-      today,
-    );
+    return date.isBefore(today);
   }
 
-  int _compareOccurrences(
-    TaskOccurrence a,
-    TaskOccurrence b,
-  ) {
-    final dateComparison =
-        a.date.compareTo(b.date);
+  int _compareOccurrences(TaskOccurrence a, TaskOccurrence b) {
+    final dateComparison = a.date.compareTo(b.date);
 
     if (dateComparison != 0) {
       return dateComparison;
     }
 
-    final aTask =
-        a.displayTask;
-    final bTask =
-        b.displayTask;
+    final aTask = a.displayTask;
+    final bTask = b.displayTask;
 
-    if (aTask.allDay !=
-        bTask.allDay) {
-      return aTask.allDay
-          ? -1
-          : 1;
+    if (aTask.allDay != bTask.allDay) {
+      return aTask.allDay ? -1 : 1;
     }
 
-    final aTime =
-        aTask.startTimeMinutes;
-    final bTime =
-        bTask.startTimeMinutes;
+    final aTime = aTask.startTimeMinutes;
+    final bTime = bTask.startTimeMinutes;
 
-    if (aTime == null &&
-        bTime != null) {
+    if (aTime == null && bTime != null) {
       return -1;
     }
 
-    if (aTime != null &&
-        bTime == null) {
+    if (aTime != null && bTime == null) {
       return 1;
     }
 
-    if (aTime != null &&
-        bTime != null) {
-      final timeComparison =
-          aTime.compareTo(bTime);
+    if (aTime != null && bTime != null) {
+      final timeComparison = aTime.compareTo(bTime);
 
       if (timeComparison != 0) {
         return timeComparison;
       }
     }
 
-    return aTask.title
-        .toLowerCase()
-        .compareTo(
-          bTask.title.toLowerCase(),
-        );
+    return aTask.title.toLowerCase().compareTo(bTask.title.toLowerCase());
   }
 
-  int _compareTasks(
-    LifeTask a,
-    LifeTask b,
-  ) {
-    final aDate =
-        a.scheduledDate;
-    final bDate =
-        b.scheduledDate;
+  int _compareTasks(LifeTask a, LifeTask b) {
+    final aDate = a.scheduledDate;
+    final bDate = b.scheduledDate;
 
-    if (aDate == null &&
-        bDate != null) {
+    if (aDate == null && bDate != null) {
       return 1;
     }
 
-    if (aDate != null &&
-        bDate == null) {
+    if (aDate != null && bDate == null) {
       return -1;
     }
 
-    if (aDate != null &&
-        bDate != null) {
-      final dateComparison =
-          aDate.compareTo(bDate);
+    if (aDate != null && bDate != null) {
+      final dateComparison = aDate.compareTo(bDate);
 
       if (dateComparison != 0) {
         return dateComparison;
@@ -1656,69 +1030,42 @@ class TaskRepository {
     }
 
     if (a.allDay != b.allDay) {
-      return a.allDay
-          ? -1
-          : 1;
+      return a.allDay ? -1 : 1;
     }
 
-    final aTime =
-        a.startTimeMinutes;
-    final bTime =
-        b.startTimeMinutes;
+    final aTime = a.startTimeMinutes;
+    final bTime = b.startTimeMinutes;
 
-    if (aTime == null &&
-        bTime != null) {
+    if (aTime == null && bTime != null) {
       return -1;
     }
 
-    if (aTime != null &&
-        bTime == null) {
+    if (aTime != null && bTime == null) {
       return 1;
     }
 
-    if (aTime != null &&
-        bTime != null) {
-      final timeComparison =
-          aTime.compareTo(bTime);
+    if (aTime != null && bTime != null) {
+      final timeComparison = aTime.compareTo(bTime);
 
       if (timeComparison != 0) {
         return timeComparison;
       }
     }
 
-    return a.title
-        .toLowerCase()
-        .compareTo(
-          b.title.toLowerCase(),
-        );
+    return a.title.toLowerCase().compareTo(b.title.toLowerCase());
   }
 
-  LifeTask _taskFromRow(
-    TaskItem row, {
-    List<TaskSubtask> subtasks =
-        const [],
-  }) {
-    final fallbackDate =
-        row.startAt == null
-            ? null
-            : DateTime(
-                row.startAt!.year,
-                row.startAt!.month,
-                row.startAt!.day,
-              );
+  LifeTask _taskFromRow(TaskItem row, {List<TaskSubtask> subtasks = const []}) {
+    final fallbackDate = row.startAt == null
+        ? null
+        : DateTime(row.startAt!.year, row.startAt!.month, row.startAt!.day);
 
-    final scheduledDate =
-        row.scheduledDate ??
-            fallbackDate;
+    final scheduledDate = row.scheduledDate ?? fallbackDate;
 
-    int? startTimeMinutes =
-        row.startTimeMinutes;
+    int? startTimeMinutes = row.startTimeMinutes;
 
-    if (startTimeMinutes == null &&
-        !row.allDay &&
-        row.startAt != null) {
-      final oldStart =
-          row.startAt!;
+    if (startTimeMinutes == null && !row.allDay && row.startAt != null) {
+      final oldStart = row.startAt!;
 
       final hasExplicitTime =
           oldStart.hour != 0 ||
@@ -1727,74 +1074,45 @@ class TaskRepository {
           row.endAt != null;
 
       if (hasExplicitTime) {
-        startTimeMinutes =
-            oldStart.hour * 60 +
-                oldStart.minute;
+        startTimeMinutes = oldStart.hour * 60 + oldStart.minute;
       }
     }
 
-    int? durationMinutes =
-        row.durationMinutes;
+    int? durationMinutes = row.durationMinutes;
 
-    if (durationMinutes == null &&
-        row.startAt != null &&
-        row.endAt != null) {
-      final difference =
-          row.endAt!.difference(
-        row.startAt!,
-      );
+    if (durationMinutes == null && row.startAt != null && row.endAt != null) {
+      final difference = row.endAt!.difference(row.startAt!);
 
       if (difference.inMinutes > 0) {
-        durationMinutes =
-            difference.inMinutes;
+        durationMinutes = difference.inMinutes;
       }
     }
 
     return LifeTask(
       id: row.id,
       title: row.title,
-      description:
-          row.description,
-      scheduledDate:
-          scheduledDate,
-      startTimeMinutes:
-          startTimeMinutes,
-      durationMinutes:
-          durationMinutes,
-      categoryId:
-          row.categoryId,
-      allDay:
-          row.allDay,
-      priority:
-          TaskPriority.fromStorage(
-        row.priority,
-      ),
-      recurrence:
-          TaskRecurrence.fromStorage(
+      description: row.description,
+      scheduledDate: scheduledDate,
+      startTimeMinutes: startTimeMinutes,
+      durationMinutes: durationMinutes,
+      categoryId: row.categoryId,
+      allDay: row.allDay,
+      priority: TaskPriority.fromStorage(row.priority),
+      recurrence: TaskRecurrence.fromStorage(
         row.recurrenceType,
         row.recurrenceWeekdays,
       ),
-      subtasks:
-          subtasks,
-      isCompleted:
-          row.isCompleted,
+      subtasks: subtasks,
+      isCompleted: row.isCompleted,
     );
   }
 
-  DateTime _dateOnly(
-    DateTime value,
-  ) {
-    return CivilDate.dateOnly(
-      value,
-    );
+  DateTime _dateOnly(DateTime value) {
+    return CivilDate.dateOnly(value);
   }
 
-  String _stateKey(
-    String taskId,
-    DateTime date,
-  ) {
-    final normalized =
-        _dateOnly(date);
+  String _stateKey(String taskId, DateTime date) {
+    final normalized = _dateOnly(date);
 
     return '$taskId@'
         '${normalized.year.toString().padLeft(4, '0')}-'
@@ -1802,12 +1120,8 @@ class TaskRepository {
         '${normalized.day.toString().padLeft(2, '0')}';
   }
 
-  String _subtaskStateKey(
-    String subtaskId,
-    DateTime date,
-  ) {
-    final normalized =
-        _dateOnly(date);
+  String _subtaskStateKey(String subtaskId, DateTime date) {
+    final normalized = _dateOnly(date);
 
     return '$subtaskId@'
         '${normalized.year.toString().padLeft(4, '0')}-'
@@ -1818,14 +1132,9 @@ class TaskRepository {
 
 class _TaskDataSnapshot {
   final List<LifeTask> tasks;
-  final Set<String>
-      completedOccurrenceKeys;
-  final Set<String>
-      completedSubtaskOccurrenceKeys;
-  final Map<
-      String,
-      Map<String, TaskOccurrenceOverrideRow>>
-      overridesByTaskId;
+  final Set<String> completedOccurrenceKeys;
+  final Set<String> completedSubtaskOccurrenceKeys;
+  final Map<String, Map<String, TaskOccurrenceOverrideRow>> overridesByTaskId;
 
   const _TaskDataSnapshot({
     required this.tasks,

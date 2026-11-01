@@ -1,3 +1,5 @@
+import '../core/time/civil_date.dart';
+
 import 'task_recurrence.dart';
 import 'task_subtask.dart';
 
@@ -8,13 +10,9 @@ enum TaskPriority {
 
   final int storageValue;
 
-  const TaskPriority(
-    this.storageValue,
-  );
+  const TaskPriority(this.storageValue);
 
-  static TaskPriority fromStorage(
-    int value,
-  ) {
+  static TaskPriority fromStorage(int value) {
     switch (value) {
       case 0:
         return TaskPriority.low;
@@ -84,16 +82,14 @@ class LifeTask {
     this.recurrence = const TaskRecurrence.none(),
     List<TaskSubtask> subtasks = const [],
     this.isCompleted = false,
-  })  : scheduledDate = scheduledDate == null
-            ? null
-            : DateTime(
-                scheduledDate.year,
-                scheduledDate.month,
-                scheduledDate.day,
-              ),
-        subtasks = List.unmodifiable(
-          subtasks,
-        );
+  }) : scheduledDate = scheduledDate == null
+           ? null
+           : DateTime(
+               scheduledDate.year,
+               scheduledDate.month,
+               scheduledDate.day,
+             ),
+       subtasks = List.unmodifiable(subtasks);
 
   LifeTask copyWith({
     String? id,
@@ -113,81 +109,37 @@ class LifeTask {
     List<TaskSubtask>? subtasks,
     bool? isCompleted,
   }) {
-    assert(
-      !clearScheduledDate ||
-          scheduledDate == null,
-    );
-    assert(
-      !clearStartTimeMinutes ||
-          startTimeMinutes == null,
-    );
-    assert(
-      !clearDurationMinutes ||
-          durationMinutes == null,
-    );
-    assert(
-      !clearCategoryId ||
-          categoryId == null,
-    );
+    assert(!clearScheduledDate || scheduledDate == null);
+    assert(!clearStartTimeMinutes || startTimeMinutes == null);
+    assert(!clearDurationMinutes || durationMinutes == null);
+    assert(!clearCategoryId || categoryId == null);
 
     return LifeTask(
-      id:
-          id ??
-          this.id,
-      title:
-          title ??
-          this.title,
-      description:
-          description ??
-          this.description,
-      scheduledDate:
-          clearScheduledDate
-              ? null
-              : scheduledDate ??
-                  this.scheduledDate,
-      startTimeMinutes:
-          clearStartTimeMinutes
-              ? null
-              : startTimeMinutes ??
-                  this.startTimeMinutes,
-      durationMinutes:
-          clearDurationMinutes
-              ? null
-              : durationMinutes ??
-                  this.durationMinutes,
-      categoryId:
-          clearCategoryId
-              ? null
-              : categoryId ??
-                  this.categoryId,
-      allDay:
-          allDay ??
-          this.allDay,
-      priority:
-          priority ??
-          this.priority,
-      recurrence:
-          recurrence ??
-          this.recurrence,
-      subtasks:
-          subtasks ??
-          this.subtasks,
-      isCompleted:
-          isCompleted ??
-          this.isCompleted,
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      scheduledDate: clearScheduledDate
+          ? null
+          : scheduledDate ?? this.scheduledDate,
+      startTimeMinutes: clearStartTimeMinutes
+          ? null
+          : startTimeMinutes ?? this.startTimeMinutes,
+      durationMinutes: clearDurationMinutes
+          ? null
+          : durationMinutes ?? this.durationMinutes,
+      categoryId: clearCategoryId ? null : categoryId ?? this.categoryId,
+      allDay: allDay ?? this.allDay,
+      priority: priority ?? this.priority,
+      recurrence: recurrence ?? this.recurrence,
+      subtasks: subtasks ?? this.subtasks,
+      isCompleted: isCompleted ?? this.isCompleted,
     );
   }
 
-  int get subtaskCount =>
-      subtasks.length;
+  int get subtaskCount => subtasks.length;
 
   int get completedSubtaskCount =>
-      subtasks
-          .where(
-            (subtask) =>
-                subtask.isCompleted,
-          )
-          .length;
+      subtasks.where((subtask) => subtask.isCompleted).length;
 
   DateTime? get startAt {
     final date = scheduledDate;
@@ -196,19 +148,11 @@ class LifeTask {
       return null;
     }
 
-    final normalizedDate = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
-
     if (allDay || startTimeMinutes == null) {
-      return normalizedDate;
+      return CivilDate.dateOnly(date);
     }
 
-    return normalizedDate.add(
-      Duration(minutes: startTimeMinutes!),
-    );
+    return CivilDate.atTimeMinutes(date, startTimeMinutes!);
   }
 
   DateTime? get endAt {
@@ -219,17 +163,9 @@ class LifeTask {
       return null;
     }
 
-    final date = DateTime(
-      scheduledDate!.year,
-      scheduledDate!.month,
-      scheduledDate!.day,
-    );
-
-    return date.add(
-      Duration(
-        minutes:
-            startTimeMinutes! + durationMinutes!,
-      ),
-    );
+    // L'inizio e un'ora di parete locale; la durata e tempo trascorso.
+    // Passare da mezzanotte direttamente alla somma dei minuti
+    // introdurrebbe uno slittamento nei giorni di cambio dell'ora.
+    return startAt!.add(Duration(minutes: durationMinutes!));
   }
 }

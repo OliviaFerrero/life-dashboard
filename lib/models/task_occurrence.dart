@@ -35,23 +35,13 @@ class TaskOccurrence {
     required this.isCompleted,
     List<TaskSubtask> subtasks = const [],
     this.effectiveTask,
-  })  : date = CivilDate.dateOnly(
-          date,
-        ),
-        seriesDate = CivilDate.dateOnly(
-          seriesDate ??
-              date,
-        ),
-        subtasks = List.unmodifiable(
-          subtasks,
-        );
+  }) : date = CivilDate.dateOnly(date),
+       seriesDate = CivilDate.dateOnly(seriesDate ?? date),
+       subtasks = List.unmodifiable(subtasks);
 
-  bool get isRecurring =>
-      task.recurrence.isRecurring;
+  bool get isRecurring => task.recurrence.isRecurring;
 
-  bool get hasOverride =>
-      effectiveTask != null ||
-      seriesDate != date;
+  bool get hasOverride => effectiveTask != null || seriesDate != date;
 
   String get occurrenceKey =>
       '${task.id}@'
@@ -59,16 +49,10 @@ class TaskOccurrence {
       '${seriesDate.month.toString().padLeft(2, '0')}-'
       '${seriesDate.day.toString().padLeft(2, '0')}';
 
-  int get subtaskCount =>
-      subtasks.length;
+  int get subtaskCount => subtasks.length;
 
   int get completedSubtaskCount =>
-      subtasks
-          .where(
-            (subtask) =>
-                subtask.isCompleted,
-          )
-          .length;
+      subtasks.where((subtask) => subtask.isCompleted).length;
 
   /// Inizio reale della parte temporizzata dell'occorrenza.
   ///
@@ -76,47 +60,27 @@ class TaskOccurrence {
   /// questo rende la timeline compatibile anche con una futura
   /// "giornata personale" 06:00 -> 03:00 del giorno successivo.
   DateTime? get timedStart {
-    final task =
-        displayTask;
+    final task = displayTask;
 
-    if (task.allDay ||
-        task.startTimeMinutes == null) {
+    if (task.allDay || task.startTimeMinutes == null) {
       return null;
     }
 
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-    ).add(
-      Duration(
-        minutes:
-            task.startTimeMinutes!,
-      ),
-    );
+    return CivilDate.atTimeMinutes(date, task.startTimeMinutes!);
   }
 
   /// Fine reale della task temporizzata.
   ///
   /// Può cadere uno o più giorni dopo [date].
   DateTime? get timedEnd {
-    final start =
-        timedStart;
-    final duration =
-        displayTask.durationMinutes;
+    final start = timedStart;
+    final duration = displayTask.durationMinutes;
 
-    if (start == null ||
-        duration == null ||
-        duration <= 0) {
+    if (start == null || duration == null || duration <= 0) {
       return null;
     }
 
-    return start.add(
-      Duration(
-        minutes:
-            duration,
-      ),
-    );
+    return start.add(Duration(minutes: duration));
   }
 
   /// True se questa occorrenza deve essere considerata visibile
@@ -130,132 +94,75 @@ class TaskOccurrence {
     DateTime windowEnd, {
     DateTime? untimedAnchorDate,
   }) {
-    if (!windowEnd.isAfter(
-      windowStart,
-    )) {
+    if (!windowEnd.isAfter(windowStart)) {
       return false;
     }
 
-    final effective =
-        displayTask;
+    final effective = displayTask;
 
-    if (effective.allDay ||
-        effective.startTimeMinutes == null) {
-      final dayStart =
-          DateTime(
-        date.year,
-        date.month,
-        date.day,
-      );
+    if (effective.allDay || effective.startTimeMinutes == null) {
+      final dayStart = DateTime(date.year, date.month, date.day);
 
       if (untimedAnchorDate != null) {
-        return dayStart.year ==
-                untimedAnchorDate.year &&
-            dayStart.month ==
-                untimedAnchorDate.month &&
-            dayStart.day ==
-                untimedAnchorDate.day;
+        return dayStart.year == untimedAnchorDate.year &&
+            dayStart.month == untimedAnchorDate.month &&
+            dayStart.day == untimedAnchorDate.day;
       }
 
-      final dayEnd =
-          CivilDate.nextDay(
-        dayStart,
-      );
+      final dayEnd = CivilDate.nextDay(dayStart);
 
-      return dayStart.isBefore(
-            windowEnd,
-          ) &&
-          dayEnd.isAfter(
-            windowStart,
-          );
+      return dayStart.isBefore(windowEnd) && dayEnd.isAfter(windowStart);
     }
 
-    final start =
-        timedStart!;
+    final start = timedStart!;
 
-    final end =
-        timedEnd;
+    final end = timedEnd;
 
     if (end == null) {
-      return !start.isBefore(
-            windowStart,
-          ) &&
-          start.isBefore(
-            windowEnd,
-          );
+      return !start.isBefore(windowStart) && start.isBefore(windowEnd);
     }
 
-    return start.isBefore(
-          windowEnd,
-        ) &&
-        end.isAfter(
-          windowStart,
-        );
+    return start.isBefore(windowEnd) && end.isAfter(windowStart);
   }
 
-  DateTime? visibleStartInWindow(
-    DateTime windowStart,
-    DateTime windowEnd,
-  ) {
-    if (!overlapsWindow(
-      windowStart,
-      windowEnd,
-    )) {
+  DateTime? visibleStartInWindow(DateTime windowStart, DateTime windowEnd) {
+    if (!overlapsWindow(windowStart, windowEnd)) {
       return null;
     }
 
-    final start =
-        timedStart;
+    final start = timedStart;
 
     if (start == null) {
       return null;
     }
 
-    return start.isBefore(
-      windowStart,
-    )
-        ? windowStart
-        : start;
+    return start.isBefore(windowStart) ? windowStart : start;
   }
 
-  DateTime? visibleEndInWindow(
-    DateTime windowStart,
-    DateTime windowEnd,
-  ) {
-    if (!overlapsWindow(
-      windowStart,
-      windowEnd,
-    )) {
+  DateTime? visibleEndInWindow(DateTime windowStart, DateTime windowEnd) {
+    if (!overlapsWindow(windowStart, windowEnd)) {
       return null;
     }
 
-    final end =
-        timedEnd;
+    final end = timedEnd;
 
     if (end == null) {
       return null;
     }
 
-    return end.isAfter(
-      windowEnd,
-    )
-        ? windowEnd
-        : end;
+    return end.isAfter(windowEnd) ? windowEnd : end;
   }
 
   LifeTask get displayTask {
-    final source =
-        effectiveTask ?? task;
+    final source = effectiveTask ?? task;
 
     return LifeTask(
       id: task.id,
       title: source.title,
       description: source.description,
       scheduledDate: date,
-      startTimeMinutes:
-          source.startTimeMinutes,
-      durationMinutes:
-          source.durationMinutes,
+      startTimeMinutes: source.startTimeMinutes,
+      durationMinutes: source.durationMinutes,
       categoryId: source.categoryId,
       allDay: source.allDay,
       priority: source.priority,
@@ -277,17 +184,12 @@ class TaskOccurrence {
     return TaskOccurrence(
       task: task ?? this.task,
       date: date ?? this.date,
-      seriesDate:
-          seriesDate ?? this.seriesDate,
-      isCompleted:
-          isCompleted ?? this.isCompleted,
-      subtasks:
-          subtasks ?? this.subtasks,
-      effectiveTask:
-          clearEffectiveTask
-              ? null
-              : effectiveTask ??
-                  this.effectiveTask,
+      seriesDate: seriesDate ?? this.seriesDate,
+      isCompleted: isCompleted ?? this.isCompleted,
+      subtasks: subtasks ?? this.subtasks,
+      effectiveTask: clearEffectiveTask
+          ? null
+          : effectiveTask ?? this.effectiveTask,
     );
   }
 }

@@ -16,10 +16,7 @@ import 'task_editor_mode.dart';
 import 'task_form_page.dart';
 import 'task_quick_actions.dart';
 
-enum _TaskListMode {
-  scheduled,
-  inbox,
-}
+enum _TaskListMode { scheduled, inbox }
 
 class TasksPage extends StatefulWidget {
   final TaskRepository taskRepository;
@@ -34,16 +31,11 @@ class TasksPage extends StatefulWidget {
   });
 
   @override
-  State<TasksPage> createState() =>
-      _TasksPageState();
+  State<TasksPage> createState() => _TasksPageState();
 }
 
-class _TasksPageState
-    extends State<TasksPage> {
-  TaskActions get _taskActions =>
-      TaskActions(
-        widget.taskRepository,
-      );
+class _TasksPageState extends State<TasksPage> {
+  TaskActions get _taskActions => TaskActions(widget.taskRepository);
 
   late _TaskListMode _mode;
   bool _pastExpanded = false;
@@ -52,292 +44,175 @@ class _TasksPageState
   void initState() {
     super.initState();
 
-    _mode = widget.openInbox
-        ? _TaskListMode.inbox
-        : _TaskListMode.scheduled;
+    _mode = widget.openInbox ? _TaskListMode.inbox : _TaskListMode.scheduled;
   }
 
   Future<void> _addTask() async {
-    final result =
-        await Navigator.push<
-            TaskFormResult>(
+    final result = await Navigator.push<TaskFormResult>(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            TaskFormPage(
-          categoryRepository:
-              widget.categoryRepository,
-          mode:
-              TaskEditorMode.create,
+        builder: (_) => TaskFormPage(
+          categoryRepository: widget.categoryRepository,
+          mode: TaskEditorMode.create,
         ),
       ),
     );
 
-    if (result == null ||
-        result.shouldDelete ||
-        result.task == null) {
+    if (result == null || result.shouldDelete || result.task == null) {
       return;
     }
 
-    await widget.taskRepository
-        .addTask(
-      result.task!,
-    );
+    await widget.taskRepository.addTask(result.task!);
   }
 
-  void _openTaskDetail(
-    LifeTask task, {
-    TaskOccurrence? occurrence,
-  }) {
+  void _openTaskDetail(LifeTask task, {TaskOccurrence? occurrence}) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            TaskDetailPage(
-          task:
-              task,
-          occurrence:
-              occurrence,
-          taskRepository:
-              widget.taskRepository,
-          categoryRepository:
-              widget.categoryRepository,
+        builder: (_) => TaskDetailPage(
+          task: task,
+          occurrence: occurrence,
+          taskRepository: widget.taskRepository,
+          categoryRepository: widget.categoryRepository,
         ),
       ),
     );
   }
 
-  DateTime _dateOnly(
-    DateTime date,
-  ) {
-    return CivilDate.dateOnly(
-      date,
-    );
+  DateTime _dateOnly(DateTime date) {
+    return CivilDate.dateOnly(date);
   }
 
-  bool _sameDay(
-    DateTime first,
-    DateTime second,
-  ) {
-    return CivilDate.sameDay(
-      first,
-      second,
-    );
+  bool _sameDay(DateTime first, DateTime second) {
+    return CivilDate.sameDay(first, second);
   }
 
-  bool _isPastTask(
-    LifeTask task,
-    DateTime now,
-  ) {
-    final scheduledDate =
-        task.scheduledDate;
-
-    if (scheduledDate == null) {
-      return false;
+  bool _isPastTask(TaskOccurrence occurrence, DateTime now) {
+    // Un'occorrenza ricorrente usa la propria data effettiva,
+    // non la data di inizio della serie.
+    final start = occurrence.timedStart;
+    if (start != null) {
+      // Le durate sono minuti realmente trascorsi: l'ora legale
+      // e il passaggio alla mezzanotte sono gestiti dai modelli.
+      final cutoff = occurrence.timedEnd ?? start;
+      return now.isAfter(cutoff);
     }
 
-    final date =
-        _dateOnly(
-      scheduledDate,
-    );
-
-    if (!task.allDay &&
-        task.startTimeMinutes !=
-            null) {
-      final startMoment =
-          date.add(
-        Duration(
-          minutes:
-              task.startTimeMinutes!,
-        ),
-      );
-
-      final duration =
-          task.durationMinutes;
-
-      final cutoff =
-          duration != null &&
-                  duration > 0
-              ? startMoment.add(
-                  Duration(
-                    minutes:
-                        duration,
-                  ),
-                )
-              : startMoment;
-
-      return now.isAfter(
-        cutoff,
-      );
-    }
-
-    final today =
-        _dateOnly(now);
-
-    return date.isBefore(
-      today,
-    );
+    // Per le task senza orario si applica il giorno civile.
+    return occurrence.date.isBefore(CivilDate.dateOnly(now));
   }
 
-  int _comparePastNewestFirst(
-    TaskOccurrence a,
-    TaskOccurrence b,
-  ) {
-    final dateComparison =
-        b.date.compareTo(a.date);
+  int _comparePastNewestFirst(TaskOccurrence a, TaskOccurrence b) {
+    final dateComparison = b.date.compareTo(a.date);
 
     if (dateComparison != 0) {
       return dateComparison;
     }
 
-    final aTime =
-        a.displayTask.startTimeMinutes ??
-            -1;
-    final bTime =
-        b.displayTask.startTimeMinutes ??
-            -1;
+    final aTime = a.displayTask.startTimeMinutes ?? -1;
+    final bTime = b.displayTask.startTimeMinutes ?? -1;
 
-    return bTime.compareTo(
-      aTime,
-    );
+    return bTime.compareTo(aTime);
   }
 
-  String _twoDigits(
-    int value,
-  ) {
-    return value
-        .toString()
-        .padLeft(2, '0');
+  String _twoDigits(int value) {
+    return value.toString().padLeft(2, '0');
   }
 
-  String _formatClockMinutes(
-    int minutes,
-  ) {
-    final normalized =
-        minutes % (24 * 60);
+  String _formatClockMinutes(int minutes) {
+    final normalized = minutes % (24 * 60);
 
     return '${_twoDigits(normalized ~/ 60)}:'
         '${_twoDigits(normalized % 60)}';
   }
 
-  String _durationLabel(
-    int minutes,
-  ) {
-    final hours =
-        minutes ~/ 60;
-    final remaining =
-        minutes % 60;
+  String _durationLabel(int minutes) {
+    final hours = minutes ~/ 60;
+    final remaining = minutes % 60;
 
     if (hours == 0) {
       return '$remaining min';
     }
 
     if (remaining == 0) {
-      return hours == 1
-          ? '1 ora'
-          : '$hours ore';
+      return hours == 1 ? '1 ora' : '$hours ore';
     }
 
     return '$hours h $remaining min';
   }
 
-  String _timeLabel(
-    LifeTask task,
-  ) {
+  String _timeLabel(LifeTask task) {
     if (task.allDay) {
       return 'Tutto\nil giorno';
     }
 
-    final start =
-        task.startTimeMinutes;
+    final start = task.startTimeMinutes;
 
     if (start == null) {
       return '';
     }
 
-    return _formatClockMinutes(
-      start,
-    );
+    return _formatClockMinutes(start);
   }
 
-  String _secondaryLabel(
-    LifeTask task,
-  ) {
+  String _secondaryLabel(LifeTask task, {TaskOccurrence? occurrence}) {
     final parts = <String>[];
+    final start = task.startTimeMinutes;
+    final duration = task.durationMinutes;
 
-    final start =
-        task.startTimeMinutes;
-    final duration =
-        task.durationMinutes;
+    if (!task.allDay && start != null && duration != null) {
+      final realStart = occurrence?.timedStart ?? task.startAt;
+      final realEnd = occurrence?.timedEnd ?? task.endAt;
 
-    if (!task.allDay &&
-        start != null &&
-        duration != null) {
-      final end =
-          start + duration;
-
-      var endLabel =
-          _formatClockMinutes(end);
-
-      final extraDays =
-          end ~/ (24 * 60);
-
-      if (extraDays > 0) {
-        endLabel +=
-            extraDays == 1
-                ? ' (+1 g)'
-                : ' (+$extraDays g)';
+      // Quando esiste una data reale, l'ora finale deve rispecchiare
+      // la durata trascorsa, anche nella notte del cambio dell'ora.
+      if (realStart != null && realEnd != null) {
+        final extraDays = CivilDate.differenceInDays(realStart, realEnd);
+        var endLabel = _formatClockMinutes(realEnd.hour * 60 + realEnd.minute);
+        if (extraDays > 0) {
+          endLabel += extraDays == 1 ? ' (+1 g)' : ' (+$extraDays g)';
+        }
+        parts.add('fino alle $endLabel');
+      } else {
+        // In Inbox non c'è una data: conserviamo l'etichetta
+        // puramente nominale, senza supporre un giorno con DST.
+        final total = start + duration;
+        var endLabel = _formatClockMinutes(total);
+        final extraDays = total ~/ (24 * 60);
+        if (extraDays > 0) {
+          endLabel += extraDays == 1 ? ' (+1 g)' : ' (+$extraDays g)';
+        }
+        parts.add('fino alle $endLabel');
       }
-
-      parts.add(
-        'fino alle $endLabel',
-      );
     }
 
     if (duration != null) {
-      parts.add(
-        _durationLabel(duration),
-      );
+      parts.add(_durationLabel(duration));
     }
 
     return parts.join(' · ');
   }
 
-  String _groupLabel(
-    DateTime date,
-    DateTime now,
-  ) {
-    final today =
-        _dateOnly(now);
+  String _secondaryLabelForOccurrence(TaskOccurrence occurrence) {
+    return _secondaryLabel(occurrence.displayTask, occurrence: occurrence);
+  }
 
-    final tomorrow =
-        CivilDate.nextDay(
-      today,
-    );
+  String _groupLabel(DateTime date, DateTime now) {
+    final today = _dateOnly(now);
 
-    final yesterday =
-        CivilDate.previousDay(
-      today,
-    );
+    final tomorrow = CivilDate.nextDay(today);
 
-    if (_sameDay(
-      date,
-      today,
-    )) {
+    final yesterday = CivilDate.previousDay(today);
+
+    if (_sameDay(date, today)) {
       return 'Oggi';
     }
 
-    if (_sameDay(
-      date,
-      tomorrow,
-    )) {
+    if (_sameDay(date, tomorrow)) {
       return 'Domani';
     }
 
-    if (_sameDay(
-      date,
-      yesterday,
-    )) {
+    if (_sameDay(date, yesterday)) {
       return 'Ieri';
     }
 
@@ -371,42 +246,28 @@ class _TasksPageState
         '${months[date.month - 1]}';
   }
 
-  String _groupKey(
-    TaskOccurrence occurrence,
-  ) {
-    final date =
-        occurrence.date;
+  String _groupKey(TaskOccurrence occurrence) {
+    final date = occurrence.date;
 
     return '${date.year}-'
         '${_twoDigits(date.month)}-'
         '${_twoDigits(date.day)}';
   }
 
-  Color _priorityColor(
-    BuildContext context,
-    TaskPriority priority,
-  ) {
+  Color _priorityColor(BuildContext context, TaskPriority priority) {
     switch (priority) {
       case TaskPriority.low:
-        return const Color(
-          0xFF5F8F73,
-        );
+        return const Color(0xFF5F8F73);
 
       case TaskPriority.normal:
-        return Theme.of(context)
-            .colorScheme
-            .primary;
+        return Theme.of(context).colorScheme.primary;
 
       case TaskPriority.high:
-        return const Color(
-          0xFFC65B61,
-        );
+        return const Color(0xFFC65B61);
     }
   }
 
-  String _priorityLabel(
-    TaskPriority priority,
-  ) {
+  String _priorityLabel(TaskPriority priority) {
     switch (priority) {
       case TaskPriority.low:
         return 'Bassa';
@@ -417,9 +278,7 @@ class _TasksPageState
     }
   }
 
-  String? _recurrenceLabel(
-    TaskRecurrence recurrence,
-  ) {
+  String? _recurrenceLabel(TaskRecurrence recurrence) {
     switch (recurrence.type) {
       case TaskRecurrenceType.none:
         return null;
@@ -428,8 +287,7 @@ class _TasksPageState
         return 'Ogni giorno';
 
       case TaskRecurrenceType.weekly:
-        final days =
-            recurrence.weekdays;
+        final days = recurrence.weekdays;
 
         if (days.isEmpty) {
           return 'Ogni settimana';
@@ -437,20 +295,13 @@ class _TasksPageState
 
         if (days.length == 1) {
           const names = {
-            DateTime.monday:
-                'lunedì',
-            DateTime.tuesday:
-                'martedì',
-            DateTime.wednesday:
-                'mercoledì',
-            DateTime.thursday:
-                'giovedì',
-            DateTime.friday:
-                'venerdì',
-            DateTime.saturday:
-                'sabato',
-            DateTime.sunday:
-                'domenica',
+            DateTime.monday: 'lunedì',
+            DateTime.tuesday: 'martedì',
+            DateTime.wednesday: 'mercoledì',
+            DateTime.thursday: 'giovedì',
+            DateTime.friday: 'venerdì',
+            DateTime.saturday: 'sabato',
+            DateTime.sunday: 'domenica',
           };
 
           return 'Ogni '
@@ -458,551 +309,291 @@ class _TasksPageState
         }
 
         const short = {
-          DateTime.monday:
-              'Lun',
-          DateTime.tuesday:
-              'Mar',
-          DateTime.wednesday:
-              'Mer',
-          DateTime.thursday:
-              'Gio',
-          DateTime.friday:
-              'Ven',
-          DateTime.saturday:
-              'Sab',
-          DateTime.sunday:
-              'Dom',
+          DateTime.monday: 'Lun',
+          DateTime.tuesday: 'Mar',
+          DateTime.wednesday: 'Mer',
+          DateTime.thursday: 'Gio',
+          DateTime.friday: 'Ven',
+          DateTime.saturday: 'Sab',
+          DateTime.sunday: 'Dom',
         };
 
-        return days
-            .map(
-              (day) =>
-                  short[day]!,
-            )
-            .join(' · ');
+        return days.map((day) => short[day]!).join(' · ');
     }
   }
 
-  Map<String, List<TaskOccurrence>>
-      _groupScheduledOccurrences(
+  Map<String, List<TaskOccurrence>> _groupScheduledOccurrences(
     List<TaskOccurrence> occurrences,
   ) {
-    final groups =
-        <String,
-            List<TaskOccurrence>>{};
+    final groups = <String, List<TaskOccurrence>>{};
 
-    for (final occurrence
-        in occurrences) {
-      final key =
-          _groupKey(
-        occurrence,
-      );
+    for (final occurrence in occurrences) {
+      final key = _groupKey(occurrence);
 
-      groups
-          .putIfAbsent(
-            key,
-            () => [],
-          )
-          .add(
-            occurrence,
-          );
+      groups.putIfAbsent(key, () => []).add(occurrence);
     }
 
     return groups;
   }
 
-
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final now =
-        AppClockScope.watch(
-      context,
-    ).now;
+  Widget build(BuildContext context) {
+    final now = AppClockScope.watch(context).now;
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text(
-          'Attività',
-        ),
+        title: const Text('Attività'),
         actions: [
           IconButton(
-            tooltip:
-                'Nuova attività',
-            onPressed:
-                _addTask,
-            icon:
-                const Icon(
-              Icons.add,
-            ),
+            tooltip: 'Nuova attività',
+            onPressed: _addTask,
+            icon: const Icon(Icons.add),
           ),
-          const SizedBox(
-            width: 8,
-          ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: StreamBuilder<
-          List<LifeTask>>(
-        stream: widget
-            .taskRepository
-            .watchAllTasks(),
-        builder:
-            (context, taskSnapshot) {
+      body: StreamBuilder<List<LifeTask>>(
+        stream: widget.taskRepository.watchAllTasks(),
+        builder: (context, taskSnapshot) {
           if (taskSnapshot.hasError) {
             return Center(
               child: Text(
                 'Errore nel caricamento '
                 'delle attività:\n'
                 '${taskSnapshot.error}',
-                textAlign:
-                    TextAlign.center,
+                textAlign: TextAlign.center,
               ),
             );
           }
 
           if (!taskSnapshot.hasData) {
-            return const Center(
-              child:
-                  CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
-          final allTasks =
-              taskSnapshot.data!;
+          final allTasks = taskSnapshot.data!;
 
-          final inboxTasks =
-              allTasks
-                  .where(
-                    (task) =>
-                        task.scheduledDate ==
-                        null,
-                  )
-                  .toList();
+          final inboxTasks = allTasks
+              .where((task) => task.scheduledDate == null)
+              .toList();
 
-          return StreamBuilder<
-              List<TaskOccurrence>>(
-            stream:
-                widget.taskRepository
-                    .watchScheduleOverview(
-              now,
-            ),
-            builder:
-                (context,
-                    occurrenceSnapshot) {
-              if (occurrenceSnapshot
-                  .hasError) {
+          return StreamBuilder<List<TaskOccurrence>>(
+            stream: widget.taskRepository.watchScheduleOverview(now),
+            builder: (context, occurrenceSnapshot) {
+              if (occurrenceSnapshot.hasError) {
                 return Center(
                   child: Text(
                     'Errore nel caricamento '
                     'delle attività:\n'
                     '${occurrenceSnapshot.error}',
-                    textAlign:
-                        TextAlign.center,
+                    textAlign: TextAlign.center,
                   ),
                 );
               }
 
-              if (!occurrenceSnapshot
-                  .hasData) {
-                return const Center(
-                  child:
-                      CircularProgressIndicator(),
-                );
+              if (!occurrenceSnapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
               }
 
-              final scheduledOccurrences =
-                  occurrenceSnapshot.data!;
+              final scheduledOccurrences = occurrenceSnapshot.data!;
 
-              final currentOccurrences =
-                  scheduledOccurrences
-                      .where(
-                        (occurrence) =>
-                            !_isPastTask(
-                          occurrence
-                              .displayTask,
-                          now,
-                        ),
-                      )
-                      .toList();
+              final currentOccurrences = scheduledOccurrences
+                  .where((occurrence) => !_isPastTask(occurrence, now))
+                  .toList();
 
               final pastOccurrences =
                   scheduledOccurrences
-                      .where(
-                        (occurrence) =>
-                            _isPastTask(
-                          occurrence
-                              .displayTask,
-                          now,
-                        ),
-                      )
+                      .where((occurrence) => _isPastTask(occurrence, now))
                       .toList()
-                    ..sort(
-                      _comparePastNewestFirst,
-                    );
+                    ..sort(_comparePastNewestFirst);
 
-              return StreamBuilder<
-                  Map<String,
-                      TaskCategory>>(
-                stream:
-                    widget.categoryRepository
-                        .watchCategoryMap(),
-                initialData:
-                    const {},
-                builder:
-                    (context,
-                        categorySnapshot) {
+              return StreamBuilder<Map<String, TaskCategory>>(
+                stream: widget.categoryRepository.watchCategoryMap(),
+                initialData: const {},
+                builder: (context, categorySnapshot) {
                   final categoryMap =
-                      categorySnapshot.data ??
-                          const <
-                              String,
-                              TaskCategory>{};
+                      categorySnapshot.data ?? const <String, TaskCategory>{};
 
                   return ListView(
-                    padding:
-                        const EdgeInsets
-                            .fromLTRB(
-                      20,
-                      4,
-                      20,
-                      44,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 44),
                     children: [
                       _TaskModeSwitch(
-                        selected:
-                            _mode,
-                        scheduledCount:
-                            scheduledOccurrences
-                                .length,
-                        inboxCount:
-                            inboxTasks
-                                .length,
-                        onChanged:
-                            (mode) {
+                        selected: _mode,
+                        scheduledCount: scheduledOccurrences.length,
+                        inboxCount: inboxTasks.length,
+                        onChanged: (mode) {
                           setState(() {
-                            _mode =
-                                mode;
+                            _mode = mode;
                           });
                         },
                       ),
 
-                      const SizedBox(
-                        height: 30,
-                      ),
+                      const SizedBox(height: 30),
 
-                      if (_mode ==
-                          _TaskListMode
-                              .inbox)
-                        if (inboxTasks
-                            .isEmpty)
-                          _EmptyTaskList(
-                            isInbox:
-                                true,
-                            onAdd:
-                                _addTask,
-                          )
+                      if (_mode == _TaskListMode.inbox)
+                        if (inboxTasks.isEmpty)
+                          _EmptyTaskList(isInbox: true, onAdd: _addTask)
                         else
                           _InboxSection(
-                            tasks:
-                                inboxTasks,
-                            timeLabelBuilder:
-                                _timeLabel,
-                            secondaryLabelBuilder:
-                                _secondaryLabel,
-                            categoryBuilder:
-                                (task) =>
-                                    task.categoryId ==
-                                            null
-                                        ? null
-                                        : categoryMap[
-                                            task.categoryId],
-                            priorityColorBuilder:
-                                (task) =>
-                                    _priorityColor(
-                              context,
-                              task.priority,
-                            ),
-                            priorityLabelBuilder:
-                                (task) =>
-                                    _priorityLabel(
-                              task.priority,
-                            ),
-                            onCompletedChanged:
-                                (
-                              task,
-                              completed,
-                            ) async {
+                            tasks: inboxTasks,
+                            timeLabelBuilder: _timeLabel,
+                            secondaryLabelBuilder: _secondaryLabel,
+                            categoryBuilder: (task) => task.categoryId == null
+                                ? null
+                                : categoryMap[task.categoryId],
+                            priorityColorBuilder: (task) =>
+                                _priorityColor(context, task.priority),
+                            priorityLabelBuilder: (task) =>
+                                _priorityLabel(task.priority),
+                            onCompletedChanged: (task, completed) async {
                               if (completed) {
                                 final confirmed =
-                                    await TaskPrompts
-                                        .confirmCompletionIfNeeded(
-                                  context,
-                                  subtasks:
-                                      task.subtasks,
-                                );
+                                    await TaskPrompts.confirmCompletionIfNeeded(
+                                      context,
+                                      subtasks: task.subtasks,
+                                    );
 
                                 if (!confirmed) {
                                   return;
                                 }
                               }
 
-                              await _taskActions
-                                  .setCompleted(
-                                task:
-                                    task,
-                                completed:
-                                    completed,
+                              await _taskActions.setCompleted(
+                                task: task,
+                                completed: completed,
                               );
                             },
-                            onTaskTap:
-                                (task) {
-                              _openTaskDetail(
-                                task,
-                              );
+                            onTaskTap: (task) {
+                              _openTaskDetail(task);
                             },
-                            onTaskLongPress:
-                                (task) {
+                            onTaskLongPress: (task) {
                               TaskQuickActions.show(
-                                context:
-                                    context,
-                                task:
-                                    task,
-                                taskRepository:
-                                    widget
-                                        .taskRepository,
-                                categoryRepository:
-                                    widget
-                                        .categoryRepository,
+                                context: context,
+                                task: task,
+                                taskRepository: widget.taskRepository,
+                                categoryRepository: widget.categoryRepository,
                               );
                             },
                           )
                       else ...[
-                        if (currentOccurrences
-                            .isEmpty)
+                        if (currentOccurrences.isEmpty)
                           _EmptyCurrentTasks(
-                            hasPast:
-                                pastOccurrences
-                                    .isNotEmpty,
-                            onAdd:
-                                _addTask,
+                            hasPast: pastOccurrences.isNotEmpty,
+                            onAdd: _addTask,
                           )
                         else
-                          for (final entry
-                              in _groupScheduledOccurrences(
+                          for (final entry in _groupScheduledOccurrences(
                             currentOccurrences,
                           ).entries) ...[
                             _OccurrenceGroup(
-                              title:
-                                  _groupLabel(
-                                entry.value
-                                    .first
-                                    .date,
-                                now,
-                              ),
-                              occurrences:
-                                  entry.value,
-                              timeLabelBuilder:
-                                  _timeLabel,
+                              title: _groupLabel(entry.value.first.date, now),
+                              occurrences: entry.value,
+                              timeLabelBuilder: _timeLabel,
                               secondaryLabelBuilder:
-                                  _secondaryLabel,
-                              categoryBuilder:
-                                  (task) =>
-                                      task.categoryId ==
-                                              null
-                                          ? null
-                                          : categoryMap[
-                                              task.categoryId],
-                              priorityColorBuilder:
-                                  (task) =>
-                                      _priorityColor(
-                                context,
-                                task.priority,
-                              ),
-                              priorityLabelBuilder:
-                                  (task) =>
-                                      _priorityLabel(
-                                task.priority,
-                              ),
-                              recurrenceLabelBuilder:
-                                  (task) =>
-                                      _recurrenceLabel(
-                                task.recurrence,
-                              ),
-                              onCompletedChanged:
-                                  (
-                                occurrence,
-                                completed,
-                              ) async {
+                                  _secondaryLabelForOccurrence,
+                              categoryBuilder: (task) => task.categoryId == null
+                                  ? null
+                                  : categoryMap[task.categoryId],
+                              priorityColorBuilder: (task) =>
+                                  _priorityColor(context, task.priority),
+                              priorityLabelBuilder: (task) =>
+                                  _priorityLabel(task.priority),
+                              recurrenceLabelBuilder: (task) =>
+                                  _recurrenceLabel(task.recurrence),
+                              onCompletedChanged: (occurrence, completed) async {
                                 if (completed) {
                                   final confirmed =
-                                      await TaskPrompts
-                                          .confirmCompletionIfNeeded(
-                                    context,
-                                    subtasks:
-                                        occurrence
-                                            .subtasks,
-                                  );
+                                      await TaskPrompts.confirmCompletionIfNeeded(
+                                        context,
+                                        subtasks: occurrence.subtasks,
+                                      );
 
                                   if (!confirmed) {
                                     return;
                                   }
                                 }
 
-                                await _taskActions
-                                    .setCompleted(
-                                  task:
-                                      occurrence
-                                          .task,
-                                  occurrence:
-                                      occurrence,
-                                  completed:
-                                      completed,
+                                await _taskActions.setCompleted(
+                                  task: occurrence.task,
+                                  occurrence: occurrence,
+                                  completed: completed,
                                 );
                               },
-                              onTaskTap:
-                                  (occurrence) {
+                              onTaskTap: (occurrence) {
                                 _openTaskDetail(
-                                  occurrence
-                                      .task,
-                                  occurrence:
-                                      occurrence,
+                                  occurrence.task,
+                                  occurrence: occurrence,
                                 );
                               },
-                              onTaskLongPress:
-                                  (occurrence) {
+                              onTaskLongPress: (occurrence) {
                                 TaskQuickActions.show(
-                                  context:
-                                      context,
-                                  task:
-                                      occurrence
-                                          .task,
-                                  occurrence:
-                                      occurrence,
-                                  taskRepository:
-                                      widget
-                                          .taskRepository,
-                                  categoryRepository:
-                                      widget
-                                          .categoryRepository,
+                                  context: context,
+                                  task: occurrence.task,
+                                  occurrence: occurrence,
+                                  taskRepository: widget.taskRepository,
+                                  categoryRepository: widget.categoryRepository,
                                 );
                               },
                             ),
 
-                            const SizedBox(
-                              height: 30,
-                            ),
+                            const SizedBox(height: 30),
                           ],
 
-                        if (pastOccurrences
-                            .isNotEmpty) ...[
-                          const SizedBox(
-                            height: 2,
-                          ),
+                        if (pastOccurrences.isNotEmpty) ...[
+                          const SizedBox(height: 2),
 
                           _PastSection(
-                            occurrences:
-                                pastOccurrences,
-                            expanded:
-                                _pastExpanded,
-                            onToggle:
-                                () {
+                            occurrences: pastOccurrences,
+                            expanded: _pastExpanded,
+                            onToggle: () {
                               setState(() {
-                                _pastExpanded =
-                                    !_pastExpanded;
+                                _pastExpanded = !_pastExpanded;
                               });
                             },
-                            groupLabelBuilder:
-                                (date) =>
-                                    _groupLabel(
-                                  date,
-                                  now,
-                                ),
-                            groupKeyBuilder:
-                                _groupKey,
-                            timeLabelBuilder:
-                                _timeLabel,
-                            secondaryLabelBuilder:
-                                _secondaryLabel,
-                            categoryBuilder:
-                                (task) =>
-                                    task.categoryId ==
-                                            null
-                                        ? null
-                                        : categoryMap[
-                                            task.categoryId],
-                            priorityColorBuilder:
-                                (task) =>
-                                    _priorityColor(
-                              context,
-                              task.priority,
-                            ),
-                            priorityLabelBuilder:
-                                (task) =>
-                                    _priorityLabel(
-                              task.priority,
-                            ),
-                            recurrenceLabelBuilder:
-                                (task) =>
-                                    _recurrenceLabel(
-                              task.recurrence,
-                            ),
-                            onCompletedChanged:
-                                (
-                              occurrence,
-                              completed,
-                            ) async {
+                            groupLabelBuilder: (date) => _groupLabel(date, now),
+                            groupKeyBuilder: _groupKey,
+                            timeLabelBuilder: _timeLabel,
+                            secondaryLabelBuilder: _secondaryLabelForOccurrence,
+                            categoryBuilder: (task) => task.categoryId == null
+                                ? null
+                                : categoryMap[task.categoryId],
+                            priorityColorBuilder: (task) =>
+                                _priorityColor(context, task.priority),
+                            priorityLabelBuilder: (task) =>
+                                _priorityLabel(task.priority),
+                            recurrenceLabelBuilder: (task) =>
+                                _recurrenceLabel(task.recurrence),
+                            onCompletedChanged: (occurrence, completed) async {
                               if (completed) {
                                 final confirmed =
-                                    await TaskPrompts
-                                        .confirmCompletionIfNeeded(
-                                  context,
-                                  subtasks:
-                                      occurrence
-                                          .subtasks,
-                                );
+                                    await TaskPrompts.confirmCompletionIfNeeded(
+                                      context,
+                                      subtasks: occurrence.subtasks,
+                                    );
 
                                 if (!confirmed) {
                                   return;
                                 }
                               }
 
-                              await _taskActions
-                                  .setCompleted(
-                                task:
-                                    occurrence
-                                        .task,
-                                occurrence:
-                                    occurrence,
-                                completed:
-                                    completed,
+                              await _taskActions.setCompleted(
+                                task: occurrence.task,
+                                occurrence: occurrence,
+                                completed: completed,
                               );
                             },
-                            onTaskTap:
-                                (occurrence) {
+                            onTaskTap: (occurrence) {
                               _openTaskDetail(
-                                occurrence
-                                    .task,
-                                occurrence:
-                                    occurrence,
+                                occurrence.task,
+                                occurrence: occurrence,
                               );
                             },
-                            onTaskLongPress:
-                                (occurrence) {
+                            onTaskLongPress: (occurrence) {
                               TaskQuickActions.show(
-                                context:
-                                    context,
-                                task:
-                                    occurrence
-                                        .task,
-                                occurrence:
-                                    occurrence,
-                                taskRepository:
-                                    widget
-                                        .taskRepository,
-                                categoryRepository:
-                                    widget
-                                        .categoryRepository,
+                                context: context,
+                                task: occurrence.task,
+                                occurrence: occurrence,
+                                taskRepository: widget.taskRepository,
+                                categoryRepository: widget.categoryRepository,
                               );
                             },
                           ),
@@ -1020,13 +611,11 @@ class _TasksPageState
   }
 }
 
-class _TaskModeSwitch
-    extends StatelessWidget {
+class _TaskModeSwitch extends StatelessWidget {
   final _TaskListMode selected;
   final int scheduledCount;
   final int inboxCount;
-  final ValueChanged<_TaskListMode>
-      onChanged;
+  final ValueChanged<_TaskListMode> onChanged;
 
   const _TaskModeSwitch({
     required this.selected,
@@ -1036,47 +625,27 @@ class _TaskModeSwitch
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: _ModeTab(
-            label:
-                'Programmate',
-            count:
-                scheduledCount,
-            selected:
-                selected ==
-                    _TaskListMode
-                        .scheduled,
+            label: 'Programmate',
+            count: scheduledCount,
+            selected: selected == _TaskListMode.scheduled,
             onTap: () {
-              onChanged(
-                _TaskListMode
-                    .scheduled,
-              );
+              onChanged(_TaskListMode.scheduled);
             },
           ),
         ),
-        const SizedBox(
-          width: 22,
-        ),
+        const SizedBox(width: 22),
         Expanded(
           child: _ModeTab(
-            label:
-                'Inbox',
-            count:
-                inboxCount,
-            selected:
-                selected ==
-                    _TaskListMode
-                        .inbox,
+            label: 'Inbox',
+            count: inboxCount,
+            selected: selected == _TaskListMode.inbox,
             onTap: () {
-              onChanged(
-                _TaskListMode
-                    .inbox,
-              );
+              onChanged(_TaskListMode.inbox);
             },
           ),
         ),
@@ -1085,8 +654,7 @@ class _TaskModeSwitch
   }
 }
 
-class _ModeTab
-    extends StatelessWidget {
+class _ModeTab extends StatelessWidget {
   final String label;
   final int count;
   final bool selected;
@@ -1100,110 +668,50 @@ class _ModeTab
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
-      color:
-          Colors.transparent,
+      color: Colors.transparent,
       child: InkWell(
-        onTap:
-            onTap,
+        onTap: onTap,
         child: Padding(
-          padding:
-              const EdgeInsets
-                  .fromLTRB(
-            0,
-            12,
-            0,
-            10,
-          ),
+          padding: const EdgeInsets.fromLTRB(0, 12, 0, 10),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Text(
                     label,
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(
-                              fontWeight:
-                                  selected
-                                      ? FontWeight
-                                          .w700
-                                      : FontWeight
-                                          .w500,
-                              color:
-                                  selected
-                                      ? colorScheme
-                                          .onSurface
-                                      : colorScheme
-                                          .onSurfaceVariant,
-                            ),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected
+                          ? colorScheme.onSurface
+                          : colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  const SizedBox(
-                    width: 7,
-                  ),
+                  const SizedBox(width: 7),
                   Text(
                     '$count',
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              color:
-                                  selected
-                                      ? colorScheme
-                                          .primary
-                                      : colorScheme
-                                          .onSurfaceVariant,
-                              fontWeight:
-                                  FontWeight
-                                      .w700,
-                            ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: selected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(
-                height: 9,
-              ),
+              const SizedBox(height: 9),
               AnimatedContainer(
-                duration:
-                    const Duration(
-                  milliseconds:
-                      160,
-                ),
+                duration: const Duration(milliseconds: 160),
                 height: 2,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      selected
-                          ? colorScheme
-                              .primary
-                          : colorScheme
-                              .outlineVariant
-                              .withValues(
-                            alpha:
-                                0.45,
-                          ),
-                  borderRadius:
-                      BorderRadius
-                          .circular(
-                    2,
-                  ),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? colorScheme.primary
+                      : colorScheme.outlineVariant.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ],
@@ -1214,81 +722,41 @@ class _ModeTab
   }
 }
 
-class _EmptyCurrentTasks
-    extends StatelessWidget {
+class _EmptyCurrentTasks extends StatelessWidget {
   final bool hasPast;
   final VoidCallback onAdd;
 
-  const _EmptyCurrentTasks({
-    required this.hasPast,
-    required this.onAdd,
-  });
+  const _EmptyCurrentTasks({required this.hasPast, required this.onAdd});
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding:
-          const EdgeInsets.only(
-        bottom: 30,
-      ),
+      padding: const EdgeInsets.only(bottom: 30),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment
-                .start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            hasPast
-                ? 'Niente in programma'
-                : 'Nessuna attività',
-            style:
-                Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(
-                      fontWeight:
-                          FontWeight
-                              .w700,
-                    ),
+            hasPast ? 'Niente in programma' : 'Nessuna attività',
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(
-            height: 7,
-          ),
+          const SizedBox(height: 7),
           Text(
             hasPast
                 ? 'Le attività passate sono '
-                    'raccolte più sotto.'
+                      'raccolte più sotto.'
                 : 'Aggiungi qualcosa da fare '
-                    'quando vuoi.',
-            style:
-                Theme.of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.copyWith(
-                      color:
-                          colorScheme
-                              .onSurfaceVariant,
-                    ),
+                      'quando vuoi.',
+            style: Theme.of(context).textTheme.bodyLarge
+                ?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(
-            height: 16,
-          ),
+          const SizedBox(height: 16),
           TextButton.icon(
-            onPressed:
-                onAdd,
-            icon:
-                const Icon(
-              Icons.add,
-            ),
-            label:
-                const Text(
-              'Nuova attività',
-            ),
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('Nuova attività'),
           ),
         ],
       ),
@@ -1296,86 +764,42 @@ class _EmptyCurrentTasks
   }
 }
 
-class _EmptyTaskList
-    extends StatelessWidget {
+class _EmptyTaskList extends StatelessWidget {
   final bool isInbox;
   final VoidCallback onAdd;
 
-  const _EmptyTaskList({
-    required this.isInbox,
-    required this.onAdd,
-  });
+  const _EmptyTaskList({required this.isInbox, required this.onAdd});
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding:
-          const EdgeInsets
-              .fromLTRB(
-        0,
-        30,
-        0,
-        20,
-      ),
+      padding: const EdgeInsets.fromLTRB(0, 30, 0, 20),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment
-                .start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isInbox
-                ? 'Inbox vuota'
-                : 'Nessuna attività',
-            style:
-                Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(
-                      fontWeight:
-                          FontWeight
-                              .w700,
-                    ),
+            isInbox ? 'Inbox vuota' : 'Nessuna attività',
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(
-            height: 7,
-          ),
+          const SizedBox(height: 7),
           Text(
             isInbox
                 ? 'Qui raccogliamo le cose '
-                    'che vuoi fare ma che non '
-                    'hai ancora programmato.'
+                      'che vuoi fare ma che non '
+                      'hai ancora programmato.'
                 : 'Aggiungi qualcosa da fare '
-                    'quando vuoi.',
-            style:
-                Theme.of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.copyWith(
-                      color:
-                          colorScheme
-                              .onSurfaceVariant,
-                    ),
+                      'quando vuoi.',
+            style: Theme.of(context).textTheme.bodyLarge
+                ?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(
-            height: 16,
-          ),
+          const SizedBox(height: 16),
           TextButton.icon(
-            onPressed:
-                onAdd,
-            icon:
-                const Icon(
-              Icons.add,
-            ),
-            label:
-                const Text(
-              'Nuova attività',
-            ),
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('Nuova attività'),
           ),
         ],
       ),
@@ -1383,35 +807,17 @@ class _EmptyTaskList
   }
 }
 
-class _InboxSection
-    extends StatelessWidget {
+class _InboxSection extends StatelessWidget {
   final List<LifeTask> tasks;
-  final String Function(
-    LifeTask task,
-  ) timeLabelBuilder;
-  final String Function(
-    LifeTask task,
-  ) secondaryLabelBuilder;
-  final TaskCategory? Function(
-    LifeTask task,
-  ) categoryBuilder;
-  final Color Function(
-    LifeTask task,
-  ) priorityColorBuilder;
-  final String Function(
-    LifeTask task,
-  ) priorityLabelBuilder;
-  final Future<void> Function(
-    LifeTask task,
-    bool completed,
-  ) onCompletedChanged;
-  final void Function(
-    LifeTask task,
-  ) onTaskTap;
+  final String Function(LifeTask task) timeLabelBuilder;
+  final String Function(LifeTask task) secondaryLabelBuilder;
+  final TaskCategory? Function(LifeTask task) categoryBuilder;
+  final Color Function(LifeTask task) priorityColorBuilder;
+  final String Function(LifeTask task) priorityLabelBuilder;
+  final Future<void> Function(LifeTask task, bool completed) onCompletedChanged;
+  final void Function(LifeTask task) onTaskTap;
 
-  final void Function(
-    LifeTask task,
-  ) onTaskLongPress;
+  final void Function(LifeTask task) onTaskLongPress;
 
   const _InboxSection({
     required this.tasks,
@@ -1426,109 +832,48 @@ class _InboxSection
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Da programmare',
-          style:
-              Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(
-                    fontWeight:
-                        FontWeight
-                            .w700,
-                    letterSpacing:
-                        -0.3,
-                  ),
+          style: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.3),
         ),
-        const SizedBox(
-          height: 5,
-        ),
+        const SizedBox(height: 5),
         Text(
           'Durata e orario possono '
           'esserci anche senza una data.',
-          style:
-              Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(
-                    color:
-                        colorScheme
-                            .onSurfaceVariant,
-                  ),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: colorScheme.onSurfaceVariant),
         ),
-        const SizedBox(
-          height: 14,
-        ),
-        for (int i = 0;
-            i < tasks.length;
-            i++) ...[
+        const SizedBox(height: 14),
+        for (int i = 0; i < tasks.length; i++) ...[
           _TaskRow(
-            task:
-                tasks[i],
-            timeLabel:
-                timeLabelBuilder(
-              tasks[i],
-            ),
-            secondaryLabel:
-                secondaryLabelBuilder(
-              tasks[i],
-            ),
-            category:
-                categoryBuilder(
-              tasks[i],
-            ),
-            priorityColor:
-                priorityColorBuilder(
-              tasks[i],
-            ),
-            priorityLabel:
-                priorityLabelBuilder(
-              tasks[i],
-            ),
-            recurrenceLabel:
-                null,
-            onCompletedChanged:
-                (completed) {
-              return onCompletedChanged(
-                tasks[i],
-                completed,
-              );
+            task: tasks[i],
+            timeLabel: timeLabelBuilder(tasks[i]),
+            secondaryLabel: secondaryLabelBuilder(tasks[i]),
+            category: categoryBuilder(tasks[i]),
+            priorityColor: priorityColorBuilder(tasks[i]),
+            priorityLabel: priorityLabelBuilder(tasks[i]),
+            recurrenceLabel: null,
+            onCompletedChanged: (completed) {
+              return onCompletedChanged(tasks[i], completed);
             },
-            onTap:
-                () {
-              onTaskTap(
-                tasks[i],
-              );
+            onTap: () {
+              onTaskTap(tasks[i]);
             },
-            onLongPress:
-                () {
-              onTaskLongPress(
-                tasks[i],
-              );
+            onLongPress: () {
+              onTaskLongPress(tasks[i]);
             },
           ),
-          if (i !=
-              tasks.length - 1)
+          if (i != tasks.length - 1)
             Divider(
               indent: 96,
-              color:
-                  colorScheme
-                      .outlineVariant
-                      .withValues(
-                alpha:
-                    0.45,
-              ),
+              color: colorScheme.outlineVariant.withValues(alpha: 0.45),
             ),
         ],
       ],
@@ -1536,40 +881,20 @@ class _InboxSection
   }
 }
 
-class _OccurrenceGroup
-    extends StatelessWidget {
+class _OccurrenceGroup extends StatelessWidget {
   final String title;
-  final List<TaskOccurrence>
-      occurrences;
-  final String Function(
-    LifeTask task,
-  ) timeLabelBuilder;
-  final String Function(
-    LifeTask task,
-  ) secondaryLabelBuilder;
-  final TaskCategory? Function(
-    LifeTask task,
-  ) categoryBuilder;
-  final Color Function(
-    LifeTask task,
-  ) priorityColorBuilder;
-  final String Function(
-    LifeTask task,
-  ) priorityLabelBuilder;
-  final String? Function(
-    LifeTask task,
-  ) recurrenceLabelBuilder;
-  final Future<void> Function(
-    TaskOccurrence occurrence,
-    bool completed,
-  ) onCompletedChanged;
-  final void Function(
-    TaskOccurrence occurrence,
-  ) onTaskTap;
+  final List<TaskOccurrence> occurrences;
+  final String Function(LifeTask task) timeLabelBuilder;
+  final String Function(TaskOccurrence occurrence) secondaryLabelBuilder;
+  final TaskCategory? Function(LifeTask task) categoryBuilder;
+  final Color Function(LifeTask task) priorityColorBuilder;
+  final String Function(LifeTask task) priorityLabelBuilder;
+  final String? Function(LifeTask task) recurrenceLabelBuilder;
+  final Future<void> Function(TaskOccurrence occurrence, bool completed)
+  onCompletedChanged;
+  final void Function(TaskOccurrence occurrence) onTaskTap;
 
-  final void Function(
-    TaskOccurrence occurrence,
-  ) onTaskLongPress;
+  final void Function(TaskOccurrence occurrence) onTaskLongPress;
 
   const _OccurrenceGroup({
     required this.title,
@@ -1586,106 +911,48 @@ class _OccurrenceGroup
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style:
-              Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(
-                    fontWeight:
-                        FontWeight
-                            .w700,
-                    letterSpacing:
-                        -0.3,
-                  ),
+          style: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.3),
         ),
-        const SizedBox(
-          height: 10,
-        ),
-        for (int i = 0;
-            i < occurrences.length;
-            i++) ...[
+        const SizedBox(height: 10),
+        for (int i = 0; i < occurrences.length; i++) ...[
           Builder(
-            builder:
-                (context) {
-              final occurrence =
-                  occurrences[i];
-              final task =
-                  occurrence
-                      .displayTask;
+            builder: (context) {
+              final occurrence = occurrences[i];
+              final task = occurrence.displayTask;
 
               return _TaskRow(
-                task:
-                    task,
-                timeLabel:
-                    timeLabelBuilder(
-                  task,
-                ),
-                secondaryLabel:
-                    secondaryLabelBuilder(
-                  task,
-                ),
-                category:
-                    categoryBuilder(
-                  task,
-                ),
-                priorityColor:
-                    priorityColorBuilder(
-                  task,
-                ),
-                priorityLabel:
-                    priorityLabelBuilder(
-                  task,
-                ),
-                recurrenceLabel:
-                    recurrenceLabelBuilder(
-                  occurrence.task,
-                ),
-                onCompletedChanged:
-                    (completed) {
-                  return onCompletedChanged(
-                    occurrence,
-                    completed,
-                  );
+                task: task,
+                timeLabel: timeLabelBuilder(task),
+                secondaryLabel: secondaryLabelBuilder(occurrence),
+                category: categoryBuilder(task),
+                priorityColor: priorityColorBuilder(task),
+                priorityLabel: priorityLabelBuilder(task),
+                recurrenceLabel: recurrenceLabelBuilder(occurrence.task),
+                onCompletedChanged: (completed) {
+                  return onCompletedChanged(occurrence, completed);
                 },
-                onTap:
-                    () {
-                  onTaskTap(
-                    occurrence,
-                  );
+                onTap: () {
+                  onTaskTap(occurrence);
                 },
-                onLongPress:
-                    () {
-                  onTaskLongPress(
-                    occurrence,
-                  );
+                onLongPress: () {
+                  onTaskLongPress(occurrence);
                 },
               );
             },
           ),
-          if (i !=
-              occurrences.length - 1)
+          if (i != occurrences.length - 1)
             Divider(
               indent: 96,
-              color:
-                  colorScheme
-                      .outlineVariant
-                      .withValues(
-                alpha:
-                    0.45,
-              ),
+              color: colorScheme.outlineVariant.withValues(alpha: 0.45),
             ),
         ],
       ],
@@ -1693,47 +960,23 @@ class _OccurrenceGroup
   }
 }
 
-class _PastSection
-    extends StatelessWidget {
-  final List<TaskOccurrence>
-      occurrences;
+class _PastSection extends StatelessWidget {
+  final List<TaskOccurrence> occurrences;
   final bool expanded;
   final VoidCallback onToggle;
-  final String Function(
-    DateTime date,
-  ) groupLabelBuilder;
-  final String Function(
-    TaskOccurrence occurrence,
-  ) groupKeyBuilder;
-  final String Function(
-    LifeTask task,
-  ) timeLabelBuilder;
-  final String Function(
-    LifeTask task,
-  ) secondaryLabelBuilder;
-  final TaskCategory? Function(
-    LifeTask task,
-  ) categoryBuilder;
-  final Color Function(
-    LifeTask task,
-  ) priorityColorBuilder;
-  final String Function(
-    LifeTask task,
-  ) priorityLabelBuilder;
-  final String? Function(
-    LifeTask task,
-  ) recurrenceLabelBuilder;
-  final Future<void> Function(
-    TaskOccurrence occurrence,
-    bool completed,
-  ) onCompletedChanged;
-  final void Function(
-    TaskOccurrence occurrence,
-  ) onTaskTap;
+  final String Function(DateTime date) groupLabelBuilder;
+  final String Function(TaskOccurrence occurrence) groupKeyBuilder;
+  final String Function(LifeTask task) timeLabelBuilder;
+  final String Function(TaskOccurrence occurrence) secondaryLabelBuilder;
+  final TaskCategory? Function(LifeTask task) categoryBuilder;
+  final Color Function(LifeTask task) priorityColorBuilder;
+  final String Function(LifeTask task) priorityLabelBuilder;
+  final String? Function(LifeTask task) recurrenceLabelBuilder;
+  final Future<void> Function(TaskOccurrence occurrence, bool completed)
+  onCompletedChanged;
+  final void Function(TaskOccurrence occurrence) onTaskTap;
 
-  final void Function(
-    TaskOccurrence occurrence,
-  ) onTaskLongPress;
+  final void Function(TaskOccurrence occurrence) onTaskLongPress;
 
   const _PastSection({
     required this.occurrences,
@@ -1752,131 +995,62 @@ class _PastSection
     required this.onTaskLongPress,
   });
 
-  Map<String, List<TaskOccurrence>>
-      _groups() {
-    final groups =
-        <String,
-            List<TaskOccurrence>>{};
+  Map<String, List<TaskOccurrence>> _groups() {
+    final groups = <String, List<TaskOccurrence>>{};
 
-    for (final occurrence
-        in occurrences) {
-      final key =
-          groupKeyBuilder(
-        occurrence,
-      );
+    for (final occurrence in occurrences) {
+      final key = groupKeyBuilder(occurrence);
 
-      groups
-          .putIfAbsent(
-            key,
-            () => [],
-          )
-          .add(
-            occurrence,
-          );
+      groups.putIfAbsent(key, () => []).add(occurrence);
     }
 
     return groups;
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
-    final groups =
-        _groups();
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final groups = _groups();
 
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Divider(
-          color:
-              colorScheme
-                  .outlineVariant
-                  .withValues(
-            alpha: 0.55,
-          ),
-        ),
+        Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.55)),
         Material(
-          color:
-              Colors.transparent,
+          color: Colors.transparent,
           child: InkWell(
-            onTap:
-                onToggle,
+            onTap: onToggle,
             child: Padding(
-              padding:
-                  const EdgeInsets
-                      .symmetric(
-                vertical: 17,
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 17),
               child: Row(
                 children: [
                   Icon(
-                    Icons
-                        .history_outlined,
+                    Icons.history_outlined,
                     size: 20,
-                    color:
-                        colorScheme
-                            .onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(
-                    width: 10,
-                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Passate',
-                      style:
-                          Theme.of(
-                        context,
-                      )
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(
-                                fontWeight:
-                                    FontWeight
-                                        .w700,
-                              ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
                   Text(
                     '${occurrences.length}',
-                    style:
-                        Theme.of(
-                      context,
-                    )
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
-                              color:
-                                  colorScheme
-                                      .onSurfaceVariant,
-                              fontWeight:
-                                  FontWeight
-                                      .w600,
-                            ),
-                  ),
-                  const SizedBox(
-                    width: 8,
-                  ),
-                  AnimatedRotation(
-                    duration:
-                        const Duration(
-                      milliseconds:
-                          160,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
                     ),
-                    turns:
-                        expanded
-                            ? 0.5
-                            : 0,
+                  ),
+                  const SizedBox(width: 8),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 160),
+                    turns: expanded ? 0.5 : 0,
                     child: Icon(
-                      Icons
-                          .keyboard_arrow_down,
-                      color:
-                          colorScheme
-                              .onSurfaceVariant,
+                      Icons.keyboard_arrow_down,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1885,124 +1059,52 @@ class _PastSection
           ),
         ),
         if (expanded) ...[
-          const SizedBox(
-            height: 4,
-          ),
-          for (final entry
-              in groups.entries) ...[
+          const SizedBox(height: 4),
+          for (final entry in groups.entries) ...[
             Padding(
-              padding:
-                  const EdgeInsets
-                      .only(
-                top: 8,
-                bottom: 4,
-              ),
+              padding: const EdgeInsets.only(top: 8, bottom: 4),
               child: Text(
-                groupLabelBuilder(
-                  entry.value
-                      .first
-                      .date,
+                groupLabelBuilder(entry.value.first.date),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
                 ),
-                style:
-                    Theme.of(
-                  context,
-                )
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(
-                          color:
-                              colorScheme
-                                  .onSurfaceVariant,
-                          fontWeight:
-                              FontWeight
-                                  .w700,
-                        ),
               ),
             ),
-            for (int i = 0;
-                i <
-                    entry.value
-                        .length;
-                i++) ...[
+            for (int i = 0; i < entry.value.length; i++) ...[
               Builder(
-                builder:
-                    (context) {
-                  final occurrence =
-                      entry.value[i];
-                  final task =
-                      occurrence
-                          .displayTask;
+                builder: (context) {
+                  final occurrence = entry.value[i];
+                  final task = occurrence.displayTask;
 
                   return _TaskRow(
-                    task:
-                        task,
-                    timeLabel:
-                        timeLabelBuilder(
-                      task,
-                    ),
-                    secondaryLabel:
-                        secondaryLabelBuilder(
-                      task,
-                    ),
-                    category:
-                        categoryBuilder(
-                      task,
-                    ),
-                    priorityColor:
-                        priorityColorBuilder(
-                      task,
-                    ),
-                    priorityLabel:
-                        priorityLabelBuilder(
-                      task,
-                    ),
-                    recurrenceLabel:
-                        recurrenceLabelBuilder(
-                      occurrence
-                          .task,
-                    ),
-                    isPast:
-                        true,
-                    onCompletedChanged:
-                        (completed) {
-                      return onCompletedChanged(
-                        occurrence,
-                        completed,
-                      );
+                    task: task,
+                    timeLabel: timeLabelBuilder(task),
+                    secondaryLabel: secondaryLabelBuilder(occurrence),
+                    category: categoryBuilder(task),
+                    priorityColor: priorityColorBuilder(task),
+                    priorityLabel: priorityLabelBuilder(task),
+                    recurrenceLabel: recurrenceLabelBuilder(occurrence.task),
+                    isPast: true,
+                    onCompletedChanged: (completed) {
+                      return onCompletedChanged(occurrence, completed);
                     },
-                    onTap:
-                        () {
-                      onTaskTap(
-                        occurrence,
-                      );
+                    onTap: () {
+                      onTaskTap(occurrence);
                     },
-                    onLongPress:
-                        () {
-                      onTaskLongPress(
-                        occurrence,
-                      );
+                    onLongPress: () {
+                      onTaskLongPress(occurrence);
                     },
                   );
                 },
               ),
-              if (i !=
-                  entry.value
-                          .length -
-                      1)
+              if (i != entry.value.length - 1)
                 Divider(
                   indent: 96,
-                  color:
-                      colorScheme
-                          .outlineVariant
-                          .withValues(
-                    alpha:
-                        0.4,
-                  ),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
                 ),
             ],
-            const SizedBox(
-              height: 14,
-            ),
+            const SizedBox(height: 14),
           ],
         ],
       ],
@@ -2010,8 +1112,7 @@ class _PastSection
   }
 }
 
-class _TaskRow
-    extends StatelessWidget {
+class _TaskRow extends StatelessWidget {
   final LifeTask task;
   final String timeLabel;
   final String secondaryLabel;
@@ -2020,9 +1121,7 @@ class _TaskRow
   final String priorityLabel;
   final String? recurrenceLabel;
   final bool isPast;
-  final Future<void> Function(
-    bool completed,
-  ) onCompletedChanged;
+  final Future<void> Function(bool completed) onCompletedChanged;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
@@ -2041,133 +1140,63 @@ class _TaskRow
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    final categoryColor =
-        category == null
-            ? colorScheme
-                .onSurfaceVariant
-                .withValues(
-                  alpha: 0.72,
-                )
-            : Color(
-                category!.colorValue,
-              );
+    final categoryColor = category == null
+        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.72)
+        : Color(category!.colorValue);
 
     return Opacity(
-      opacity:
-          isPast
-              ? 0.82
-              : 1,
+      opacity: isPast ? 0.82 : 1,
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment
-                .start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 58,
             child: Padding(
-              padding:
-                  const EdgeInsets
-                      .only(
-                top: 18,
-                right: 8,
-              ),
+              padding: const EdgeInsets.only(top: 18, right: 8),
               child: Text(
                 timeLabel,
-                textAlign:
-                    TextAlign.right,
-                style:
-                    Theme.of(
-                  context,
-                )
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
-                          color:
-                              colorScheme
-                                  .onSurfaceVariant,
-                          fontWeight:
-                              FontWeight
-                                  .w500,
-                        ),
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
           InkResponse(
             radius: 24,
             onTap: () {
-              onCompletedChanged(
-                !task.isCompleted,
-              );
+              onCompletedChanged(!task.isCompleted);
             },
             child: Padding(
-              padding:
-                  const EdgeInsets
-                      .fromLTRB(
-                8,
-                16,
-                10,
-                16,
-              ),
+              padding: const EdgeInsets.fromLTRB(8, 16, 10, 16),
               child: Container(
                 width: 18,
                 height: 18,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      task.isCompleted
-                          ? categoryColor
-                          : Colors
-                              .transparent,
-                  shape:
-                      BoxShape.circle,
-                  border:
-                      Border.all(
-                    color:
-                        categoryColor,
-                    width: 2,
-                  ),
+                decoration: BoxDecoration(
+                  color: task.isCompleted ? categoryColor : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: categoryColor, width: 2),
                 ),
-                child:
-                    task.isCompleted
-                        ? const Icon(
-                            Icons.check,
-                            size: 12,
-                            color:
-                                Colors.white,
-                          )
-                        : null,
+                child: task.isCompleted
+                    ? const Icon(Icons.check, size: 12, color: Colors.white)
+                    : null,
               ),
             ),
           ),
           Expanded(
             child: Material(
-              color:
-                  Colors.transparent,
+              color: Colors.transparent,
               child: InkWell(
-                onTap:
-                    onTap,
-                onLongPress:
-                    onLongPress,
+                onTap: onTap,
+                onLongPress: onLongPress,
                 child: Padding(
-                  padding:
-                      const EdgeInsets
-                          .fromLTRB(
-                    4,
-                    13,
-                    4,
-                    14,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(4, 13, 4, 14),
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
@@ -2177,264 +1206,147 @@ class _TaskRow
                                 Flexible(
                                   child: Text(
                                     task.title,
-                                    maxLines:
-                                        1,
-                                    overflow:
-                                        TextOverflow
-                                            .ellipsis,
-                                    style:
-                                        Theme.of(
-                                      context,
-                                    )
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              fontWeight:
-                                                  FontWeight
-                                                      .w600,
-                                              decoration:
-                                                  task.isCompleted
-                                                      ? TextDecoration
-                                                          .lineThrough
-                                                      : null,
-                                            ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          decoration: task.isCompleted
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                        ),
                                   ),
                                 ),
-                                const SizedBox(
-                                  width: 6,
-                                ),
+                                const SizedBox(width: 6),
                                 Tooltip(
-                                  message:
-                                      'Priorità $priorityLabel',
+                                  message: 'Priorità $priorityLabel',
                                   child: Icon(
-                                    Icons
-                                        .flag_outlined,
+                                    Icons.flag_outlined,
                                     size: 15,
-                                    color:
-                                        priorityColor,
+                                    color: priorityColor,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(
-                            width: 8,
-                          ),
+                          const SizedBox(width: 8),
                           Icon(
-                            Icons
-                                .chevron_right,
+                            Icons.chevron_right,
                             size: 18,
-                            color:
-                                colorScheme
-                                    .onSurfaceVariant
-                                    .withValues(
-                              alpha:
-                                  0.55,
+                            color: colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.55,
                             ),
                           ),
                         ],
                       ),
 
-                      if (secondaryLabel
-                          .isNotEmpty) ...[
-                        const SizedBox(
-                          height: 4,
-                        ),
+                      if (secondaryLabel.isNotEmpty) ...[
+                        const SizedBox(height: 4),
                         Text(
                           secondaryLabel,
                           maxLines: 2,
-                          overflow:
-                              TextOverflow
-                                  .ellipsis,
-                          style:
-                              Theme.of(
-                            context,
-                          )
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color:
-                                        colorScheme
-                                            .onSurfaceVariant,
-                                  ),
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
 
                       if (category != null ||
-                          recurrenceLabel !=
-                              null ||
-                          task.subtasks
-                              .isNotEmpty ||
+                          recurrenceLabel != null ||
+                          task.subtasks.isNotEmpty ||
                           (isPast &&
-                              !task
-                                  .isCompleted &&
-                              !task
-                                  .recurrence
-                                  .isRecurring)) ...[
-                        const SizedBox(
-                          height: 6,
-                        ),
+                              !task.isCompleted &&
+                              !task.recurrence.isRecurring)) ...[
+                        const SizedBox(height: 6),
                         Wrap(
                           spacing: 12,
                           runSpacing: 4,
-                          crossAxisAlignment:
-                              WrapCrossAlignment
-                                  .center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            if (category !=
-                                null)
+                            if (category != null)
                               Row(
-                                mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    taskCategoryIcon(
-                                      category!
-                                          .iconKey,
-                                    ),
+                                    taskCategoryIcon(category!.iconKey),
                                     size: 14,
-                                    color:
-                                        categoryColor,
+                                    color: categoryColor,
                                   ),
-                                  const SizedBox(
-                                    width:
-                                        4,
-                                  ),
+                                  const SizedBox(width: 4),
                                   Text(
-                                    category!
-                                        .name,
-                                    style:
-                                        Theme.of(
-                                      context,
-                                    )
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color:
-                                                  categoryColor,
-                                              fontWeight:
-                                                  FontWeight
-                                                      .w600,
-                                            ),
+                                    category!.name,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: categoryColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                   ),
                                 ],
                               ),
 
-                            if (task.subtasks
-                                .isNotEmpty)
+                            if (task.subtasks.isNotEmpty)
                               Row(
-                                mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    Icons
-                                        .checklist_rounded,
+                                    Icons.checklist_rounded,
                                     size: 14,
-                                    color:
-                                        categoryColor,
+                                    color: categoryColor,
                                   ),
-                                  const SizedBox(
-                                    width:
-                                        4,
-                                  ),
+                                  const SizedBox(width: 4),
                                   Text(
                                     '${task.subtasks.where((subtask) => subtask.isCompleted).length}/${task.subtasks.length}',
-                                    style:
-                                        Theme.of(
-                                      context,
-                                    )
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color:
-                                                  categoryColor,
-                                              fontWeight:
-                                                  FontWeight
-                                                      .w700,
-                                            ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: categoryColor,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                   ),
                                 ],
                               ),
 
-                            if (recurrenceLabel !=
-                                null)
+                            if (recurrenceLabel != null)
                               Row(
-                                mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
                                     Icons.repeat,
                                     size: 14,
-                                    color:
-                                        colorScheme
-                                            .onSurfaceVariant,
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
-                                  const SizedBox(
-                                    width:
-                                        4,
-                                  ),
+                                  const SizedBox(width: 4),
                                   Text(
                                     recurrenceLabel!,
-                                    style:
-                                        Theme.of(
-                                      context,
-                                    )
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color:
-                                                  colorScheme
-                                                      .onSurfaceVariant,
-                                              fontWeight:
-                                                  FontWeight
-                                                      .w600,
-                                            ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                   ),
                                 ],
                               ),
 
                             if (isPast &&
-                                !task
-                                    .isCompleted &&
-                                !task
-                                    .recurrence
-                                    .isRecurring)
+                                !task.isCompleted &&
+                                !task.recurrence.isRecurring)
                               Row(
-                                mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    Icons
-                                        .event_repeat_outlined,
+                                    Icons.event_repeat_outlined,
                                     size: 14,
-                                    color:
-                                        colorScheme
-                                            .error,
+                                    color: colorScheme.error,
                                   ),
-                                  const SizedBox(
-                                    width:
-                                        4,
-                                  ),
+                                  const SizedBox(width: 4),
                                   Text(
                                     'Da riprogrammare',
-                                    style:
-                                        Theme.of(
-                                      context,
-                                    )
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color:
-                                                  colorScheme
-                                                      .error,
-                                              fontWeight:
-                                                  FontWeight
-                                                      .w600,
-                                            ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: colorScheme.error,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                   ),
                                 ],
                               ),
